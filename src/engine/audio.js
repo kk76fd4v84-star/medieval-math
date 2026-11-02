@@ -12,21 +12,41 @@ KM.Audio = (function () {
     if (!/^https?:/.test(location.protocol)) return; // file://: the embedded KM_AUDIO_MAP is used
     try { const r = await fetch("assets/audio_map.json"); if (r.ok) map = await r.json(); } catch (e) {}
   }
-  function play(ev) {
-    log.push(ev); if (log.length > 200) log.shift(); counts[ev] = (counts[ev] || 0) + 1;
-    const m = map[ev]; if (muted || !m || !m.files || !m.files.length) return;
-    // optional rare variant (e.g. the comic squelch / bonk): { rare: { file, p } } replaces the pick with probability p
-    if (m.rare && Math.random() < m.rare.p) { fileLog.push(m.rare.file); return out(m.rare.file, m); }
-    // random pick, never the same file twice in a row (uniform over the other files)
+  // pick a file for an event: random, never the same file twice in a row (uniform over the other files)
+  function pick(ev, m) {
+    if (m.rare && Math.random() < m.rare.p) { fileLog.push(m.rare.file); return m.rare.file; } // optional rare variant (e.g. the comic squelch / bonk)
     let i = Math.floor(Math.random() * (m.files.length > 1 && last[ev] != null ? m.files.length - 1 : m.files.length));
     if (m.files.length > 1 && last[ev] != null && i >= last[ev]) i++;
     last[ev] = i; fileLog.push(m.files[i]); if (fileLog.length > 5000) fileLog.shift();
-    out(m.files[i], m);
+    return m.files[i];
+  }
+  const logEv = ev => { log.push(ev); if (log.length > 200) log.shift(); counts[ev] = (counts[ev] || 0) + 1; };
+  const playable = m => !muted && m && m.files && m.files.length;
+  // play(ev) / play(ev, { gain }): gain multiplies the map's volume (e.g. a quieter third yelp)
+  function play(ev, o) {
+    logEv(ev); const m = map[ev]; if (!playable(m)) return;
+    out(pick(ev, m), m, o && o.gain);
   }
   // .ogg where the browser plays Vorbis, else the .mp3 twin shipped next to it (Safari)
   const OGG = (() => { try { return !!new Audio().canPlayType('audio/ogg; codecs="vorbis"'); } catch (e) { return true; } })();
   const src = f => "assets/audio/" + (OGG ? f : f.replace(/\.ogg$/, ".mp3"));
-  function out(f, m) { try { const a = new Audio(src(f)); a.volume = m.vol == null ? 1 : m.vol; a.loop = !!m.loop; a.play().catch(() => {}); } catch (e) {} }
+  const volOf = (m, g) => Math.min(1, (m.vol == null ? 1 : m.vol) * (g == null ? 1 : g));
+  function out(f, m, g, loop) { try { const a = new Audio(src(f)); a.volume = volOf(m, g); a.loop = !!(loop || m.loop); a.play().catch(() => {}); return a; } catch (e) { return null; } }
+  // v12n loops (e.g. the fire crackle): one per event. loop(ev) starts it (restarts if already on); stop(ev, secs) fades it
+  // out over secs and stops it; stopLoops(secs) stops them all (battle end / scene change). Plain <audio loop> (.ogg seamless).
+  const loops = {}; // ev -> { a, fade }
+  function loop(ev) {
+    logEv(ev); stop(ev, 0); const m = map[ev]; if (!playable(m)) return;
+    const a = out(pick(ev, m), m, null, true); if (a) loops[ev] = { a };
+  }
+  function stop(ev, secs) {
+    const L = loops[ev]; if (!L) return; delete loops[ev];
+    const a = L.a, v0 = a.volume, t0 = performance.now(), ms = (secs || 0) * 1000;
+    if (ms <= 0) { a.pause(); return; }
+    const iv = setInterval(() => { const u = (performance.now() - t0) / ms; if (u >= 1) { clearInterval(iv); a.pause(); } else a.volume = v0 * (1 - u); }, 30);
+  }
+  const stopLoops = secs => Object.keys(loops).forEach(ev => stop(ev, secs));
+  document.addEventListener("visibilitychange", () => { if (document.hidden) stopLoops(0); }); // no crackle left running in a hidden tab
   // Voice-over: one clip at a time. id -> audio_map entry (files under assets/audio/, e.g. "vo/vo_intro_01.ogg").
   // Missing entry / empty files = silent (the text is always shown anyway). voLog records every requested id.
   let vo = null, voTok = 0; const voLog = [];
@@ -72,5 +92,5 @@ KM.Audio = (function () {
   // dialogue line helpers: a line is "text" or { text, vo }
   const text = l => (l && typeof l === "object" ? l.text : l || "");
   const voOf = l => (l && typeof l === "object" ? l.vo : null);
-  return { init, play, voice, text, voOf, log, counts, voLog, voPlayed, voFail, voBusy: () => !!vo, fileLog, map: () => map, setMuted: v => (muted = v) };
+  return { init, play, loop, stop, stopLoops, looping: () => Object.keys(loops), voice, text, voOf, log, counts, voLog, voPlayed, voFail, voBusy: () => !!vo, fileLog, map: () => map, setMuted: v => { muted = v; if (v) stopLoops(0); } };
 })();

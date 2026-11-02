@@ -1238,6 +1238,7 @@
     if (isWalking()) S.walkT = (S.walkT || 0) + dt; // v13 walk cycle clock: runs only while the party walks
     if (S.timers.length) { const due = S.timers.filter(x => x.at <= S.t); S.timers = S.timers.filter(x => x.at > S.t); due.forEach(x => x.fn()); }
     tickSpeech(dt); introPace(); tickAnswerTimer(dt); KM.FireFx.update(dt);
+    if (S.mode !== "encounter" && KM.FireFx.active()) KM.FireFx.stop(); // v12n: the battle is over / the scene changed: no fire (or crackle) left behind
     if (S.mode === "walk") updateWalk(dt);
     if (S.toast) { S.toast.t += dt; if (S.toast.t > S.toast.dur) S.toast = null; }
     if (S.view) { S.view.a += (S.view.to ? 1 : -1) * dt / 0.5; S.view.a = Math.max(0, Math.min(1, S.view.a)); if (!S.view.to && S.view.a <= 0) S.view = null; }
