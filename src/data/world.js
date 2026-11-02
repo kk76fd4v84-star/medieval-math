@@ -5,6 +5,7 @@ KM_DATA.world = {
   groundY: 983,          // feet line (scene px). v7: feet stand on the strip's painted ground divider. v11b: 893 + 90 (shorter strip)
   partyScreenX: 820,     // hero feet x in the view (v8: wider spacing for 1:1 figures)
   slotSpacing: 240,      // distance between party members
+  soloBack: 240,         // v12j (Magnus): a lone hero stands this far behind partyScreenX; the front steps forward as the party fills (full party = partyScreenX)
   engageScreenX: 1750,   // where encounters stop (view x) in front of the party
   walkSpeed: 420,        // scene px/s
   enemyWalkSpeed: 260,

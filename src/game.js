@@ -37,7 +37,9 @@
   // a party member dies horribly (companions first; the hero always dies last, only when no companion is left).
   const HPM = () => D.party.heartsPerMember;
   const maxHp = () => HPM() * S.party.length;
-  const slotX = i => W.partyScreenX - i * W.slotSpacing;
+  // v12j (Magnus): the front of the party moves forward as it fills up; alone the hero stands soloBack further back
+  const frontX = () => W.partyScreenX - (W.soloBack || 0) * (D.party.maxFollowers + 1 - ((S && S.party) ? S.party.length : 1)) / D.party.maxFollowers;
+  const slotX = i => frontX() - i * W.slotSpacing;
   const artId = m => (m.id === "hero" ? "hero" : "follower_" + (m.skin || 1));
   const shortName = n => n.replace(/^(Sir|Dame|Brother) /, "");
   const freeSkin = () => { for (let k = 1; k <= D.party.skins; k++) if (!knights().some(m => m.skin === k)) return k; return 1; };
@@ -603,7 +605,7 @@
   const hitSfx = e => (["boss", "mega"].includes(e.st.type) ? "hit_boss" : (D.enemies[e.act.id] || {}).material === "armour" ? "hit_armour" : "hit_flesh");
   function turnRight(kind) {
     const e = S.enc;
-    if (kind === "heal") { e.heals--; const hb = S.hp; hearts(C.healHearts); e.lost = Math.max(0, (e.lost || 0) - (S.hp - hb)); /* healed hearts are not "lost" */ A.play("heal"); float(`+${C.healHearts} ♥`, W.partyScreenX, W.groundY - tallOf("hero") + 70, "#9be28a"); return later(0.6, enemyTurn); }
+    if (kind === "heal") { e.heals--; const hb = S.hp; hearts(C.healHearts); e.lost = Math.max(0, (e.lost || 0) - (S.hp - hb)); /* healed hearts are not "lost" */ A.play("heal"); float(`+${C.healHearts} ♥`, slotX(0), W.groundY - tallOf("hero") + 70, "#9be28a"); return later(0.6, enemyTurn); }
     const dmg = kind === "hard" ? hardDmg() : weakDmg();
     // sound hooks: the swing at the wind-up, the hit on the impact pose (0.18 s), per attack kind
     partyAct("attack", STRIKE.dur); A.play("swing_" + kind); A.play("hit");
@@ -642,8 +644,8 @@
     if (Math.random() < Math.min(C.armourBlockMax, C.armourBlockPer * S.party.reduce((s, m) => s + m.armor, 0))) atk = 0;
     later(STRIKE.impact, () => { S.shake = 0.25;
       A.play(!atk ? "hit_blocked" : ["boss", "mega"].includes(e.st.type) ? "hit_boss" : "hit_party");
-      if (!atk) { partyAct("hurt", 0.2); float("blocked!", W.partyScreenX, W.groundY - tallOf("hero") + 70, "#fff"); return; }
-      partyAct("hurt", 0.5); hearts(-atk); e.lost = (e.lost || 0) + atk; float(`−${atk} ♥`, W.partyScreenX, W.groundY - tallOf("hero") + 70, "#ff6b6b");
+      if (!atk) { partyAct("hurt", 0.2); float("blocked!", slotX(0), W.groundY - tallOf("hero") + 70, "#fff"); return; }
+      partyAct("hurt", 0.5); hearts(-atk); e.lost = (e.lost || 0) + atk; float(`−${atk} ♥`, slotX(0), W.groundY - tallOf("hero") + 70, "#ff6b6b");
     });
     if (last) later(0.5, () => afterHits(f.id, () => renderChoice()));
   }
@@ -710,7 +712,7 @@
     if (S.spells <= 0) return heroSay(SPL.none);
     S.spells--; S.spellLeft = SPL.problems; A.play(SPL.sfx.cast);
     const l = pickOne(SPL.cast); heroSay(A.text(l)); A.voice(A.voOf(l));
-    float("✶", W.partyScreenX, W.groundY - tallOf("hero") + 70, "#c9a4ff");
+    float("✶", slotX(0), W.groundY - tallOf("hero") + 70, "#c9a4ff");
     const e = S.enc;
     if (e && e.phase === "math" && e.q && !e.input && !e.problem.stupid) { // mid-sum: the current sum turns stupid too
       e.problem = KM.MathGen.make(SPL.level); e.problem.stupid = true; e.problem.level = SPL.level; e.stupidUsed = true; renderMath(); if (e.tmr) e.tmr.t = 0; // v12c: a new sum, a fresh timer
@@ -978,7 +980,7 @@
     if (!h || S.gold < h.cost || S.hp >= maxHp() || (h.once && e.used[key])) return;
     S.gold -= h.cost; hearts(h.hearts); e.used[key] = true; if (T.limits) fareUse("stew"); A.play("heal"); save();
     if (T.limits && fareLeft("stew") <= 0) later(1.2, () => keeperSay(T.limits.lot));
-    float(`+${h.hearts} ♥`, W.partyScreenX, W.groundY - tallOf("hero") + 70, "#9be28a"); renderRest();
+    float(`+${h.hearts} ♥`, slotX(0), W.groundY - tallOf("hero") + 70, "#9be28a"); renderRest();
   }
   // v11b tavern recruit talk: hero "Join my party?" -> NPC challenge bubble -> the carved sum (like a battle sum) ->
   // solved: NPC "Fine, I'm in." and joins (+2 hearts, stands up into the party line); failed: refusal + the D20 offer
