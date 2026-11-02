@@ -26,11 +26,12 @@ KM_DATA.mathLevels = {
     { type: "add", weight: 1, a: [1, 5], b: [1, 4] },
     { type: "sub", weight: 1, a: [5, 9], b: [1, 4] }
   ],
+  // v12l (Magnus): keep sums enjoyable under the answer timer: solvable in the head in ~10-15 s, at most one carry, no 3-digit + 3-digit
   hard: [
-    { type: "add", weight: 1, a: [120, 499], b: [120, 499] },       // 347 + 268
-    { type: "mul", weight: 2, a: [12, 25], b: [3, 9] },             // 17 x 6
-    { type: "mul_add", weight: 2, a: [3, 9], b: [3, 9], c: [10, 40] }, // 7 x 8 + 23
-    { type: "chain", weight: 2, a: [20, 60], b: [10, 40], c: [5, 30] }, // 45 + 27 - 18
-    { type: "paren", weight: 1, a: [2, 12], b: [2, 9], c: [2, 6] }   // (8 + 5) x 4
+    { type: "add", weight: 2, a: [25, 79], b: [15, 49] },           // 47 + 36
+    { type: "mul", weight: 2, a: [11, 19], b: [2, 5] },             // 16 x 4
+    { type: "mul_add", weight: 2, a: [2, 9], b: [2, 9], c: [5, 20] }, // 7 x 8 + 12
+    { type: "chain", weight: 1, a: [20, 50], b: [10, 30], c: [5, 15] }, // 34 + 21 - 9
+    { type: "paren", weight: 1, a: [2, 9], b: [2, 6], c: [2, 5] }    // (8 + 5) x 4
   ]
 };
