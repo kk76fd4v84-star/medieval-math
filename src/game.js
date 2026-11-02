@@ -101,7 +101,7 @@
       const h = haltCam(st);
       clear.push([h + slotX(D.party.maxFollowers) - 100, h + W.partyScreenX + 100]);
       if (st.type === "rest") {
-        const T = RS.types[st.rest], [rn, rx] = T.recruits, w = T.view === "stall" ? 0 : KM.Assets.entitySize(T.exterior)[0];
+        const T = RS.types[st.rest], [rn, rx] = T.recruits, w = T.view === "stall" || T.art === "stall" ? 0 : KM.Assets.entitySize(T.exterior)[0];
         st.cands = pickCands(rn + Math.floor(Math.random() * (rx - rn + 1)), taken); st.candSkins = looks(st.cands.length);
         clear.push([st.stopX - 900, st.stopX + 900]);
         if (i < fromStop) return;
@@ -109,6 +109,10 @@
         if (view === "tavern" && KM.RestView.scene("tavern-arrival")) return; // v12e (Magnus): only the big arrival scene, no small road tavern first
         if (view === "tavern") { S.actors.push(mkActor({ stop: i, id: "tavern_facade", x: st.stopX, main: true, back: true, facade: true, name: T.name })); return; }
         if (T.view === "stall" && STALL()) { S.actors.push(mkActor({ stop: i, id: "scroll_seller", x: st.stopX, main: true, back: true, keeper: true, stall: true, name: T.keeperName })); return; }
+        // v12r (Magnus: "the art is missing" at the shop): a stop type with art: "stall" uses Magnus's stall + seller drawing
+        // (the shop has no painted building / keeper yet, MISSING_ART #23) and keeps its recruit candidates on the road
+        if (T.art === "stall" && STALL()) { S.actors.push(mkActor({ stop: i, id: "scroll_seller", x: st.stopX, main: true, back: true, keeper: true, stall: true, name: T.keeperName }));
+          st.cands.forEach((p, j) => S.actors.push(mkActor({ stop: i, id: candArt(j, st), x: st.stopX - 860 + j * 165, candIdx: j, back: true, name: p.name, label: shortName(p.name) }))); return; }
         if (view === "camp") { S.actors.push(mkActor({ stop: i, id: T.exterior, x: st.stopX, main: true, back: true, hidden: true, name: T.name })); return; }
         S.actors.push(mkActor({ stop: i, id: T.exterior, x: st.stopX, main: true, back: true, name: T.name }));
         S.actors.push(mkActor({ stop: i, id: T.keeper, x: st.stopX - w / 2 - 110, keeper: true, back: true, name: T.keeperName }));
@@ -220,7 +224,22 @@
   // v11 (Magnus: "absolute destruction of unnecessary small texts"): the strip only holds the big carved sum, a few
   // LARGE key options and one icon status row. Every line of dialogue is a speech bubble above its speaker.
   const panel = $("panel");
-  function showPanel(html, cls) { panel.className = "panel " + (cls || ""); panel.innerHTML = html; fitSums(); }
+  function showPanel(html, cls) { panel.className = "panel " + (cls || ""); panel.innerHTML = html; fitSums(); fitMoves(); }
+  // v12r (Magnus: "the buttons are outside of frame"): move rows keep every button whole (flex: none, caps padding) and
+  // inside the strip: the first height of KM_UI.moves.heights whose single row fits, else two centred rows (split at .brk).
+  function fitMoves() {
+    const MV = window.KM_UI && KM_UI.moves; if (!MV) return;
+    panel.querySelectorAll(".opts.moves").forEach(row => {
+      const pr = panel.getBoundingClientRect(), k = pr.width / (panel.offsetWidth || pr.width || 1), avail = (pr.width / k) - 2 * MV.margin;
+      const set = h => { row.style.setProperty("--mv-bh", h + "px"); row.style.setProperty("--mv-fs", (h * MV.font).toFixed(1) + "px"); row.style.setProperty("--mv-ic", (h * MV.icon).toFixed(1) + "px"); row.style.setProperty("--mv-sp", (h * MV.spell).toFixed(1) + "px"); };
+      const width = () => [...row.children].reduce((w, c) => w + c.getBoundingClientRect().width / k, 0) + Math.max(0, row.children.length - 1) * (parseFloat(getComputedStyle(row).columnGap) || 0);
+      row.classList.add("fit"); row.classList.remove("tworow"); panel.classList.remove("tworows");
+      for (const h of MV.heights) { set(h); if (width() <= avail) return; }
+      if (!row.querySelector(".brk")) return; // nothing to split: smallest single-row height
+      set(MV.twoRowH); row.classList.add("tworow"); panel.classList.add("tworows");
+      row.style.rowGap = MV.rowGap + "px"; panel.style.setProperty("--mv-prompt", MV.twoRowPrompt + "px");
+    });
+  }
   // v11b-4: big sums are never cut. Shrink the font until problem + answer (+ glyph height) fit inside the strip with a margin.
   function fitSums() {
     panel.querySelectorAll(".mathp .sum").forEach(sum => {
@@ -272,7 +291,7 @@
   const BANNER = "";
   if (window.KM_UI && KM_UI.frame) { const F = KM_UI.frame, st = document.documentElement.style, u = f => `url("${F.root + f}")`;
     st.setProperty("--bf-n", u(F.normal)); st.setProperty("--bf-h", u(F.hover)); st.setProperty("--bf-d", u(F.disabled));
-    st.setProperty("--bf-sv", F.slice[0]); st.setProperty("--bf-sh", F.slice[1]); st.setProperty("--bf-bv", F.border[0] / F.h); st.setProperty("--bf-bh", F.border[1] / F.h);
+    st.setProperty("--bf-sv", F.slice[0]); st.setProperty("--bf-sh", F.slice[1]); st.setProperty("--bf-bv", F.border[0] / F.h); st.setProperty("--bf-bh", F.border[1] / F.h); st.setProperty("--bf-lift", F.labelLift || 0);
     [F.normal, F.hover, F.disabled].forEach(f => { const im = new Image(); im.src = F.root + f; }); } // no flash on the first hover
   // Magnus's riddle frame: ONE uniform scale (RF_S stage px per source px) for the whole frame; a 9-slice keeps both
   // corner halves intact and stretches only the ink-free middle columns to the riddle's width
@@ -402,21 +421,25 @@
     it.i++;
     if (it.i >= it.lines.length) {
       if (it.after === "go") return startJourney();
-      S.mode = "name"; A.voice(A.voOf(D.dialogue.namePrompt)); return renderIntro();
+      S.mode = "name"; renderIntro(); return paceVO(A.voOf(D.dialogue.namePrompt), narrator);
     }
     renderIntro(); lineVO();
   }
-  function skipIntro() { if (S.mode !== "intro" || (S.intro && S.intro.after === "go")) return advanceIntro(); S.mode = "name"; A.voice(A.voOf(D.dialogue.namePrompt)); renderIntro(); }
+  function skipIntro() { if (S.mode !== "intro" || (S.intro && S.intro.after === "go")) return advanceIntro(); S.mode = "name"; renderIntro(); paceVO(A.voOf(D.dialogue.namePrompt), narrator); }
   function lineVO() { const it = S.intro; if (!it || !it.vos) return; const i = it.i, id = it.vos[i];
     // the bubble waits for the recorded line to finish (then moves on by itself after a breath) or for a keypress;
-    // a missing file is silent and the bubble just waits for the key (src/engine/audio.js tries assets/audio/vo/<id>.ogg, then incoming/vo_narrator/)
+    // a missing file is silent and the bubble just waits for the key (src/engine/audio.js plays only the file assets/audio_map.json lists for the id)
     // v12c: with a recording, the line's bubble chunks are paced across the clip (by character share, introPace) and the
     // next line comes 0.6 s after the clip ends. Space during a clip still advances (and stops it when the line changes).
     it.clip = null;
     A.voice(id, { onStart: el => { if (S.intro === it && it.i === i) it.clip = { i, el }; },
       onEnd: () => { if (it.clip && it.clip.i === i) it.clip.done = true; later(0.6, () => { if (S.intro === it && it.i === i && S.mode === "intro") advanceIntro(true, true); }); } }); }
+  // v12r: any other narrator line with a clip (name prompt, game over, victory) paces its bubble across the clip the same way
+  const paceVO = (id, who) => A.voice(id, { onStart: el => { const w = who(); S.voPace = { el, who: w, sp: w && w.sp }; }, onEnd: () => { if (S.voPace) S.voPace.done = true; } });
   function introPace() {
-    const it = S.intro, c = it && it.clip, n = narrator(); if (S.mode !== "intro" || !c || c.i !== it.i || !n || !n.sp) return;
+    const it = S.intro, c0 = it && it.clip, n0 = narrator(), P = S.voPace;
+    const c = S.mode === "intro" ? c0 && c0.i === it.i && c0 : P && P.who && P.who.sp && P.who.sp === P.sp ? P : null, n = S.mode === "intro" ? n0 : P && P.who;
+    if (!c || !n || !n.sp) return;
     const sp = n.sp, el = c.el, dur = el.duration; if (!(dur > 0) || !isFinite(dur) || sp.chunks.length < 2) return;
     const frac = c.done ? 1 : el.currentTime / dur, lens = sp.chunks.map(ch => ch.join(" ").length), tot = lens.reduce((a, b) => a + b, 0);
     let cum = 0, want = 0; for (let k = 0; k < lens.length - 1; k++) { cum += lens[k]; if (frac >= cum / tot) want = k + 1; }
@@ -567,7 +590,7 @@
     const fireBtn = S.bottles > 0 ? move(IT.key, IT.name, "pickFire", "fire") : ""; // v12k: only while you carry one
     showPanel(`<div class="center fightp"><div class="prompt">Choose your move.</div>
       <div class="opts big3 turn moves">
-        ${move(C.actions.weak.key, "Weak swing", "pickWeak", "weak")}${move(C.actions.hard.key, "Hard swing", "pickHard", "hard")}${move(C.actions.heal.key, "Heal", "pickHeal", "heal", "", e.heals <= 0 || S.hp >= maxHp())}${fireBtn}${rollOpt}${sac}${spellBtn}
+        ${move(C.actions.weak.key, "Weak swing", "pickWeak", "weak")}${move(C.actions.hard.key, "Hard swing", "pickHard", "hard")}${move(C.actions.heal.key, "Heal", "pickHeal", "heal", "", e.heals <= 0 || S.hp >= maxHp())}${fireBtn || rollOpt || sac || spellBtn ? '<i class="brk"></i>' : ""}${fireBtn}${rollOpt}${sac}${spellBtn}
       </div></div>`, "fight");
   }
   function pickAction(kind) {
@@ -793,9 +816,11 @@
     if (!S.spellLeft) { const l = pickOne(SPL.wearOff); A.play(SPL.sfx.wearOff); later(0.9, () => { heroSay(A.text(l)); A.voice(A.voOf(l)); }); }
     renderHUD();
   }
+  // v12r: every way a scroll lands in the pack plays the "into the pack" sound (after `delay` s, e.g. after the coins)
+  function gainScroll(delay = 0) { S.spells++; if (delay > 0) later(delay, () => A.play(SPL.sfx.get)); else A.play(SPL.sfx.get); renderHUD(); }
   function buySpell() {
     const e = S.enc; if (!e || !SPL.sellAt.includes(e.st.rest) || S.gold < SPL.price || S.spells >= SPL.max) return;
-    S.gold -= SPL.price; S.spells++; A.play("buy"); save(); keeperSay("One scroll of stupidity. Don't read it near a library."); renderRest();
+    S.gold -= SPL.price; A.play(SPL.sfx.buy); gainScroll(SPL.sfx.getDelay); save(); keeperSay("One scroll of stupidity. Don't read it near a library."); renderRest();
   }
   const OPS = [["+", "+"], ["−", "−"], ["×", "×"], ["÷", "÷"], ["=", "="]];
   function renderMath() {
@@ -845,7 +870,9 @@
   // v18 (Magnus, riddles-v18): answers in his answer-frame (2 columns), keyed A B C (+ S Sacrifice in the 4th slot);
   // live text, no words in the art. 1-3 still work as silent aliases.
   const RKEYS = ["A", "B", "C", "D"];
-  const ansBtn = (key, label, act, attrs, off) => `<button class="opt ansf" data-act="${act}" ${attrs} ${off ? "disabled" : ""}><span>${label}</span></button>`;
+  // v12r (Magnus): the answers wear Maggi's ornamented button frame like every other strip button (.plaque: hover,
+  // disabled, centred label); laid out in one evenly spaced row under the question (style.css v12r riddle block).
+  const ansBtn = (key, label, act, attrs, off) => `<button class="opt plaque ansf" data-act="${act}" ${attrs} ${off ? "disabled" : ""}><span class="nm">${label}</span></button>`;
   function renderRiddle() {
     const e = S.enc, r = e.riddle, wrong = e.wrong || []; e.phase = "riddle";
     // v11b (Magnus): the riddle where the big numbers usually are, inside his riddle frame; the answers under it as the
@@ -1016,21 +1043,28 @@
   }
   function leaveInside() { if (S.view && S.view.id === "tavern-interior") { S.voices = []; if (KM.RestView.scene("tavern-arrival")) S.view = { id: "tavern-arrival", a: 1, to: 1 }; else S.view.to = 0; renderTavernOut(); } }
   const pips = (n, max) => `<span class="pips">${Array.from({ length: max }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</span>`;
+  // v12r (Magnus: "I have no idea what the menu means"): words on everything (KM_DATA.restStops.menuWords). Gear rows are
+  // labelled "Weapon +1 · 9" / "Armour +1 · 7" (+ purse); one button per knight with HIS NAME on it and filled / empty ink
+  // pips (has / can still get here), "Max" once full (plain frame); greyed _disabled frame when he can't afford it.
+  const MW = () => D.restStops.menuWords || {};
+  const inkPips = (n, max) => `<span class="ipips" aria-label="${n} of ${max}">${Array.from({ length: max }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</span>`; // filled / empty ink rings
+  const gearBtn = (act, i, name, have, max, cost) => { const full = have >= max;
+    return `<button class="opt plaque mini${full ? " max" : ""}" data-act="${act}" data-i="${i}" ${full || S.gold < cost ? "disabled" : ""}><span class="nm">${esc(name)}</span>${full ? `<span class="mx">${esc(MW().max || "Max")}</span>` : inkPips(Math.min(have, max), max)}</button>`; };
   function renderRest() {
     if (S.view && S.view.id === "tavern-interior" && KM.RestView.scene("tavern-interior").full) return renderTavernInside();
     const e = S.enc, st = e.st, T = restT(), g = T.gear; e.phase = "rest";
-    const heals = T.heals.map(h => `<button class="opt plaque" data-act="restHeal" data-k="${h.key}" ${S.gold < h.cost || S.hp >= maxHp() || (h.once && e.used[h.key]) ? "disabled" : ""}>${BANNER}<span class="nm">${esc(h.short || h.label)}</span> <span class="gain">+${h.hearts}<i class="heart">♥</i></span>${h.cost ? coin(h.cost) : ""}</button>`).join("");
-    const scroll = SPL.sellAt.includes(st.rest) ? `<button class="opt plaque" data-act="buySpell" ${S.gold < SPL.price || S.spells >= SPL.max ? "disabled" : ""}>${BANNER}${spellIcon("shop")}${coin(SPL.price)}</button>` : "";
+    const heals = T.heals.map(h => `<button class="opt plaque" data-act="restHeal" data-k="${h.key}" ${S.gold < h.cost || S.hp >= maxHp() || (h.once && e.used[h.key]) ? "disabled" : ""}>${BANNER}<span class="nm">${esc(h.short || h.label)}: +${h.hearts} ${esc(h.hearts === 1 ? MW().heart || "heart" : MW().hearts || "hearts")}</span>${h.cost ? coin(h.cost) : ""}</button>`).join(""); // v12r: in words
+    const scroll = SPL.sellAt.includes(st.rest) ? `<button class="opt plaque" data-act="buySpell" ${S.gold < SPL.price || S.spells >= SPL.max ? "disabled" : ""}>${BANNER}${spellIcon("shop")}<span class="nm">${esc(MW().scroll || "Scroll of Stupidity")}</span>${coin(SPL.price)}</button>` : "";
     const cands = st.cands.map((p, j) => p ? big(String(j + 1), esc(shortName(p.name).split(/[\s-]/)[0]), "restRecruit", `data-j="${j}"`, partyFull()) : "").join("");
     // gear: one column per party member (name, weapon pips, armour pips); the row labels are the icon + price
     const first = m => (m.id === "hero" ? S.name : shortName(m.name)).split(/[\s-]/)[0];
-    const gear = g && (g.maxWeapon || g.maxArmor) ? `<div class="gear" style="grid-template-columns:auto repeat(${S.party.length},auto)"><span></span>${S.party.map(m => `<span class="nm">${esc(first(m))}</span>`).join("")}
-      ${g.maxWeapon ? `<span class="gh"><i class="ico">⚔</i>${coin(g.weaponCost)}</span>` + S.party.map((m, i) => `<button class="opt plaque mini" data-act="restBuyW" data-i="${i}" ${m.weapon >= g.maxWeapon || S.gold < g.weaponCost ? "disabled" : ""}>${BANNER}${pips(m.weapon, g.maxWeapon)}</button>`).join("") : ""}
-      ${g.maxArmor ? `<span class="gh"><i class="ico">⛨</i>${coin(g.armorCost)}</span>` + S.party.map((m, i) => `<button class="opt plaque mini" data-act="restBuyA" data-i="${i}" ${m.armor >= g.maxArmor || S.gold < g.armorCost ? "disabled" : ""}>${BANNER}${pips(m.armor, g.maxArmor)}</button>`).join("") : ""}</div>` : "";
+    const row = (word, cost, act, key, max) => `<span class="gh" style="grid-column:1 / -1">${esc(word)} · ${coin(cost)}</span>` + S.party.map((m, i) => gearBtn(act, i, first(m), m[key], max, cost)).join(""); // row label above its buttons
+    const gear = g && (g.maxWeapon || g.maxArmor) ? `<div class="gear" style="grid-template-columns:repeat(${S.party.length},auto)">${g.maxWeapon ? row(MW().weapon || "Weapon +1", g.weaponCost, "restBuyW", "weapon", g.maxWeapon) : ""}${g.maxArmor ? row(MW().armor || "Armour +1", g.armorCost, "restBuyA", "armor", g.maxArmor) : ""}</div>` : "";
     const inside = S.view && S.view.id === "tavern-interior", camp = S.view && S.view.id === "camp";
     // v11b: two rows (heal / scroll / recruits, then talk / leave) beside the gear table: fits the shorter strip
-    showPanel(`<div class="center restp"><div class="restgrid"><div class="col"><div class="opts big3">${heals}${scroll}${cands}</div>
-      <div class="opts big3">${inside ? big("T", "Table", "talkTable") + big("B", "Bar", "talkBar") + big("X", "Leave", "leaveInside") : ""}${big("Enter", camp ? "Break camp" : "Walk on", "leaveRest")}</div></div>${gear}</div></div>`, "rest");
+    // v12r: with a gear table the left column stacks heal / scroll / recruit + Walk on (smaller frames) so a full party's gear rows fit
+    showPanel(`<div class="center restp"><div class="restgrid"><div class="col"><div class="opts big3">${heals}${gear ? "" : scroll + cands}</div>${gear && scroll ? `<div class="opts big3">${scroll}</div>` : ""}
+      <div class="opts big3">${gear ? cands : ""}${inside ? big("T", "Table", "talkTable") + big("B", "Bar", "talkBar") + big("X", "Leave", "leaveInside") : ""}${big("Enter", camp ? "Break camp" : "Walk on", "leaveRest")}</div></div>${gear}</div></div>`, "rest");
   }
   function restHeal(key) {
     const e = S.enc, T = restT(), h = T.heals.find(x => x.key === key);
@@ -1098,14 +1132,14 @@
     KM.Save.addDeath({ deathId: S.runId + "-" + Date.now(), runId: S.runId, route: "road-v7",
       progress: st && st.src != null ? { encounter: st.src, offset: Math.round(S.camX - haltCam(st)) } : null,
       killer, marker: markerOf({ killer }), name: S.name, x: Math.round(S.camX), leagues: +leagues(), at: Date.now() }); // a grave in later runs
-    const line = pickOne(D.dialogue.gameOver); endNarrator(`Killed by ${GR.killedBy[killer] || killer}. ${A.text(line)}`); A.voice(A.voOf(line));
+    const line = pickOne(D.dialogue.gameOver); endNarrator(`Killed by ${GR.killedBy[killer] || killer}. ${A.text(line)}`); paceVO(A.voOf(line), narrator);
     showPanel(`<div class="center endp"><h1>Game over</h1><div class="endrow">${journeyHTML(isBest)}
       <div class="opts big3">${big("Enter", "Retry", "retry")}${big("N", "New game", "newGame")}</div></div></div>`, "end");
   }
   function showWin() {
     S.mode = "win"; A.play("victory"); MU.setScene("win"); KM.Save.clear();
     const isBest = KM.Save.recordBest(+leagues(), S.name);
-    endNarrator(A.text(D.dialogue.victory)); A.voice(A.voOf(D.dialogue.victory));
+    endNarrator(A.text(D.dialogue.victory)); paceVO(A.voOf(D.dialogue.victory), narrator);
     showPanel(`<div class="center endp"><h1>Victory!</h1><div class="endrow">${journeyHTML(isBest)}
       <div class="opts big3">${big("Enter", "Play again", "newGame")}</div></div></div>`, "end");
   }
@@ -1251,6 +1285,7 @@
     if (S.mode !== "encounter" && KM.FireFx.active()) KM.FireFx.stop(); // v12n: the battle is over / the scene changed: no fire (or crackle) left behind
     if (S.mode === "walk") updateWalk(dt);
     if (S.toast) { S.toast.t += dt; if (S.toast.t > S.toast.dur) S.toast = null; }
+    MU.setPlace(S.view && S.view.to ? S.view.id : null); // v12r: tagged music (vocal tavern songs) only plays in its place (src/data/music.js)
     if (S.view) { S.view.a += (S.view.to ? 1 : -1) * dt / 0.5; S.view.a = Math.max(0, Math.min(1, S.view.a)); if (!S.view.to && S.view.a <= 0) S.view = null; }
     if ((!S.view || S.view.a >= 1) && panel.querySelector(".arrive:not(.in)")) panel.querySelector(".arrive:not(.in)").classList.add("in"); // v12e: choices fade in after the scene
     if (S.entering) S.entering.t += dt;
@@ -1439,7 +1474,11 @@
     const did = a.state === "newt" ? "newt" : a.id; // newt: its own (missing-art) placeholder, never a shrunken knight
     const fx = actFx(a.id, a.act, a.stop == null || a.hunter ? 1 : -1);
     const action = fx ? fx.action : moving ? "walk" : "idle";
-    KM.Assets.drawEntity(ctx, did, sx + (fx ? fx.dx : 0), y + (fx ? fx.dy : 0), { t: fx ? fx.t : moving && KM_ART.walkRate ? a.t * KM_ART.walkRate(did) : a.t, action, hurt: fx && fx.hurt, alpha: a.alpha * (ln ? ln.alpha : 1), flash: a.flash > 0, name: a.label,
+    // v12r (Magnus: "All friendly knights you can get shall face the player"): one rule for every recruitable knight still
+    // standing as an NPC on the road (ditch / camp wanderer / shop sellsword / tavern): mirrored to face the party
+    // (KM_DATA.party.npcFaceParty). Once he joins he is a party member (not an actor) and faces the walking direction.
+    const faceParty = D.party.npcFaceParty && D.party.recruitArt && did.startsWith(D.party.recruitArt);
+    KM.Assets.drawEntity(ctx, did, sx + (fx ? fx.dx : 0), y + (fx ? fx.dy : 0), { flip: faceParty, t: fx ? fx.t : moving && KM_ART.walkRate ? a.t * KM_ART.walkRate(did) : a.t, action, hurt: fx && fx.hurt, alpha: a.alpha * (ln ? ln.alpha : 1), flash: a.flash > 0, name: a.label,
       filter: ln && ln.filter, seq: a.seqPlay && a.seqPlay.id, seqT: a.seqPlay && a.seqPlay.t });
     // v18: a separate foreground occluder drawn right after its owner (riddle keeper -> rock), never merged with it
     const fr = (KM_ART.entities[did] || {}).front; if (fr) KM.Assets.drawEntity(ctx, fr, sx, y, { alpha: a.alpha * (ln ? ln.alpha : 1), filter: ln && ln.filter });
@@ -1744,7 +1783,7 @@
   }
 
   window.__km = {
-    S, L, strength, maxHp, leagues, lungeDbg: () => [lungeReach(S.party[0], S.enc && S.enc.act), S.party[0].sx, S.enc && screenX(S.enc.act.x), wideOf(artId(S.party[0])), S.enc && wideOf(S.enc.act.id)], partyFull, weakDmg, hardDmg, rerenderMath: () => S.enc && S.enc.phase === "math" && renderMath(), setSpeed: k => (S.speedMul = k), audioLog: A.log, audioCounts: A.counts, forceRoll: 0, forceContest: null, props: () => S.props,
+    S, L, strength, maxHp, leagues, lungeDbg: () => [lungeReach(S.party[0], S.enc && S.enc.act), S.party[0].sx, S.enc && screenX(S.enc.act.x), wideOf(artId(S.party[0])), S.enc && wideOf(S.enc.act.id)], partyFull, weakDmg, hardDmg, rerenderMath: () => S.enc && S.enc.phase === "math" && renderMath(), rerenderRest: () => S.enc && S.enc.phase === "rest" && renderRest(), rerenderChoice: () => S.enc && S.enc.phase === "choose" && renderChoice(), setSpeed: k => (S.speedMul = k), audioLog: A.log, audioCounts: A.counts, forceRoll: 0, forceContest: null, props: () => S.props,
     answer: () => (S.enc && S.enc.phase === "math" && S.enc.problem ? S.enc.problem.answer : null), phase: () => S.enc && S.enc.phase, mode: () => S.mode,
     voLog: A.voLog, music: () => MU.state(), musicLog: MU.log,
     graves: () => S.graves.map(g => ({ cam: g.cam, wx: g.wx, n: g.deaths.length, marker: g.marker, killer: g.killer, done: g.done, sx: graveSX(g) })),
@@ -1781,6 +1820,7 @@
     const ms = KM.Save.musicSettings(); MU.settings({ volume: ms.volume == null ? D.music.volume : ms.volume, muted: ms.muted });
     MU.onChange(m => KM.Save.saveMusic(m));
     if (ART7) KM.Scenery.preload(); // v12f: road / title art first (KM.Loader); the rest views stream in after the bar
+    MU.preload(); // v12r: the title + first road music load with the bar (KM_DATA.music.preload)
     await Promise.all([KM.Assets.loadPacks(KM_ART.packs), KM.Audio.init()]);
     skinStrip(); setTimeout(skinStrip, 600);
     showTitle(); requestAnimationFrame(frame);

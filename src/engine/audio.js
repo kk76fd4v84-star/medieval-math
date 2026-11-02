@@ -54,16 +54,10 @@ KM.Audio = (function () {
   const SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
   const unlockVO = () => { if (VEL.src && VEL.src !== SILENT && !VEL.paused) return; if (!VEL.src || VEL.ended || VEL.paused) { try { if (!vo) { VEL.src = SILENT; VEL.play().catch(() => {}); } } catch (e) {} } window.removeEventListener("pointerdown", unlockVO, true); window.removeEventListener("keydown", unlockVO, true); };
   window.addEventListener("pointerdown", unlockVO, true); window.addEventListener("keydown", unlockVO, true);
-  // v11b: a vo_* id with no listed file is still tried by NAME, so a dropped-in recording plays without editing the map:
-  // assets/audio/vo/<id>.ogg (or .mp3), then Charlie's drop folder incoming/vo_narrator/<id>.ogg/.mp3/.wav. A missing file
-  // fails silently (Audio "error" -> next candidate -> nothing). o.onEnd(id) fires only when a clip really played to its end.
-  const VO_DROP = "incoming/vo_narrator/";
-  function voCands(id, m) {
-    if (m && m.files && m.files.length) return [src(m.files[0])];
-    if (!/^vo_/.test(id)) return [];
-    const own = OGG ? [`assets/audio/vo/${id}.ogg`, `assets/audio/vo/${id}.mp3`] : [`assets/audio/vo/${id}.mp3`];
-    return own.concat(OGG ? [VO_DROP + id + ".ogg"] : [], [VO_DROP + id + ".mp3", VO_DROP + id + ".wav"]);
-  }
+  // v12r: the MAP decides. An id whose entry lists a file plays it (.ogg, or its .mp3 twin on Safari); an id with no files
+  // (vo_spell_cast, vo_spell_wear_off, vo_member_dies) or no entry is silent without requesting anything (no 404s).
+  // (v11b's by-name probing of assets/audio/vo/<id> and incoming/vo_narrator/ is retired: list the file in audio_map.json.)
+  function voCands(id, m) { return m && m.files && m.files.length ? [src(m.files[0])] : []; }
   function voice(id, o = {}) {
     if (!id) return null; voLog.push(id); if (voLog.length > 200) voLog.shift();
     if (vo) { try { vo.pause(); } catch (e) {} vo = null; if (window.KM.Music) KM.Music.duckVoice(false); }

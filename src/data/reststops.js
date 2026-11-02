@@ -7,6 +7,9 @@
 // (KM_ART7.scenes: "camp" = campfire with 4 party seats, "tavern" = exterior facade -> interior with table/bar talk points + EXIT).
 window.KM_DATA = window.KM_DATA || {};
 KM_DATA.restStops = {
+  // v12r (Magnus: "I have no idea what the menu means"): the words on the rest-stop menu. Gear rows read
+  // "Weapon +1 · 9" / "Armour +1 · 7", one button per knight with his name + filled/empty pips, "Max" once full.
+  menuWords: { weapon: "Weapon +1", armor: "Armour +1", max: "Max", heart: "heart", hearts: "hearts", scroll: "Scroll of Stupidity" },
   every: 1,
   rotation: ["tavern", "stall", "campsite", "shop"], // v11b: + Magnus's roadside scroll stall
   types: {
@@ -39,7 +42,9 @@ KM_DATA.restStops = {
     },
     shop: {
       label: "Shop", name: "Honest Edmund's Arms & Bits", exterior: "shop", keeper: "shop_keeper", keeperName: "Honest Edmund",
-      greet: "Finest gear in the realm! Barely used! Mostly by the dead!",
+      art: "stall",   // v12r: drawn with Magnus's stall + seller (assets/v11/ui/scroll-stall.png, scroll-seller.png) until a shop is painted
+      // v12r (Magnus: "I have no idea what the menu means"): the greeting says what the shop is for
+      greet: "Better gear for your lads. Pick a knight.",
       heals: [{ key: "H", label: "healing poultice", short: "Poultice", hearts: 3, cost: 6 }],
       recruits: [0, 1], recruitCost: 0, recruitVerb: "talk the sellsword round",
       gear: { maxWeapon: 3, maxArmor: 3, weaponCost: 9, armorCost: 7 }

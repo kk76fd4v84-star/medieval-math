@@ -11,10 +11,14 @@ window.KM_FEET = {
  "hermit": 2.2,
  "toad": -6.7,
  "ogre": -37.8,
- "dragon": -2.2
+ "dragon": -2.2,
+ "grave_rabbit": 78.9,
+ "grave_dragon": 77.8,
+ "grave_goblin": 74.4,
+ "grave_toad": 82.2
 };
 // opaque left/right extent around the pivot (layout units at artScale): spacing for multi-enemy rows
-window.KM_WIDE = {"goblin":[-270,266],"killer_rabbit":[-160,166],"skeleton_knight":[-246,242],"turd_dragon":[-732,744],"frank":[-152,148],"enchanter":[-212,212],"black_knight":[-332,422],"hermit":[-166,168],"toad":[-178,208],"ogre":[-230,230],"dragon":[-230,224],"hero":[-158,238]};
+window.KM_WIDE = {"goblin":[-270,266],"killer_rabbit":[-160,166],"skeleton_knight":[-246,242],"turd_dragon":[-732,744],"frank":[-152,148],"enchanter":[-212,212],"black_knight":[-332,422],"hermit":[-166,168],"toad":[-178,208],"ogre":[-230,230],"dragon":[-230,224],"grave_rabbit":[-218,232],"grave_dragon":[-214,228],"grave_goblin":[-214,222],"grave_toad":[-222,230],"hero":[-158,238]};
 
 // opaque standing height above the feet, layout units (monster hearts and damage numbers sit just above it)
-window.KM_TALL = {"goblin":689,"killer_rabbit":425,"skeleton_knight":726,"turd_dragon":807,"frank":378,"enchanter":520,"black_knight":918,"hermit":435,"toad":282,"ogre":460,"dragon":358,"hero":531};
+window.KM_TALL = {"goblin":689,"killer_rabbit":425,"skeleton_knight":726,"turd_dragon":807,"frank":378,"enchanter":520,"black_knight":918,"hermit":435,"toad":282,"ogre":460,"dragon":358,"grave_rabbit":378,"grave_dragon":386,"grave_goblin":379,"grave_toad":373,"hero":531};

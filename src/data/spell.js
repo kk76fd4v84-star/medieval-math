@@ -24,5 +24,7 @@ KM_DATA.spell = {
   already: "Steady on. I'm stupid enough.",
   meadAlready: "The mead's doing that already.", // a scroll during a mead battle: refused, no scroll used
   none: "No scrolls left. I'll have to think. Ugh.",
-  sfx: { cast: "spell_cast", wearOff: "spell_wear_off" }
+  // v12r Charlie's scroll sounds (assets/audio_map.json scroll_*; variants random, never the same twice in a row):
+  // buy = coins on the counter, get = into the pack (getDelay s after a buy, or whenever a scroll is gained), cast = unfurl
+  sfx: { cast: "scroll_use", wearOff: "spell_wear_off", buy: "scroll_buy", get: "scroll_get", getDelay: 0.25 }
 };

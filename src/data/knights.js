@@ -4,7 +4,8 @@
 // Hearts (v11b, Magnus): 2 per party member (hero 2, +2 per companion, max 8). Every 2 hearts lost in one battle,
 // a member dies (companions first, the hero last). Armour no longer adds hearts (see combat.armourBlockPer).
 window.KM_DATA = window.KM_DATA || {};
-KM_DATA.party = { maxFollowers: 3, skins: 3, strengthCap: 12, heartsPerMember: 2, maxWeapon: 3, maxArmor: 3, heroBase: 2 };
+// v12r (Magnus): recruitable knights (art id prefix recruitArt) face the party while they are NPCs, never away from it
+KM_DATA.party = { npcFaceParty: true, recruitArt: "follower_", maxFollowers: 3, skins: 3, strengthCap: 12, heartsPerMember: 2, maxWeapon: 3, maxArmor: 3, heroBase: 2 };
 KM_DATA.knights = { hero: { name: "{name}", base: 2 } }; // legacy lookups
 // Recruit pool. look = which follower_<n> art slot draws them (src/config/art_config.js).
 KM_DATA.recruitPool = [

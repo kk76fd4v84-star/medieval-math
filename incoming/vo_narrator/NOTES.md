@@ -43,3 +43,36 @@ No reverb or room was added; blend_01 had none either, so the timbre stays as ge
 ## Checks
 - Clicks: a 10 kHz high-pass discontinuity scan. Lines 02–04 read 9–11, which is normal speech consonants. Line 01 reads 16 at 1.12 s; this is a consonant transient already in the raw ElevenLabs take, not an edit. Every file starts and ends at zero.
 - Transcription of the final OGGs with Whisper large-v3: all four are word-exact.
+
+# Narrator VO: game lines (3 Nov 2026)
+
+These use the same voice, model and settings as vo_story_* (Callum `N2lVS1w4EtoT3dr4eOWO`, eleven_multilingual_v2, stability 0.62 / similarity 0.78 / style 0.32 / speed 1.08 / speaker boost on, no bracket directions) and the same processing chain.
+- Each line comes as OGG Vorbis q6 at 48 kHz mono, plus an `.mp3` twin (LAME V2, 48 kHz mono).
+- Masters are in `_masters/`, and every raw take is in `_masters/alt_takes/vo_*_sNNNN.mp3`.
+- The loudness is integrated LUFS, measured on the OGG with ffmpeg ebur128. True peak is at or below -2.2 dBTP on every OGG.
+
+- vo_further_than_ever.ogg: "Further than ever before!" (seed 2202), 1.68 s, -17.3 LUFS
+- vo_name_prompt.ogg: "But first... your name? You scruffy little tin can." (seed 2202), 4.28 s, -17.3 LUFS
+- vo_after_name.ogg: "Really? ...Fine. Off you go. Try not to die." (seed 4404), 4.07 s, -17.3 LUFS
+- vo_gameover_01.ogg: "You have died. Mostly." (seed 2202), 1.69 s, -17.3 LUFS
+- vo_gameover_02.ogg: "Tis but a flesh wound. Also you are dead." (seed 5505), 3.10 s, -17.3 LUFS
+- vo_gameover_03.ogg: "The minstrels will sing of this. Badly." (seed 2202), 2.60 s, -17.3 LUFS
+- vo_victory.ogg: "The dragon is defeated! Your brain was tested. Verdict: adequate." (seed 2202), 5.56 s, -17.3 LUFS
+
+`vo_narrator_lines_preview.mp3` (28.9 s) plays all 7 lines in order, with 0.8 s gaps.
+
+## Retakes
+- vo_after_name and vo_gameover_02 had extra takes because seed 2202 came out far above the narrator's pitch: 162 and 195 Hz median, against 86–108 Hz for vo_story_*.
+- Chosen takes:
+  - vo_after_name, seed 4404: 120 Hz.
+  - vo_gameover_02, seed 5505: 107 Hz.
+- Rejected: vo_after_name seed 5505 dropped the words "Try not to die" and left a 1.9 s gap.
+- **Words:** every chosen take is word-exact under Whisper (medium.en, and large-v3 with word timestamps).
+- **Median pitch of the others:**
+  - vo_further_than_ever: 136 Hz.
+  - vo_gameover_01 and vo_gameover_03: 130 Hz.
+  - vo_name_prompt: 108 Hz.
+  - vo_victory: 97 Hz.
+
+  The exclamations sit a little higher than the story lines.
+- **Credits:** 183 in total for 11 TTS calls, from the `character-cost` response header. That's about 0.4 credits per character.

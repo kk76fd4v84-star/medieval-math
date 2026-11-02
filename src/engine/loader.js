@@ -2,6 +2,7 @@
 // ornament out, a small "Loading". Only the title / intro / road art loads first (CRIT); every other image asked for
 // while the bar is up waits (src set later) and streams in behind the title. Progress = bytes of the first set
 // (sizes from src/config/asset_sizes.js, written by km_site_deploy.sh; unknown files count 60 KB).
+// v12r: the first music tracks (KM_DATA.music.preload) join the first set too (fetchFile).
 window.KM = window.KM || {};
 KM.Loader = (function () {
   // first set: the title / intro UI + hero + narrator; road layers join when the road draw asks for them (want)
@@ -31,6 +32,23 @@ KM.Loader = (function () {
     const fin = () => { if (!pend.delete(im)) return; doneW += w; lastChange = performance.now(); draw(); };
     im.addEventListener("load", fin); im.addEventListener("error", fin); draw();
   }
+  // v12r: a non-image file in the first set (music): real bytes as they stream in, then `after(blobUrl)` (e.g. decode)
+  // must resolve before the bar can finish. Falls back to the plain URL if fetch / streams are not available.
+  function fetchFile(src, after) {
+    const w = size(src), tok = {}; totW += w; pend.add(tok); lastChange = performance.now(); let got = 0;
+    const add = n => { const d = Math.min(n, w - got); if (d > 0) { got += d; doneW += d; lastChange = performance.now(); draw(); } };
+    const end = () => { if (!pend.delete(tok)) return; add(w); lastChange = performance.now(); draw(); };
+    (async () => {
+      let url = src;
+      try { const r = await fetch(src); if (!r.ok) throw new Error(r.status);
+        if (r.body && r.body.getReader) { const rd = r.body.getReader(), parts = []; for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); add(value.length); }
+          url = URL.createObjectURL(new Blob(parts, { type: r.headers.get("content-type") || "audio/mpeg" })); }
+        else url = URL.createObjectURL(await r.blob());
+      } catch (e) { console.info("[loader] could not prefetch", src, e && e.message); }
+      try { if (after) await after(url); } catch (e) {}
+      end();
+    })();
+  }
   // a held-back image that a draw now needs: into the first set, load it now
   function want(im) {
     if (phase === "done") return; const k = deferred.findIndex(d => d[0] === im); if (k < 0) return;
@@ -53,5 +71,5 @@ KM.Loader = (function () {
     deferred.splice(0).forEach(([im, src]) => { im.src = src; });
     setTimeout(() => { ov.classList.add("out"); setTimeout(() => ov.remove(), 450); }, 150);
   }
-  return { gate, want, ready, finish, phase: () => phase, progress: () => ({ done: doneW, total: totW, pending: pend.size, deferred: deferred.length, shown }) };
+  return { gate, want, fetch: fetchFile, ready, finish, phase: () => phase, progress: () => ({ done: doneW, total: totW, pending: pend.size, deferred: deferred.length, shown }) };
 })();

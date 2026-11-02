@@ -198,8 +198,8 @@ button.opt.plaque img.itemicon { display: block; height: 40px; width: auto; flex
 /* ===== v12q (Magnus): every strip button wears Maggi's ornamented ink frame (assets/ui/tavern_ui_v1, KM_UI.frame).
    Horizontal-only 9-slice (caps fixed, middle stretched), fixed height per button size via --bh: the frame scales
    uniformly with the height. Hover / keyboard focus = the orange frame + 2 px lift + orange underline. Disabled =
-   the faded frame and grey text / icons, NO extra opacity (the frame is already faded). Riddle answers (.ansf) keep
-   Magnus's answer frame. */
+   the faded frame and grey text / icons, NO extra opacity (the frame is already faded). Riddle answers (.ansf) wear it too
+   since v12r (block at the end). */
 button.opt.plaque { --bh: 84px; height: var(--bh); box-sizing: border-box; background: none; box-shadow: none; border-radius: 0;
   border-style: solid; border-width: 0; border-image-source: var(--bf-n); border-image-slice: var(--bf-sv) var(--bf-sh) fill;
   border-image-width: calc(var(--bh) * var(--bf-bv)) calc(var(--bh) * var(--bf-bh)); border-image-repeat: stretch;
@@ -212,3 +212,55 @@ button.opt.plaque[disabled] svg, button.opt.plaque[disabled] img { filter: grays
 .restgrid button.opt.plaque, .restp .opts.end button.opt.plaque { --bh: 70px; padding: 0 calc(var(--bh) * var(--bf-bh) + 4px); }
 .riddlemoves button.opt.plaque { --bh: 64px; padding: 0 calc(var(--bh) * var(--bf-bh) + 4px); }
 .gear button.opt.plaque.mini { --bh: 46px; padding: 0 calc(var(--bh) * var(--bf-bh) + 2px); }
+
+/* v12r: lift the label (text + icons) by KM_UI.frame.labelLift x height so it is optically centred in Maggi's frame,
+   at every height (--bh 84/70/64/46) and state. Extra bottom padding shifts the flex-centred content up by half of it. */
+button.opt.plaque, .restgrid button.opt.plaque, .restp .opts.end button.opt.plaque, .riddlemoves button.opt.plaque,
+.gear button.opt.plaque.mini { padding-bottom: calc(var(--bh) * var(--bf-lift, 0) * 2); }
+
+/* ===== v12r (Magnus): riddle answers use Maggi's ornamented frame (the v12q .plaque border-image: normal / hover /
+   disabled, label lift) instead of the v18 answer-frame art (assets/v18/answer-frame.png stays on disk, unused).
+   One evenly spaced row (3 answers + Sacrifice) under the untouched question frame: 84 + 14 + 64 px = 162 px, so the
+   flex-centred strip keeps ~11 px clear under the divider and above the bottom. Content-sized like the battle moves. */
+.riddlep .ansgrid { display: flex; flex-wrap: nowrap; justify-content: center; gap: 0 26px; margin: 14px auto 0; }
+.riddlep .ansgrid button.opt.plaque.ansf { --bh: 64px; width: auto; min-width: 200px; margin: 0; background: none; cursor: pointer;
+  padding: 0 calc(var(--bh) * var(--bf-bh) + 8px) calc(var(--bh) * var(--bf-lift, 0) * 2); font: 28px Georgia, "Times New Roman", serif; }
+.riddlep .ansgrid button.opt.plaque.ansf { height: var(--bh); box-sizing: border-box; border-style: solid; border-width: 0; border-image-source: var(--bf-n);
+  border-image-slice: var(--bf-sv) var(--bf-sh) fill; border-image-width: calc(var(--bh) * var(--bf-bv)) calc(var(--bh) * var(--bf-bh)); border-image-repeat: stretch; }
+.riddlep .ansgrid button.opt.plaque.ansf:hover:not([disabled]), .riddlep .ansgrid button.opt.plaque.ansf:focus-visible:not([disabled]) { border-image-source: var(--bf-h); }
+.riddlep .ansgrid button.opt.plaque.ansf[disabled] { border-image-source: var(--bf-d); opacity: 1; color: #8f8478; }
+.riddlep .ansgrid button.opt.plaque.ansf::before { content: none; }
+.riddlep .ansgrid button.opt.plaque.ansf:hover:not([disabled]), .riddlep .ansgrid button.opt.plaque.ansf:focus-visible:not([disabled]) { background: none; }
+.riddlep .ansgrid button.opt.plaque.ansf[disabled] { text-decoration: none; cursor: default; }
+
+/* v12r rest-stop menu in words (Magnus): each gear row = its label "Weapon +1 · 9" + purse, then one framed button per
+   knight with his name and filled / empty ink rings, "Max" when full (plain frame, not greyed), greyed _disabled frame
+   when unaffordable. No text under 28 px (v11 rule). With a gear table the left column stacks heal / scroll / recruit +
+   Walk on at the 56 px frame. */
+.gear { gap: 2px 4px; flex: none; justify-items: stretch; align-items: center; } /* never squeezed (the frames would overlap) */
+.restgrid:has(.gear) { gap: 16px; }
+.restgrid:has(.gear) .col { gap: 4px; }
+.restgrid:has(.gear) .col button.opt.plaque { --bh: 56px; height: var(--bh); font-size: 28px; margin: 0 2px; padding-left: calc(var(--bh) * var(--bf-bh) + 2px); padding-right: calc(var(--bh) * var(--bf-bh) + 2px); }
+.restgrid:has(.gear) .col .opts { gap: 4px 8px; flex-wrap: nowrap; margin: 0; }
+.restgrid:has(.gear) .col .spellicon { display: none; } /* the words say it ("Scroll of Stupidity") */
+.gear .gh { font-size: 28px; white-space: nowrap; justify-self: start; line-height: 1.05; padding-left: 6px; }
+.gear .gh .cost { margin-left: 4px; }
+.gear button.opt.plaque.mini { font-size: 28px; gap: 8px; min-width: 0; padding-left: calc(var(--bh) * var(--bf-bh) - 2px); padding-right: calc(var(--bh) * var(--bf-bh) - 2px); }
+.gear .ipips { display: inline-flex; gap: 3px; } .gear .ipips i { width: 13px; height: 13px; border: 2px solid currentColor; border-radius: 50%; box-sizing: border-box; } .gear .ipips i.on { background: currentColor; }
+.gear .mx { font-size: 28px; font-style: italic; }
+.gear button.opt.plaque.mini.max[disabled] { border-image-source: var(--bf-n); color: #1b1410; }
+
+/* v12r (Magnus: "the buttons are outside of frame"): battle move rows sized by fitMoves() from KM_UI.moves. Buttons
+   never shrink below their content (label + icon + both frame caps); the row takes the first height that fits, else
+   wraps into two centred rows at the .brk marker (attacks | items / specials) with a smaller prompt. */
+.opts.moves .brk { display: none; }
+.opts.moves.fit { justify-content: center; }
+.opts.moves.fit button.opt.plaque { --bh: var(--mv-bh, 84px); height: var(--bh); flex: none; min-width: 0; white-space: nowrap;
+  font-size: var(--mv-fs, 34px); gap: calc(var(--bh) * .12);
+  padding: 0 calc(var(--bh) * var(--bf-bh) + 6px) calc(var(--bh) * var(--bf-lift, 0) * 2); }
+.opts.moves.fit button.opt.plaque svg:not(.plq) { width: var(--mv-ic, 38px); height: var(--mv-ic, 38px); }
+.opts.moves.fit button.opt.plaque img.spellicon.btn { height: var(--mv-sp, 46px); }
+.opts.moves.fit .vdiv { height: calc(var(--mv-bh, 84px) * .83); }
+.opts.moves.fit.tworow { flex-wrap: wrap; }
+.opts.moves.fit.tworow .brk { display: block; flex-basis: 100%; height: 0; }
+.panel.tworows .fightp .prompt { font-size: var(--mv-prompt, 34px); margin: 2px 0 6px; }

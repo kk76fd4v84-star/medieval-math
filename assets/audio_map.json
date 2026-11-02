@@ -1,5 +1,5 @@
 {
- "_comment": "event -> { files: [names in assets/audio/], vol }. Empty files = silent hook. Engine calls KM.Audio.play(event). vo_* entries are voice-over clips (KM.Audio.voice): put files in assets/audio/vo/ and list them, e.g. \"files\": [\"vo/vo_intro_01.ogg\"]. Music is not here: see src/data/music.js.",
+ "_comment": "event -> { files: [names in assets/audio/], vol }. Empty files = silent hook. Engine calls KM.Audio.play(event). vo_* entries are voice-over clips (KM.Audio.voice): put files in assets/audio/vo/ and list them, e.g. \"files\": [\"vo/vo_intro_01.ogg\"]. Music is not here: see src/data/music.js. v12r: a vo_* id plays only the file listed here; an id with no files (or no entry) is silent (no by-name probing, no 404s).",
  "ui_click": {
   "files": [],
   "vol": 0.7
@@ -177,34 +177,53 @@
   "vol": 1.0
  },
  "vo_name_prompt": {
-  "files": [],
-  "vol": 1.0
+  "files": [
+   "vo/vo_name_prompt.ogg"
+  ],
+  "vol": 1.0,
+  "_note": "v12r Charlie: Callum narrator (incoming/vo_narrator/NOTES.md)"
  },
  "vo_after_name": {
-  "files": [],
-  "vol": 1.0
+  "files": [
+   "vo/vo_after_name.ogg"
+  ],
+  "vol": 1.0,
+  "_note": "v12r Charlie: Callum narrator (incoming/vo_narrator/NOTES.md) - recorded without the name; the bubble keeps {name}"
  },
  "vo_victory": {
-  "files": [],
-  "vol": 1.0
+  "files": [
+   "vo/vo_victory.ogg"
+  ],
+  "vol": 1.0,
+  "_note": "v12r Charlie: Callum narrator (incoming/vo_narrator/NOTES.md)"
  },
  "vo_gameover_01": {
-  "files": [],
-  "vol": 1.0
+  "files": [
+   "vo/vo_gameover_01.ogg"
+  ],
+  "vol": 1.0,
+  "_note": "v12r Charlie: Callum narrator (incoming/vo_narrator/NOTES.md)"
  },
  "vo_gameover_02": {
-  "files": [],
-  "vol": 1.0
+  "files": [
+   "vo/vo_gameover_02.ogg"
+  ],
+  "vol": 1.0,
+  "_note": "v12r Charlie: Callum narrator (incoming/vo_narrator/NOTES.md)"
  },
  "vo_gameover_03": {
-  "files": [],
-  "vol": 1.0
+  "files": [
+   "vo/vo_gameover_03.ogg"
+  ],
+  "vol": 1.0,
+  "_note": "v12r Charlie: Callum narrator (incoming/vo_narrator/NOTES.md)"
  },
  "vo_further_than_ever": {
   "files": [
    "vo/vo_further_than_ever.ogg"
   ],
-  "vol": 1.0
+  "vol": 1.0,
+  "_note": "v12r Charlie: Callum narrator (incoming/vo_narrator/NOTES.md)"
  },
  "spell_cast": {
   "files": [],
@@ -391,5 +410,30 @@
   ],
   "vol": 0.8,
   "_note": "v12n fire bottle: one yelp per enemy hit, staggered (never the same twice in a row)"
+ },
+ "scroll_buy": {
+  "files": [
+   "sfx/scroll_buy_1.ogg",
+   "sfx/scroll_buy_2.ogg"
+  ],
+  "vol": 0.8,
+  "_note": "v12r Charlie: buying a Scroll of Stupidity (tavern / shop / stall)"
+ },
+ "scroll_get": {
+  "files": [
+   "sfx/scroll_get_1.ogg",
+   "sfx/scroll_get_2.ogg"
+  ],
+  "vol": 0.7,
+  "delay": 0.25,
+  "_note": "v12r Charlie: the scroll goes into the pack (~250 ms after a buy; any other way a scroll is gained)"
+ },
+ "scroll_use": {
+  "files": [
+   "sfx/scroll_use_1.ogg",
+   "sfx/scroll_use_2.ogg"
+  ],
+  "vol": 0.9,
+  "_note": "v12r Charlie: casting the scroll"
  }
 }

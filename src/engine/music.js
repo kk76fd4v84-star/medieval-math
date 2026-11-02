@@ -22,6 +22,7 @@ KM.Music = (function () {
   }
   function nextTrack(c) {
     const h = ch[c], list = tracks(c); if (!list.length) return null;
+    if (h.pre) { const t = h.pre; h.pre = null; h.bag = h.bag.filter(x => x !== t); return t; } // v12r: the track preloaded with the bar
     if (!h.bag.length) h.bag = shuffle(list.slice());
     // no immediate repeat: not the track this category just played, nor the one we just heard anywhere
     for (let n = 0; n < h.bag.length && h.bag.length > 1 && (h.bag[0] === h.last || h.bag[0] === lastTrack); n++) h.bag.push(h.bag.shift());
@@ -29,18 +30,40 @@ KM.Music = (function () {
   }
   function startTrack(c) {
     const h = channel(c), t = nextTrack(c); if (!t) return;
-    h.last = lastTrack = h.src = t; h.el.src = M().root + t; h.el.preload = "auto";
+    h.last = lastTrack = h.src = t; const u = urlOf(t); if (h.el.src !== u) h.el.src = u; else h.el.currentTime = 0; h.el.preload = "auto";
     log.push({ cat: c, track: t }); if (log.length > 300) log.shift();
     play(h);
   }
   function play(h) { if (!unlocked || muted || !h.src) return; const p = h.el.play(); if (p && p.catch) p.catch(() => {}); }
 
+  // v12r (Magnus: "make sure the music is loaded before the game starts so the music loads in with the load bar"):
+  // KM_DATA.music.preload lists the categories whose FIRST track loads with the bar (real bytes via KM.Loader.fetch),
+  // is held as an in-memory blob and is decoded (canplaythrough) before the bar finishes. Everything else streams later.
+  const blobs = {};                                    // track -> blob: URL (preloaded)
+  const urlOf = t => blobs[t] || M().root + t;
+  function preload() {
+    const L = window.KM && KM.Loader; if (!L || !L.fetch) return;
+    const taken = new Set();
+    (M().preload || []).forEach(c => {
+      const h = channel(c), list = tracks(c).filter(t => !taken.has(t)); if (!list.length) return;
+      const t = list[Math.floor(Math.random() * list.length)]; taken.add(t); h.pre = t;  // this category's first track
+      L.fetch(M().root + t, url => new Promise(res => { blobs[t] = url; // decode it in its own channel element before the bar ends
+        const el = h.el, done = () => { el.removeEventListener("canplaythrough", done); clearTimeout(tm); res(); }, tm = setTimeout(done, 8000);
+        el.addEventListener("canplaythrough", done); el.preload = "auto"; el.src = url; el.load(); }));
+    });
+  }
   // scene: a key of KM_DATA.music.scenes (title, walk, battle, boss, mega, riddle, recruit, rest_<kind>, gameover, win)
-  function setScene(name) {
-    const sc = M().scenes[name] || { cat: null };
-    scene = name; sceneDuck = sc.duck == null ? 1 : sc.duck;
-    const c = sc.cat || null;
-    log.push({ scene: name, cat: c });
+  // v12r: a category tagged `where` (the vocal bard songs: "tavern-interior") only plays while the game's view is that
+  // place; otherwise the scene's `outside` category (or KM_DATA.music.outside) plays. The usual crossfade fades it in/out.
+  let place = null;
+  function resolve(sc) { const c = sc.cat || null, w = c && catDef(c).where; return w && w !== place ? (sc.outside || M().outside || null) : c; }
+  function setPlace(p) { p = p || null; if (p === place) return; place = p; if (scene) apply(); }
+  function setScene(name) { scene = name; apply(); }
+  function apply() {
+    const name = scene, sc = M().scenes[name] || { cat: null };
+    sceneDuck = sc.duck == null ? 1 : sc.duck;
+    const c = resolve(sc);
+    log.push({ scene: name, cat: c, place });
     if (c === cur) return;
     cur = c;
     if (!c) return;
@@ -73,7 +96,7 @@ KM.Music = (function () {
   function state() {
     const h = cur && ch[cur];
     return { scene, cat: cur, track: h ? h.src : null, playing: !!(h && !h.el.paused), time: h ? h.el.currentTime : 0,
-      vol: h ? h.el.volume : 0, sceneDuck, voiceDuck, unlocked, muted, volume };
+      vol: h ? h.el.volume : 0, place, vocal: !!(cur && catDef(cur).vocal), sceneDuck, voiceDuck, unlocked, muted, volume };
   }
-  return { setScene, unlock, settings, setVolume, toggleMute, duckVoice, state, log, channels: ch, onChange: f => (onChange = f) };
+  return { preload, preloaded: () => Object.keys(blobs), setScene, setPlace, place: () => place, unlock, settings, setVolume, toggleMute, duckVoice, state, log, channels: ch, onChange: f => (onChange = f) };
 })();
