@@ -172,3 +172,21 @@ button.opt.plaque { padding: 14px 36px; }
 #kmLoader .ld-bar { position: relative; width: min(80vw, 1100px); aspect-ratio: 2128 / 66; }
 #kmLoader .ld-bar img, #kmLoader .ld-bar canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 #kmLoader .ld-txt { font: 22px Georgia, "Times New Roman", serif; color: #2a1d12; opacity: .6; letter-spacing: .08em; }
+
+/* v12k fire bottle: the word to spell, in the sum's carved font and ink (KM.Spelling.drawWord; Maggi's alphabet later) */
+.spellp .spellword { display: flex; justify-content: center; align-items: flex-end; gap: 4px; font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-size: 96px; line-height: 1.05; font-weight: bold; letter-spacing: .02em; white-space: nowrap; color: #2a1d12; text-shadow: 1px 1px 0 rgba(255,255,255,.4); }
+.spellword .letter { display: inline-block; min-width: .5em; text-align: center; transition: color .08s, opacity .08s; }
+.spellword .letter.todo, .spellword .letter.next { opacity: .28; }
+.spellword .letter.next { opacity: .45; box-shadow: inset 0 -5px 0 rgba(42,29,18,.55); }
+.spellword .letter.done { color: #b5561c; } /* Maggi: typed right = burnt orange, wrong = madder red */
+.spellword .letter.bad { color: #7a1f14; opacity: 1; box-shadow: inset 0 -5px 0 #7a1f14; }
+.spellword.fizzled { opacity: .45; filter: grayscale(1); }
+.spellword.art { gap: 0; align-items: flex-end; } /* Maggi's letters sit edge to edge by their advance boxes, baselines aligned */
+.spellword img.letter { display: block; min-width: 0; opacity: 1; box-shadow: none; }
+.spellword img.letter.todo { opacity: .35; } .spellword img.letter.next { opacity: 1; animation: kmBob 1.1s ease-in-out infinite; }
+.spellword img.letter.bad { animation: kmShake .15s linear 1; }
+@keyframes kmBob { 50% { transform: translateY(-5px); } }
+@keyframes kmShake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+button.opt.plaque img.itemicon { display: block; height: 40px; width: auto; flex: none; }
+.tvmenu button.opt.plaque img.itemicon { height: 40px; }

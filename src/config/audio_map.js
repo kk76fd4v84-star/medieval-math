@@ -331,5 +331,23 @@ window.KM_AUDIO_MAP = {
   ],
   "vol": 1.0,
   "_note": "every hit in a boss / mega-boss fight"
+ },
+ "spell_letter_ok": {
+  "files": [
+   "sfx/sfx_correct_01.ogg",
+   "sfx/sfx_correct_02.ogg",
+   "sfx/sfx_correct_03.ogg"
+  ],
+  "vol": 0.5,
+  "_note": "v12k fire bottle: a right letter. Reuses Charlie's anvil strikes (= 'correct'), quieter; a proper ding can replace it"
+ },
+ "spell_letter_bad": {
+  "files": [
+   "sfx/sfx_wrong_01.ogg",
+   "sfx/sfx_wrong_02.ogg",
+   "sfx/sfx_wrong_03.ogg"
+  ],
+  "vol": 0.7,
+  "_note": "v12k fire bottle: a wrong letter. Reuses Charlie's clunks (= 'wrong'), quieter"
  }
 };

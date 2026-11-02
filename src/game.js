@@ -5,7 +5,7 @@
 // hidden monster strength until commit, D20, recruiting by maths (+ D20 contest), Frank's restraint branch,
 // layered camp / tavern views, approved drawn deaths, graves with killer emblems.
 (function () {
-  const D = KM_DATA, SPL = KM_DATA.spell, W = D.world, A = KM.Audio, MU = KM.Music, RS = D.restStops, GR = D.graves, C = D.combat, L = KM_LAYOUT, K = L.k, VW = L.viewW;
+  const D = KM_DATA, SPL = KM_DATA.spell, IT = KM_DATA.items.fireBottle, W = D.world, A = KM.Audio, MU = KM.Music, RS = D.restStops, GR = D.graves, C = D.combat, L = KM_LAYOUT, K = L.k, VW = L.viewW;
   const $ = id => document.getElementById(id);
   const cv = $("game"), ctx = cv.getContext("2d");
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -18,7 +18,7 @@
   const ART7 = !!window.KM_ART7, SCN = () => ART7 && KM.Scenery.available();
 
   const S = {
-    mode: "title", t: 0, speedMul: 1, camX: 0, name: "Nobody", hp: 6, gold: 0, hunters: 0, spells: 0, spellLeft: 0, mead: 0,
+    mode: "title", t: 0, speedMul: 1, camX: 0, name: "Nobody", hp: 6, gold: 0, hunters: 0, spells: 0, spellLeft: 0, mead: 0, bottles: 0,
     party: [], stop: 0, stops: [], actors: [], obstacles: [], props: [], trees: [], floats: [], skyEvents: [], timers: [],
     enc: null, dice: [], stats: { correct: 0, wrong: 0, riddles: 0, sacrificed: 0 }, usedRiddles: [],
     checkpoint: null, shake: 0, banner: null, winT: 0, stepT: 0, nextSky: 8, intro: null, dist: 0, fid: 0, runId: "",
@@ -203,13 +203,13 @@
   // v10: the frontGround run seed (choose-strip.js: "store/reuse the run seed") = a hash of the saved runId, also saved
   const seedOf = id => { let h = 2166136261; for (const ch of String(id)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; return h & 0x7fffffff; };
   const fgSeed = () => (S.fgSeed != null ? S.fgSeed : (S.fgSeed = seedOf(S.runId)));
-  const core = () => ({ name: S.name, hp: S.hp, gold: S.gold, stop: S.stop, dist: Math.round(S.dist), fid: S.fid, further: S.furtherDone, hunters: S.hunters, spells: S.spells, spellLeft: S.spellLeft, mead: S.mead ? 1 : 0, runId: S.runId, fgSeed: fgSeed(),
+  const core = () => ({ name: S.name, hp: S.hp, gold: S.gold, stop: S.stop, dist: Math.round(S.dist), fid: S.fid, further: S.furtherDone, hunters: S.hunters, spells: S.spells, spellLeft: S.spellLeft, mead: S.mead ? 1 : 0, bottles: S.bottles, runId: S.runId, fgSeed: fgSeed(),
     party: S.party.map(m => { const { sx, hopY, act, hopping, dying, ...rec } = m; return rec; }), stats: Object.assign({}, S.stats), usedRiddles: S.usedRiddles.slice() });
   function save() { KM.Save.write(Object.assign(core(), { checkpoint: S.checkpoint })); }
   function setCheckpoint() { S.checkpoint = core(); save(); }
   function applyCore(c) {
     S.name = c.name; S.hp = c.hp; S.gold = c.gold; S.stop = c.stop; S.stats = Object.assign({ correct: 0, wrong: 0, riddles: 0, sacrificed: 0 }, c.stats); S.usedRiddles = (c.usedRiddles || []).slice();
-    S.dist = c.dist || 0; S.furtherDone = !!c.further; S.hunters = c.hunters || 0; S.spells = c.spells != null ? c.spells : SPL.start; S.spellLeft = c.spellLeft || 0; S.mead = c.mead ? 1 : 0; S.runId = c.runId || "run-" + Date.now(); S.fgSeed = c.fgSeed != null ? c.fgSeed : seedOf(S.runId);
+    S.dist = c.dist || 0; S.furtherDone = !!c.further; S.hunters = c.hunters || 0; S.spells = c.spells != null ? c.spells : SPL.start; S.spellLeft = c.spellLeft || 0; S.mead = c.mead ? 1 : 0; S.bottles = c.bottles || 0; S.runId = c.runId || "run-" + Date.now(); S.fgSeed = c.fgSeed != null ? c.fgSeed : seedOf(S.runId);
     S.party = c.party.map((m, i) => Object.assign({}, m, { sx: slotX(i), hopY: 0 }));
     S.fid = Math.max(c.fid || 0, ...S.party.map(m => +String(m.id).replace(/\D/g, "") || 0));
     S.view = null; S.dying = null; S.dice = []; S.timers = []; S.toast = null; S.entering = null;
@@ -264,6 +264,7 @@
     roll: `<svg viewBox="0 0 40 40"><rect x="7" y="7" width="26" height="26" rx="5" fill="#efe0c0" ${INK}/><circle cx="14" cy="14" r="2.6" fill="#2a1d12"/><circle cx="20" cy="20" r="2.6" fill="#2a1d12"/><circle cx="26" cy="26" r="2.6" fill="#2a1d12"/></svg>`,
     mead: `<svg viewBox="0 0 40 40"><path d="M9 11 H27 V33 Q18 36 9 33Z" fill="#c98a2b" ${INK}/><path d="M9 11 Q12 5 18 8 Q24 4 27 11" fill="#efe0c0" ${INK}/><path d="M27 15 Q35 15 35 22 Q35 29 27 29" fill="none" ${INKW(3)}/></svg>`,
     stew: `<svg viewBox="0 0 40 40"><path d="M5 19 H35 Q34 33 20 34 Q6 33 5 19Z" fill="#8a5a2b" ${INK}/><path d="M12 14 q2 -4 0 -8 M20 14 q2 -4 0 -8 M28 14 q2 -4 0 -8" fill="none" ${INKW(2)}/></svg>`,
+    fire: `<img class="itemicon" src="${IT.art.dir + IT.art.icon}" alt="">`, // v12k Maggi's fire bottle stamp
     sacrifice: `<svg viewBox="0 0 40 40"><path d="M10 6 H30 V22 C30 30 20 35 20 35 C20 35 10 30 10 22Z" fill="#efe0c0" ${INK}/><path d="M20 10 V30 M13 17 H27" ${INK}/></svg>`
   };
   const BANNER = `<svg class="plq" viewBox="0 0 300 90" preserveAspectRatio="none" aria-hidden="true"><path d="M6 5 Q150 0 294 5 L280 45 L294 85 Q150 90 6 85 L20 45Z" fill="#efe0c0" stroke="#2a1d12" stroke-width="3" vector-effect="non-scaling-stroke"/><path d="M19 13 Q150 9 281 13 L270 45 L281 77 Q150 81 19 77 L30 45Z" fill="none" stroke="#2a1d12" stroke-width="1.2" stroke-dasharray="5 4" opacity=".55" vector-effect="non-scaling-stroke"/></svg>`;
@@ -365,7 +366,7 @@
   function startRunBookkeeping() { const b = KM.Save.best(); S.bestAtStart = b ? b.leagues : 0; S.toast = null; }
   function newGame() {
     KM.Save.clear(); hush();
-    S.name = "Nobody"; S.hp = D.party.heartsPerMember; S.gold = 0; S.stop = 0; S.dist = 0; S.fid = 0; S.hunters = 0; S.spells = SPL.start; S.spellLeft = 0; S.mead = 0; S.runId = "run-" + Date.now(); S.fgSeed = seedOf(S.runId);
+    S.name = "Nobody"; S.hp = D.party.heartsPerMember; S.gold = 0; S.stop = 0; S.dist = 0; S.fid = 0; S.hunters = 0; S.spells = SPL.start; S.spellLeft = 0; S.mead = 0; S.bottles = IT.start; S.runId = "run-" + Date.now(); S.fgSeed = seedOf(S.runId);
     S.stats = { correct: 0, wrong: 0, riddles: 0, sacrificed: 0 }; S.usedRiddles = [];
     S.party = [newMember("hero", slotX(0))]; buildWorld(0); S.camX = 0; addNarrator(); S.floats = []; S.dice = []; S.enc = null; S.timers = []; S.view = null; S.dying = null; S.entering = null; S.voices = [];
     S.furtherDone = false; startRunBookkeeping();
@@ -557,9 +558,10 @@
     // v11b layout (Magnus's mockup): a big centred prompt, then the moves in one row; Heal greys out when unavailable;
     // the Stupidity spell sits after an ink divider and only exists while you hold a scroll (no count, no caption)
     const spellBtn = S.spells > 0 && !S.spellLeft && !meadNow() ? `<i class="vdiv"></i>${move(SPL.key, "Stupidity", "castSpell", "spell")}` : "";
+    const fireBtn = S.bottles > 0 ? move(IT.key, IT.name, "pickFire", "fire") : ""; // v12k: only while you carry one
     showPanel(`<div class="center fightp"><div class="prompt">Choose your move.</div>
       <div class="opts big3 turn moves">
-        ${move(C.actions.weak.key, "Weak swing", "pickWeak", "weak")}${move(C.actions.hard.key, "Hard swing", "pickHard", "hard")}${move(C.actions.heal.key, "Heal", "pickHeal", "heal", "", e.heals <= 0 || S.hp >= maxHp())}${rollOpt}${sac}${spellBtn}
+        ${move(C.actions.weak.key, "Weak swing", "pickWeak", "weak")}${move(C.actions.hard.key, "Hard swing", "pickHard", "hard")}${move(C.actions.heal.key, "Heal", "pickHeal", "heal", "", e.heals <= 0 || S.hp >= maxHp())}${fireBtn}${rollOpt}${sac}${spellBtn}
       </div></div>`, "fight");
   }
   function pickAction(kind) {
@@ -570,25 +572,26 @@
       if (e.st && e.st.type === "math" && nth < (C.starterFights || 0) && D.mathLevels["starter_" + level]) level = "starter_" + level; }
     e.action = kind; e.msg = "";
     ask(level, () => turnRight(kind), () => turnWrong(kind), () => renderChoice());
-    if (C.answerSecs > 0 && !/[?&]notimer\b/.test(location.search)) e.tmr = { t: 0, q: e.q }; // v12c: battle sums only (not riddles, recruits, Frank)
+    if (C.answerSecs > 0 && !NOTIMER) e.tmr = { t: 0, q: e.q, secs: C.answerSecs }; // v12c: battle sums only (not riddles, recruits, Frank)
   }
   // ---- v12c answer timer (Magnus: "This bar down here, lets try turning that into a timer for the answers. If you don't
   // answer before it is full, the enemies will strike and not wait. Then it resets. If you answer it will reset for the
   // next math problem. Give the player 20 sec to think."). Runs only while a battle sum waits for input; paused during
   // strikes, deaths, the scene toast, a sacrifice prompt, enemies walking up. Full = exactly a wrong answer.
+  const NOTIMER = /[?&]notimer\b/.test(location.search);
   let tmrHold = 0;
   function tickAnswerTimer(dt) {
     const e = S.enc, T = e && e.tmr;
-    if (!T || e.phase !== "math" || e.q !== T.q || S.mode !== "encounter") { if (e && T && e.q !== T.q) e.tmr = null; tmrHold = Math.max(0, tmrHold - dt); return dividerFill(tmrHold > 0 ? 1 : 0); }
+    if (!T || !["math", "spell"].includes(e.phase) || e.q !== T.q || S.mode !== "encounter") { if (e && T && e.q !== T.q) e.tmr = null; tmrHold = Math.max(0, tmrHold - dt); return dividerFill(tmrHold > 0 ? 1 : 0); }
     const foes = e.foes || [e.act];
     const paused = S.dying || S.toast || S.view || e.sub || S.party.some(m => m.act || m.dying) || foes.some(a => a && (a.act || a.state === "walkin"));
     if (!paused) T.t += dt;
-    const secs = C.answerSecs, left = secs - T.t;
+    const secs = T.secs || C.answerSecs, left = secs - T.t; // v12k: the fire bottle's word has its own (shorter) time
     if (left > 0 && left <= (C.answerTickLast || 0) && Math.ceil(left) !== T.tick) { T.tick = Math.ceil(left); A.play(C.answerTickSfx || "type_blip"); } // subtle tick, existing SFX hook
     dividerFill(Math.min(1, T.t / secs));
     if (T.t >= secs) { // time's up: the same path as a wrong answer (wrong SFX, hunters +1, corrected sum, every living foe strikes)
       const q = e.q; e.q = null; e.tmr = null; e.phase = "busy"; e.timedOut = (e.timedOut || 0) + 1; tmrHold = 1.2;
-      S.stats.wrong++; S.stats.timeouts = (S.stats.timeouts || 0) + 1; A.play("wrong"); q.onWrong();
+      S.stats.wrong++; S.stats.timeouts = (S.stats.timeouts || 0) + 1; A.play(q.sfx || "wrong"); q.onWrong();
     }
   }
   // the warm fill: an orange-tinted copy of Magnus's divider ink, revealed from the centre ornament out to both ends
@@ -611,11 +614,58 @@
     partyAct("attack", STRIKE.dur); A.play("swing_" + kind); A.play("hit");
     // the sword hits the 2 front-most living foes (combat.groups.swordHits), each takes the full damage
     const tg = living(e).slice(0, GRP().swordHits || 2);
-    later(STRIKE.impact, () => { S.shake = 0.18; A.play(hitSfx(e)); tg.forEach(a => { enemyHit(a); a.hp = Math.max(0, a.hp - dmg); float(`−${dmg}`, screenX(a.x) + ((window.KM_WIDE && KM_WIDE[a.id]) ? (KM_WIDE[a.id][0] + KM_WIDE[a.id][1]) / 2 : 0), W.groundY - tallOf(a.id) + 70, "#ffe680"); }); syncFront(e); });
-    later(STRIKE.dur, () => {
-      if (!living(e).length) { e.act = tg[tg.length - 1]; e.hp = 0; tg.slice(0, -1).forEach(a => { if (!a.gone) { a.gone = true; enemyDeath(a); } }); return defeatEnemy(); }
-      tg.filter(a => a.hp <= 0 && !a.gone).forEach(a => { a.gone = true; say(a, (D.enemies[a.id] || {}).defeat); enemyDeath(a); });
-      stepUp(e); syncFront(e); later(tg.some(a => a.hp <= 0) ? 1.0 : 0.5, enemyTurn); });
+    later(STRIKE.impact, () => hitFoes(e, tg, dmg));
+    later(STRIKE.dur, () => settleHits(e, tg));
+  }
+  // a party hit lands on the foes tg (sword or fire): hit flash, damage, the damage number over each
+  function hitFoes(e, tg, dmg) {
+    S.shake = 0.18; A.play(hitSfx(e));
+    tg.forEach(a => { enemyHit(a); a.hp = Math.max(0, a.hp - dmg); float(`−${dmg}`, centreX(a), W.groundY - tallOf(a.id) + 70, "#ffe680"); }); syncFront(e);
+  }
+  // after a party hit: the dead fall (all dead = the fight is won), the rest close up, then the enemies' turn
+  function settleHits(e, tg) {
+    if (!living(e).length) { e.act = tg[tg.length - 1]; e.hp = 0; tg.slice(0, -1).forEach(a => { if (!a.gone) { a.gone = true; enemyDeath(a); } }); return defeatEnemy(); }
+    tg.filter(a => a.hp <= 0 && !a.gone).forEach(a => { a.gone = true; say(a, (D.enemies[a.id] || {}).defeat); enemyDeath(a); });
+    stepUp(e); syncFront(e); later(tg.some(a => a.hp <= 0) ? 1.0 : 0.5, enemyTurn);
+  }
+  const centreX = a => screenX(a.x) + ((window.KM_WIDE && KM_WIDE[a.id]) ? (KM_WIDE[a.id][0] + KM_WIDE[a.id][1]) / 2 : 0); // a foe's body centre on screen
+
+  // ---- v12k fire bottle (Magnus): a move while you carry one. Spell the word before the divider fills: fire on EVERY
+  // living foe (one weak-swing hit each). Too slow: it fizzles (used up, no damage) and the foes strike as usual.
+  // The word challenge is KM.Spelling (src/modes/spelling.js), the drawings KM.FireFx (src/engine/firefx.js), numbers in
+  // KM_DATA.items.fireBottle / KM_DATA.words.
+  function pickFire() {
+    const e = S.enc; if (!e || e.phase !== "choose" || S.bottles <= 0) return;
+    S.bottles--; save(); e.action = "fire"; e.msg = ""; e.phase = "spell";
+    e.spell = KM.Spelling.start(KM.Spelling.pickWord(D.words[IT.words]));
+    e.q = { onWrong: fireFizzle, sfx: IT.sfx.fizzle }; // the timer's "too slow" path
+    if (IT.spellSecs > 0 && !NOTIMER) e.tmr = { t: 0, q: e.q, secs: IT.spellSecs };
+    heroSay(pickOne(IT.lines.light)); renderSpell();
+  }
+  const renderSpell = cls => showPanel(`<div class="center spellp">${KM.Spelling.drawWord(S.enc.spell, cls)}</div>`, "math");
+  function spellKey(k) {
+    const e = S.enc; if (!e || e.phase !== "spell" || e.sub) return;
+    const r = KM.Spelling.key(e.spell, k); if (!r) return;
+    A.play(r === "bad" ? IT.sfx.letterBad : r === "back" ? "key_tap" : IT.sfx.letterOk); renderSpell();
+    if (r === "done") { e.q = null; e.tmr = null; e.phase = "busy"; S.stats.correct++; fireThrow(); }
+  }
+  function fireThrow() {
+    const e = S.enc, tg = living(e), dmg = IT.damage === "hard" ? hardDmg() : weakDmg();
+    heroSay(pickOne(IT.lines.throw)); A.play(IT.sfx.throw);
+    const hitAt = KM.FireFx.start({ from: { x: slotX(0) + 80, y: W.groundY - tallOf("hero") * 0.6 }, targets: tg.map(a => ({ x: centreX(a), y: W.groundY })) });
+    later(hitAt, () => hitFoes(e, tg, dmg));
+    later(hitAt + 0.6, () => settleHits(e, tg));
+  }
+  function fireFizzle() {
+    renderSpell("fizzled"); heroSay(pickOne(IT.lines.fizzle));
+    if (IT.hunters) huntersStep(IT.hunters);
+    if (!S.dying) later(0.6, enemyTurn);
+  }
+  function buyBottle() {
+    const e = S.enc; if (!e || !IT.sellAt.includes(e.st.rest)) return;
+    if (S.bottles >= IT.max) return keeperSay(IT.lines.full);
+    if (S.gold < IT.price) return;
+    S.gold -= IT.price; S.bottles++; A.play("buy"); save(); keeperSay(pickOne(IT.lines.buy)); renderHUD(); renderRest();
   }
   const living = e => (e.foes || [e.act]).filter(a => (a.hp == null ? e.hp : a.hp) > 0 && !a.gone).sort((a, b) => a.x - b.x);
   function syncFront(e) { const L1 = living(e); if (!e.foes) return; if (L1.length) { e.act = L1[0]; e.hp = e.act.hp; e.maxHp = e.act.maxHp; e.atk = e.act.atk; } else e.hp = 0; }
@@ -1081,7 +1131,7 @@
     roll: () => roll(),
     frankAgree: () => { if (S.enc.phase === "frank") { say(S.enc.frank, "Splendid! For God and science!"); commit(); } }, frankNo: () => frankNo(),
     tvBack: () => tvBack(), tvJoin: b => tvJoin(+b.dataset.j), tvTalk: b => { const j = +b.dataset.j, p = S.enc.st.cands[j]; if (p) speak(candSpeaker(S.enc.st, j), p.join); },
-    talkTable: () => talkPoint("table"), talkBar: () => talkPoint("bar"), castSpell: () => castSpell(), buySpell: () => buySpell(),
+    talkTable: () => talkPoint("table"), talkBar: () => talkPoint("bar"), castSpell: () => castSpell(), buySpell: () => buySpell(), pickFire: () => pickFire(), buyBottle: () => buyBottle(),
     restHeal: b => restHeal(b.dataset.k), buyMead: () => buyMead(), restRecruit: b => restRecruit(+b.dataset.j),
     restBuyW: b => restBuy("weapon", +b.dataset.i), restBuyA: b => restBuy("armor", +b.dataset.i),
     goInside: () => goInside(), leaveInside: () => leaveInside(),
@@ -1122,6 +1172,8 @@
   document.addEventListener("keydown", ev => {
     const k = ev.key, K1 = k.length === 1 ? k.toUpperCase() : k;
     if (S.mode === "name") { if (k === "Enter") submitName(); return; }
+    if (S.mode === "encounter" && S.enc && S.enc.phase === "spell") { // v12k fire bottle word: letters + Backspace only (M, Z... are letters here)
+      if (k === "Backspace") { ev.preventDefault(); spellKey("back"); } else if (/^[a-z]$/i.test(k)) spellKey(k.toUpperCase()); return; }
     if (K1 === "M") { MU.toggleMute(); renderHUD(); return; }
     if (k === "[" || k === "]") { MU.setVolume(MU.settings().volume + (k === "]" ? 1 : -1) * D.music.volumeStep); renderHUD(); return; }
     if ([" ", "Enter", "Backspace"].includes(k)) ev.preventDefault();
@@ -1152,6 +1204,7 @@
       case "choose":
         if (k === C.actions.weak.key) press("pickWeak"); else if (k === C.actions.hard.key) press("pickHard"); else if (k === C.actions.heal.key) press("pickHeal");
         else if (K1 === "S" && canSac) press("sacrifice"); else if ((K1 === "R" || k === " ") && e.st.type === "mega") roll();
+        else if (K1 === IT.key && S.bottles > 0) press("pickFire");
         return;
       case "riddle": { const ri = RKEYS.indexOf(K1); if (ri >= 0 && ri < e.riddle.choices.length) answerRiddle(ri); else if (/^[123]$/.test(k)) answerRiddle(+k - 1); else if (K1 === "S" && canSac) press("sacrifice"); return; }
       case "recruit": if (k === "Enter") press(partyFull() ? "noRecruit" : "recruitSum"); else if (K1 === "N") press("noRecruit"); return;
@@ -1184,7 +1237,7 @@
     S.t += dt;
     if (isWalking()) S.walkT = (S.walkT || 0) + dt; // v13 walk cycle clock: runs only while the party walks
     if (S.timers.length) { const due = S.timers.filter(x => x.at <= S.t); S.timers = S.timers.filter(x => x.at > S.t); due.forEach(x => x.fn()); }
-    tickSpeech(dt); introPace(); tickAnswerTimer(dt);
+    tickSpeech(dt); introPace(); tickAnswerTimer(dt); KM.FireFx.update(dt);
     if (S.mode === "walk") updateWalk(dt);
     if (S.toast) { S.toast.t += dt; if (S.toast.t > S.toast.dur) S.toast = null; }
     if (S.view) { S.view.a += (S.view.to ? 1 : -1) * dt / 0.5; S.view.a = Math.max(0, Math.min(1, S.view.a)); if (!S.view.to && S.view.a <= 0) S.view = null; }
@@ -1316,7 +1369,7 @@
   const FS = 20, FROW = 10; // the monster's small hearts (rows of 10) (stage px), centred just above its head
   function foeHeartsRect() { const e = S.enc; return e && e.act ? foeHeartsRects().find(r => r.owner === e.act) || null : null; }
   function foeHeartsRects() {
-    const e = S.enc; if (!e || !e.revealed || !e.act || e.hp <= 0 || !["choose", "math", "busy"].includes(e.phase)) return [];
+    const e = S.enc; if (!e || !e.revealed || !e.act || e.hp <= 0 || !["choose", "math", "spell", "busy"].includes(e.phase)) return [];
     return (e.foes && e.foes.length ? living(e) : [e.act]).map(a => { const o = occ.find(q => q.owner === a); if (!o || a.dead) return null;
       const mx = a.maxHp != null ? a.maxHp : e.maxHp, hp = a.hp != null ? a.hp : e.hp;
       // ONE row at most (Magnus: the mega boss's ~24 hearts were clutter): up to FROW hearts, each worth mx / shown HP;
@@ -1537,6 +1590,7 @@
       const mOut = fareLeft("mead") <= 0, sOut = fareLeft("stew") <= 0;
       if (M) pl.push(move("1", `Mead${coin(M.cost)}`, "buyMead", "mead", `data-n="1"${mOut ? ' data-lot="1"' : ""}`, mOut || S.gold < M.cost || !!S.mead));
       if (h) pl.push(move(String(pl.length + 1), `Stew${coin(h.cost)}`, "restHeal", "stew", `data-n="${pl.length + 1}" data-k="${h.key}"${sOut ? ' data-lot="1"' : ""}`, sOut || S.gold < h.cost || S.hp >= maxHp()));
+      if (IT.sellAt.includes(e.st.rest)) pl.push(move(String(pl.length + 1), `${IT.name}${coin(IT.price)}`, "buyBottle", "fire", `data-n="${pl.length + 1}"`, S.gold < IT.price || S.bottles >= IT.max)); // v12k
     } else if (sp.kind === "npc") pl.push(move("1", esc(D.recruitTalk.ask), "tvJoin", "", `data-n="1" data-j="${sp.j}"`, partyFull()));
     else { pl.push(move("1", "Go outside", "leaveInside", "", `data-n="1"`)); pl.push(move("2", "Walk on", "leaveRest", "", `data-n="2"`)); }
     showPanel(`<div class="center tavernp"><div class="opts big3 turn moves tvmenu">${pl.join("")}</div></div>`, "rest");
@@ -1577,6 +1631,7 @@
       live.filter(a => !behind(a) && !(a.distant && a.hill) && !(a.act && a.act.name === "attack")).forEach(drawActor);
       if (lunging) drawParty(isWalking());
       live.filter(a => !behind(a) && !(a.distant && a.hill) && a.act && a.act.name === "attack").forEach(drawActor);
+      KM.FireFx.draw(ctx); // v12k fire bottle: in front of the foes, under the front ground
       if (SCN()) KM.Scenery.foreground(ctx, S.camX, fgSeed(), W.partyScreenX); // v10 frontGround: over the feet, below effects/UI
       if (!SCN()) KM_ART.foreground.forEach(Ly => KM.World.drawLayer(ctx, Ly, S.camX, S.t));
       if (S.view) drawView();
@@ -1663,7 +1718,8 @@
       if (m) { m.homeX = st.homeX; if (!m.active) { m.x = st.stopX + 500; m.state = "waiting"; } } return i; },
     foeFeet: () => S.actors.filter(a => a.foe && !a.dead && !a.hidden).map(a => { const ln = laneOf(a), fx = actFx(a.id, a.act, -1); return { id: a.id, state: a.state, hill: !!a.hill, distant: !!a.distant, sx: screenX(a.x), feetY: (ln ? ln.y : W.groundY) + a.dy + (fx ? fx.dy : 0), groundY: W.groundY }; }), fareLeft: k => fareLeft(k), signAngle: () => signAngle() * 180 / Math.PI, sign: () => { const g = signGeom(KM.RestView.mapper("tavern-interior")); return g && { r: g.r, k: g.k, nail: [g.nx, g.ny] }; },
     heads: () => heads().map(({ x, y, w, h }) => ({ x, y, w, h })), speechLog: () => speechLog.slice(), speaking: () => [...speakers].filter(o => o.sp).map(o => speechNow(o).join(" ")),
-    panelText: () => panel.innerText, answerTimer: () => S.enc && S.enc.tmr ? { t: S.enc.tmr.t, secs: C.answerSecs, frac: Math.min(1, S.enc.tmr.t / C.answerSecs) } : null, timedOut: () => S.enc && S.enc.timedOut || 0, dvFill: () => dvFillFrac
+    panelText: () => panel.innerText, answerTimer: () => S.enc && S.enc.tmr ? { t: S.enc.tmr.t, secs: S.enc.tmr.secs, frac: Math.min(1, S.enc.tmr.t / S.enc.tmr.secs) } : null,
+    bottles: () => S.bottles, spelling: () => S.enc && S.enc.spell ? Object.assign({ phase: S.enc.phase }, S.enc.spell) : null, fireFx: () => KM.FireFx.state(), timedOut: () => S.enc && S.enc.timedOut || 0, dvFill: () => dvFillFrac
   };
 
   // v19 debug hook, OFF unless the page is opened with ?debug (screenshots / quick checks): jump the road to the first stop
@@ -1685,5 +1741,6 @@
     showTitle(); requestAnimationFrame(frame);
     if (KM.Loader) { await KM.Loader.ready(); KM.Loader.finish(); skinStrip(); }
     if (ART7) ["camp", "tavern-interior", "tavern-arrival"].forEach(KM.RestView.preload);
+    KM.FireFx.preload(); KM.Spelling.preload(); // v12k: after the bar
   })();
 })();
