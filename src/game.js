@@ -353,7 +353,7 @@
     S.mode = "title"; MU.setScene("title"); hush();
     const sv = KM.Save.load();
     S.party = [newMember("hero", slotX(0))]; buildWorld(0); S.camX = 0; addNarrator();
-    showPanel(`<div class="center titlep"><h1>Scruffy Knights &amp; Sums</h1>
+    showPanel(`<div class="center titlep"><h1>Medieval Math</h1>
       <div class="opts">${sv ? big("Enter", "Continue", "continue", 'id="continueBtn"') + big("N", "New game", "newGame", 'id="newGameBtn"') : big("Enter", "New game", "newGame", 'id="newGameBtn"')}</div></div>`, "title");
   }
   function startRunBookkeeping() { const b = KM.Save.best(); S.bestAtStart = b ? b.leagues : 0; S.toast = null; }
