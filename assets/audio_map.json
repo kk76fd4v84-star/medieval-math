@@ -121,19 +121,27 @@
   "vol": 0.7
  },
  "vo_story_01": {
-  "files": [],
+  "files": [
+   "vo/vo_story_01.ogg"
+  ],
   "vol": 1.0
  },
  "vo_story_02": {
-  "files": [],
+  "files": [
+   "vo/vo_story_02.ogg"
+  ],
   "vol": 1.0
  },
  "vo_story_03": {
-  "files": [],
+  "files": [
+   "vo/vo_story_03.ogg"
+  ],
   "vol": 1.0
  },
  "vo_story_04": {
-  "files": [],
+  "files": [
+   "vo/vo_story_04.ogg"
+  ],
   "vol": 1.0
  },
  "vo_intro_01": {

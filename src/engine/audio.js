@@ -29,7 +29,11 @@ KM.Audio = (function () {
   function out(f, m) { try { const a = new Audio(src(f)); a.volume = m.vol == null ? 1 : m.vol; a.loop = !!m.loop; a.play().catch(() => {}); } catch (e) {} }
   // Voice-over: one clip at a time. id -> audio_map entry (files under assets/audio/, e.g. "vo/vo_intro_01.ogg").
   // Missing entry / empty files = silent (the text is always shown anyway). voLog records every requested id.
-  let vo = null; const voLog = [];
+  let vo = null, voTok = 0; const voLog = [];
+  const VEL = new Audio(); VEL.preload = "auto";
+  const SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+  const unlockVO = () => { if (VEL.src && VEL.src !== SILENT && !VEL.paused) return; if (!VEL.src || VEL.ended || VEL.paused) { try { if (!vo) { VEL.src = SILENT; VEL.play().catch(() => {}); } } catch (e) {} } window.removeEventListener("pointerdown", unlockVO, true); window.removeEventListener("keydown", unlockVO, true); };
+  window.addEventListener("pointerdown", unlockVO, true); window.addEventListener("keydown", unlockVO, true);
   // v11b: a vo_* id with no listed file is still tried by NAME, so a dropped-in recording plays without editing the map:
   // assets/audio/vo/<id>.ogg (or .mp3), then Charlie's drop folder incoming/vo_narrator/<id>.ogg/.mp3/.wav. A missing file
   // fails silently (Audio "error" -> next candidate -> nothing). o.onEnd(id) fires only when a clip really played to its end.
@@ -46,15 +50,20 @@ KM.Audio = (function () {
     log.push(id); counts[id] = (counts[id] || 0) + 1;
     const m = map[id], cands = voCands(id, m); if (muted || !cands.length) return null;
     const duck = (on, el) => { if (window.KM.Music && (on || vo === el)) KM.Music.duckVoice(on); };  // music dips under the voice
+    // v12h: ONE reusable <audio> element for all voice-over, unlocked by the first click/key (Safari only lets an element
+    // play from script after it has played once inside a user gesture; a fresh new Audio() per line was silently blocked).
+    const tok = ++voTok;
     const tryAt = i => {
+      if (tok !== voTok) return;
       if (i >= cands.length) { voFail[id] = true; return; }
       try {
-        const el = vo = new Audio(cands[i]); el.volume = m && m.vol != null ? m.vol : 1;
-        el.addEventListener("playing", () => { duck(true, el); voPlayed[id] = cands[i]; if (o.onStart && vo === el) o.onStart(el, id); }); // v12c: callers can pace text to el.currentTime
-        el.addEventListener("ended", () => { duck(false, el); if (vo === el) { vo = null; if (o.onEnd) o.onEnd(id); } });
-        el.addEventListener("pause", () => duck(false, el));
-        el.addEventListener("error", () => { duck(false, el); if (vo === el) tryAt(i + 1); });
-        el.play().catch(err => { duck(false, el); if (err && err.name === "NotSupportedError" && vo === el) tryAt(i + 1); });
+        const el = vo = VEL; el.onplaying = el.onended = el.onerror = el.onpause = null;
+        el.src = cands[i]; el.loop = false; el.volume = m && m.vol != null ? m.vol : 1;
+        el.onplaying = () => { if (tok !== voTok) return; duck(true, el); voPlayed[id] = cands[i]; if (o.onStart) o.onStart(el, id); }; // v12c: callers can pace text to el.currentTime
+        el.onended = () => { if (tok !== voTok) return; duck(false, el); vo = null; if (o.onEnd) o.onEnd(id); };
+        el.onpause = () => duck(false, el);
+        el.onerror = () => { if (tok !== voTok) return; duck(false, el); tryAt(i + 1); };
+        el.play().catch(err => { if (tok !== voTok) return; duck(false, el); if (err && err.name === "NotSupportedError") tryAt(i + 1); else voFail[id] = "blocked:" + (err && err.name); });
       } catch (e) { tryAt(i + 1); }
     };
     tryAt(0); return id;
