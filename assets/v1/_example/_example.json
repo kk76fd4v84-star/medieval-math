@@ -1,0 +1,18 @@
+{
+  "_comment": "TEMPLATE ONLY (not loaded). Copy to assets/v1/<topic>/<topic>.json, add to KM_ART.packs, and set refs like 'knights:hero' in art_config.js.",
+  "stage": [1600, 900],
+  "backgrounds": {
+    "sky":       { "file": "sky.png",       "size": [1600, 900] },
+    "mountains": { "file": "mountains.png", "size": [2400, 900] }
+  },
+  "cutouts": {
+    "hero": { "file": "hero.png", "size": [300, 520], "anchor": [150, 520], "hotspots": [[60, 40, 240, 520]] }
+  },
+  "animations": {
+    "walk": { "frames": ["anim/hero/walk_1.png", "anim/hero/walk_2.png", "anim/hero/walk_3.png", "anim/hero/walk_4.png"],
+              "order": [1, 2, 3, 4], "ms": [120, 120, 120, 120], "loop": true, "canvas": [300, 520], "anchor": [150, 520] }
+  },
+  "placements": {
+    "hero": { "x": 430, "y": 760, "scale": 0.3 }
+  }
+}

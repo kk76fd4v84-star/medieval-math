@@ -1,0 +1,85 @@
+{
+  "id": "feather",
+  "format": "articulated-sidewalk-v3",
+  "hipSockets": [
+    [
+      22,
+      8
+    ],
+    [
+      -22,
+      -8
+    ]
+  ],
+  "upper": {
+    "frontShoulder": [
+      220,
+      325
+    ],
+    "frontElbow": [
+      145,
+      375
+    ],
+    "backShoulder": [
+      385,
+      390
+    ],
+    "backElbow": [
+      420,
+      443
+    ],
+    "neck": [
+      332,
+      286
+    ],
+    "wrist": [
+      110,
+      470
+    ],
+    "armSwing": 0.18
+  },
+  "duration": 1,
+  "stance": 0.55,
+  "scale": 0.85,
+  "baseline": 731,
+  "bindHip": [
+    275,
+    520
+  ],
+  "hip": [
+    275,
+    500
+  ],
+  "partHip": [
+    325,
+    490
+  ],
+  "partKnee": [
+    393,
+    575
+  ],
+  "partAnkle": [
+    375,
+    690
+  ],
+  "ankleY": 690,
+  "step": 170,
+  "lift": 34,
+  "weightScale": 1,
+  "parts": {
+    "body": "parts/feather-body.png",
+    "thigh": "parts/feather-thigh.png",
+    "shin": "parts/feather-shin.png",
+    "boot": "parts/feather-boot.png",
+    "head": "parts/feather-head.png",
+    "frontUpper": "parts/feather-frontUpper.png",
+    "frontFore": "parts/feather-frontFore.png",
+    "backUpper": "parts/feather-backUpper.png",
+    "backFore": "parts/feather-backFore.png",
+    "frontJoint": "parts/feather-frontJoint.png",
+    "backJoint": "parts/feather-backJoint.png",
+    "neckJoint": "parts/feather-neckJoint.png"
+  },
+  "thighLength": 108.85311203635844,
+  "shinLength": 116.40017182117903
+}

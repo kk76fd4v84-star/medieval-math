@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scruffy Knights &amp; Sums (prototype)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="stage">
+  <!-- SCENE: world, characters, art, one-line barks only (canvas) -->
+  <canvas id="game"></canvas>
+  <!-- v11b STATUS over the scene's top edge (Magnus's battle mockup): purse under the party hearts, hunter meter, distance -->
+  <div id="hud"></div>
+  <!-- STRIP: all interactive + text UI. Skinnable: KM_ART.ui.strip_bg / KM_ART.ui.divider -->
+  <div id="strip">
+    <div id="divider"><span class="gem"></span></div>
+    <div id="main">
+      <div id="panel" class="panel"></div>
+    </div>
+  </div>
+</div>
+<script src="src/config/layout.js"></script>
+<script src="src/config/art_config.js"></script>
+<script src="src/config/art_v7.js"></script>
+<script src="src/config/art_v7_apply.js"></script>
+<script src="src/data/dialogue.js"></script>
+<script src="src/data/knights.js"></script>
+<script src="src/data/enemies.js"></script>
+<script src="src/data/math_levels.js"></script>
+<script src="src/data/spell.js"></script>
+<script src="src/data/riddles.js"></script>
+<script src="src/data/encounters.js"></script>
+<script src="src/data/reststops.js"></script>
+<script src="src/data/graves.js"></script>
+<script src="src/data/music.js"></script>
+<script src="src/data/world.js"></script>
+<script src="src/data/scenery.js"></script>
+<script src="src/data/combat.js"></script>
+<script src="src/config/art_v10.js"></script>
+<script src="src/config/art_v10_apply.js"></script>
+<script src="src/config/art_v11.js"></script>
+<script src="src/config/art_v18.js"></script>
+<script src="src/config/art_v18_apply.js"></script>
+<script src="src/config/art_v19.js"></script>
+<script src="src/config/art_v19_apply.js"></script>
+<script src="src/config/narrator.js"></script>
+<script src="src/config/narrator_apply.js"></script>
+<script src="src/engine/road.js"></script>
+<script src="src/config/feet.js"></script>
+<script src="src/engine/assets.js"></script>
+<script src="src/engine/save.js"></script>
+<script src="src/config/audio_map.js"></script>
+<script src="src/engine/audio.js"></script>
+<script src="src/engine/music.js"></script>
+<script src="src/engine/mathgen.js"></script>
+<script src="src/engine/world.js"></script>
+<script src="src/engine/scenery.js"></script>
+<script src="src/engine/d20.js"></script>
+<script src="src/engine/restview.js"></script>
+<script src="src/game.js"></script>
+</body>
+</html>

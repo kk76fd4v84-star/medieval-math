@@ -1,0 +1,85 @@
+{
+  "id": "hero",
+  "format": "articulated-sidewalk-v3",
+  "hipSockets": [
+    [
+      36,
+      12
+    ],
+    [
+      -36,
+      -12
+    ]
+  ],
+  "upper": {
+    "frontShoulder": [
+      550,
+      380
+    ],
+    "frontElbow": [
+      432,
+      500
+    ],
+    "backShoulder": [
+      850,
+      490
+    ],
+    "backElbow": [
+      870,
+      600
+    ],
+    "neck": [
+      785,
+      335
+    ],
+    "wrist": [
+      355,
+      655
+    ],
+    "armSwing": 0.105
+  },
+  "duration": 1,
+  "stance": 0.55,
+  "scale": 0.54,
+  "baseline": 1094,
+  "bindHip": [
+    620,
+    745
+  ],
+  "hip": [
+    620,
+    725
+  ],
+  "partHip": [
+    740,
+    720
+  ],
+  "partKnee": [
+    848,
+    843
+  ],
+  "partAnkle": [
+    800,
+    1035
+  ],
+  "ankleY": 1035,
+  "step": 240,
+  "lift": 54,
+  "weightScale": 1.5,
+  "parts": {
+    "body": "parts/hero-body.png",
+    "thigh": "parts/hero-thigh.png",
+    "shin": "parts/hero-shin.png",
+    "boot": "parts/hero-boot.png",
+    "head": "parts/hero-head.png",
+    "frontUpper": "parts/hero-frontUpper.png",
+    "frontFore": "parts/hero-frontFore.png",
+    "sword": "parts/hero-sword.png",
+    "shield": "parts/hero-shield.png",
+    "shieldArm": "parts/hero-shieldArm.png",
+    "frontJoint": "parts/hero-frontJoint.png",
+    "neckJoint": "parts/hero-neckJoint.png"
+  },
+  "thighLength": 163.68567438844488,
+  "shinLength": 197.9090700296477
+}

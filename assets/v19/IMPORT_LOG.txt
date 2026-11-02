@@ -1,0 +1,8 @@
+copy medieval-math-production-v8/atlases/dragon-sequence.png -> assets/v19/sequences/dragon-sequence.png
+copy medieval-math-production-v8/atlases/toad-sequence.png -> assets/v19/sequences/toad-sequence.png
+copy medieval-math-production-v8/atlases/ogre-sequence.png -> assets/v19/sequences/ogre-sequence.png
+copy medieval-math-production-v8/atlases/rabbits-flat-blood-sequence.png -> assets/v19/sequences/rabbits-flat-blood-sequence.png
+copy medieval-math-production-v8/atlases/knight-arrow-death.png -> assets/v19/sequences/knight-arrow-death.png
+copy medieval-math-encounter-pack-v3/art/dragon-hill-layer.png -> assets/v19/parallax/dragon-hill.png
+derived ink assets/v19/parallax/dragon-hill.png -> assets/v19/ink/parallax-dragon-hill.png
+copy medieval-math-encounter-pack-v3/art/dragon-colour-cutout.png -> assets/v19/characters/dragon-colour-cutout.png

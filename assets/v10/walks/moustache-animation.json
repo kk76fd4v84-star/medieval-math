@@ -1,0 +1,87 @@
+{
+  "id": "moustache",
+  "image": "atlases/moustache-walk.png",
+  "rig": "rigs/moustache.json",
+  "durationMs": 1000,
+  "loop": true,
+  "pivot": [
+    384,
+    680
+  ],
+  "rootMotionSpeed": 262.7272727272727,
+  "frames": [
+    {
+      "rect": [
+        0,
+        0,
+        768,
+        768
+      ],
+      "durationMs": 125
+    },
+    {
+      "rect": [
+        768,
+        0,
+        768,
+        768
+      ],
+      "durationMs": 125
+    },
+    {
+      "rect": [
+        1536,
+        0,
+        768,
+        768
+      ],
+      "durationMs": 125
+    },
+    {
+      "rect": [
+        2304,
+        0,
+        768,
+        768
+      ],
+      "durationMs": 125
+    },
+    {
+      "rect": [
+        3072,
+        0,
+        768,
+        768
+      ],
+      "durationMs": 125
+    },
+    {
+      "rect": [
+        3840,
+        0,
+        768,
+        768
+      ],
+      "durationMs": 125
+    },
+    {
+      "rect": [
+        4608,
+        0,
+        768,
+        768
+      ],
+      "durationMs": 125
+    },
+    {
+      "rect": [
+        5376,
+        0,
+        768,
+        768
+      ],
+      "durationMs": 125
+    }
+  ],
+  "standTop": 108
+}

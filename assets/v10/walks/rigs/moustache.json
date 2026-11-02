@@ -1,0 +1,85 @@
+{
+  "id": "moustache",
+  "format": "articulated-sidewalk-v3",
+  "hipSockets": [
+    [
+      22,
+      8
+    ],
+    [
+      -22,
+      -8
+    ]
+  ],
+  "upper": {
+    "frontShoulder": [
+      220,
+      325
+    ],
+    "frontElbow": [
+      145,
+      375
+    ],
+    "backShoulder": [
+      385,
+      390
+    ],
+    "backElbow": [
+      420,
+      443
+    ],
+    "neck": [
+      332,
+      286
+    ],
+    "wrist": [
+      110,
+      470
+    ],
+    "armSwing": 0.18
+  },
+  "duration": 1,
+  "stance": 0.55,
+  "scale": 0.85,
+  "baseline": 731,
+  "bindHip": [
+    275,
+    520
+  ],
+  "hip": [
+    275,
+    500
+  ],
+  "partHip": [
+    325,
+    490
+  ],
+  "partKnee": [
+    393,
+    575
+  ],
+  "partAnkle": [
+    375,
+    690
+  ],
+  "ankleY": 690,
+  "step": 170,
+  "lift": 34,
+  "weightScale": 1,
+  "parts": {
+    "body": "parts/moustache-body.png",
+    "thigh": "parts/moustache-thigh.png",
+    "shin": "parts/moustache-shin.png",
+    "boot": "parts/moustache-boot.png",
+    "head": "parts/moustache-head.png",
+    "frontUpper": "parts/moustache-frontUpper.png",
+    "frontFore": "parts/moustache-frontFore.png",
+    "backUpper": "parts/moustache-backUpper.png",
+    "backFore": "parts/moustache-backFore.png",
+    "frontJoint": "parts/moustache-frontJoint.png",
+    "backJoint": "parts/moustache-backJoint.png",
+    "neckJoint": "parts/moustache-neckJoint.png"
+  },
+  "thighLength": 108.85311203635844,
+  "shinLength": 116.40017182117903
+}

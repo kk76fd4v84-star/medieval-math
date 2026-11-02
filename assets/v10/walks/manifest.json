@@ -1,0 +1,437 @@
+[
+  {
+    "id": "hero",
+    "image": "atlases/hero-walk.png",
+    "rig": "rigs/hero.json",
+    "durationMs": 1000,
+    "loop": true,
+    "pivot": [
+      384,
+      680
+    ],
+    "rootMotionSpeed": 235.63636363636363,
+    "frames": [
+      {
+        "rect": [
+          0,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          768,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          1536,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          2304,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          3072,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          3840,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          4608,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          5376,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      }
+    ],
+    "standTop": 88
+  },
+  {
+    "id": "stripe",
+    "image": "atlases/stripe-walk.png",
+    "rig": "rigs/stripe.json",
+    "durationMs": 1000,
+    "loop": true,
+    "pivot": [
+      384,
+      680
+    ],
+    "rootMotionSpeed": 262.7272727272727,
+    "frames": [
+      {
+        "rect": [
+          0,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          768,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          1536,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          2304,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          3072,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          3840,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          4608,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          5376,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      }
+    ],
+    "standTop": 124
+  },
+  {
+    "id": "scarf",
+    "image": "atlases/scarf-walk.png",
+    "rig": "rigs/scarf.json",
+    "durationMs": 1000,
+    "loop": true,
+    "pivot": [
+      384,
+      680
+    ],
+    "rootMotionSpeed": 262.7272727272727,
+    "frames": [
+      {
+        "rect": [
+          0,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          768,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          1536,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          2304,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          3072,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          3840,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          4608,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          5376,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      }
+    ],
+    "standTop": 149
+  },
+  {
+    "id": "feather",
+    "image": "atlases/feather-walk.png",
+    "rig": "rigs/feather.json",
+    "durationMs": 1000,
+    "loop": true,
+    "pivot": [
+      384,
+      680
+    ],
+    "rootMotionSpeed": 262.7272727272727,
+    "frames": [
+      {
+        "rect": [
+          0,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          768,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          1536,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          2304,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          3072,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          3840,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          4608,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          5376,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      }
+    ],
+    "standTop": 70
+  },
+  {
+    "id": "moustache",
+    "image": "atlases/moustache-walk.png",
+    "rig": "rigs/moustache.json",
+    "durationMs": 1000,
+    "loop": true,
+    "pivot": [
+      384,
+      680
+    ],
+    "rootMotionSpeed": 262.7272727272727,
+    "frames": [
+      {
+        "rect": [
+          0,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          768,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          1536,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          2304,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          3072,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          3840,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          4608,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      },
+      {
+        "rect": [
+          5376,
+          0,
+          768,
+          768
+        ],
+        "durationMs": 125
+      }
+    ],
+    "standTop": 108
+  }
+]

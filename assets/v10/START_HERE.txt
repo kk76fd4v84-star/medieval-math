@@ -1,0 +1,3 @@
+LATEST: v13 full-body walks and v11 foreground strips.
+Use medieval-math-walks-v13. v10 is rejected; v12 lacks the corrected pelvis and upper-body motion.
+Five characters now have separate angled hip sockets, shoulder/elbow motion, torso counter-rotation and head lag. Existing original art plus two documented hero source repairs. See v13 README for limitations and import instructions. Twelve foreground biome strips remain unchanged in v11.

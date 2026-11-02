@@ -1,0 +1,1 @@
+PASS: 12 transparent RGBA strips; each 2172x300; transparent top row; all left/right RGBA boundary columns match each other across all 12 variants. Shared 80px end sections. Ground baseline registered at y=270.

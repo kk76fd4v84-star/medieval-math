@@ -1,0 +1,107 @@
+{
+  "canvas": [
+    2172,
+    300
+  ],
+  "groundY": 270,
+  "z": "above-actors-below-UI",
+  "edgeFamily": "shared-v9-ground",
+  "strips": [
+    {
+      "biome": "forest",
+      "variant": 1,
+      "image": "strips/forest-1.png",
+      "width": 2172,
+      "height": 300,
+      "groundY": 270
+    },
+    {
+      "biome": "forest",
+      "variant": 2,
+      "image": "strips/forest-2.png",
+      "width": 2172,
+      "height": 300,
+      "groundY": 270
+    },
+    {
+      "biome": "forest",
+      "variant": 3,
+      "image": "strips/forest-3.png",
+      "width": 2172,
+      "height": 300,
+      "groundY": 270
+    },
+    {
+      "biome": "tundra",
+      "variant": 1,
+      "image": "strips/tundra-1.png",
+      "width": 2172,
+      "height": 300,
+      "groundY": 270
+    },
+    {
+      "biome": "tundra",
+      "variant": 2,
+      "image": "strips/tundra-2.png",
+      "width": 2172,
+      "height": 300,
+      "groundY": 270
+    },
+    {
+      "biome": "tundra",
+      "variant": 3,
+      "image": "strips/tundra-3.png",
+      "width": 2172,
+      "height": 300,
+      "groundY": 270
+    },
+    {
+      "biome": "rocky",
+      "variant": 1,
+      "image": "strips/rocky-1.png",
+      "width": 2172,
+      "height": 300,
+      "groundY": 270
+    },
+    {
+      "biome": "rocky",
+      "variant": 2,
+      "image": "strips/rocky-2.png",
+      "width": 2172,
+      "height": 300,
+      "groundY": 270
+    },
+    {
+      "biome": "rocky",
+      "variant": 3,
+      "image": "strips/rocky-3.png",
+      "width": 2172,
+      "height": 300,
+      "groundY": 270
+    },
+    {
+      "biome": "meadow",
+      "variant": 1,
+      "image": "strips/meadow-1.png",
+      "width": 2172,
+      "height": 300,
+      "groundY": 270
+    },
+    {
+      "biome": "meadow",
+      "variant": 2,
+      "image": "strips/meadow-2.png",
+      "width": 2172,
+      "height": 300,
+      "groundY": 270
+    },
+    {
+      "biome": "meadow",
+      "variant": 3,
+      "image": "strips/meadow-3.png",
+      "width": 2172,
+      "height": 300,
+      "groundY": 270
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+[
+  {
+    "id": "hero",
+    "maxLimbLengthError": 1.7053025658242404e-13,
+    "maxPlantedFootDrift": 1.0036849823480409e-13,
+    "loopContinuous": true,
+    "flatSupportBoot": true,
+    "frameBordersClear": true,
+    "hipSocketDistance": 75.8946638440411,
+    "upperBodyAnimated": true
+  },
+  {
+    "id": "stripe",
+    "maxLimbLengthError": 1.1368683772161603e-13,
+    "maxPlantedFootDrift": 7.969666593332647e-14,
+    "loopContinuous": true,
+    "flatSupportBoot": true,
+    "frameBordersClear": true,
+    "hipSocketDistance": 46.8187996428785,
+    "upperBodyAnimated": true
+  },
+  {
+    "id": "scarf",
+    "maxLimbLengthError": 1.1368683772161603e-13,
+    "maxPlantedFootDrift": 7.969666593332647e-14,
+    "loopContinuous": true,
+    "flatSupportBoot": true,
+    "frameBordersClear": true,
+    "hipSocketDistance": 46.8187996428785,
+    "upperBodyAnimated": true
+  },
+  {
+    "id": "feather",
+    "maxLimbLengthError": 1.1368683772161603e-13,
+    "maxPlantedFootDrift": 7.969666593332647e-14,
+    "loopContinuous": true,
+    "flatSupportBoot": true,
+    "frameBordersClear": true,
+    "hipSocketDistance": 46.8187996428785,
+    "upperBodyAnimated": true
+  },
+  {
+    "id": "moustache",
+    "maxLimbLengthError": 1.1368683772161603e-13,
+    "maxPlantedFootDrift": 7.969666593332647e-14,
+    "loopContinuous": true,
+    "flatSupportBoot": true,
+    "frameBordersClear": true,
+    "hipSocketDistance": 46.8187996428785,
+    "upperBodyAnimated": true
+  }
+]

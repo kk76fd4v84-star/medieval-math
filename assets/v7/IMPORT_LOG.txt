@@ -1,0 +1,106 @@
+Copied byte-for-byte (94 files):
+  concept-art/expansion-v2/parallax/01-castle.png -> parallax/01-castle.png
+  concept-art/expansion-v2/parallax/02-hills.png -> parallax/02-hills.png
+  concept-art/expansion-v2/parallax/03-distant-woods.png -> parallax/03-distant-woods.png
+  concept-art/expansion-v2/parallax/04-village.png -> parallax/04-village.png
+  concept-art/expansion-v2/parallax/05-tree-props.png -> parallax/05-tree-props.png
+  concept-art/expansion-v2/parallax/06-near-forest.png -> parallax/06-near-forest.png
+  concept-art/expansion-v2/parallax/07-barren-rocks.png -> parallax/07-barren-rocks.png
+  concept-art/expansion-v2/parallax/08-canyon.png -> parallax/08-canyon.png
+  concept-art/expansion-v2/parallax/09-fields.png -> parallax/09-fields.png
+  medieval-math-creatures-v6/companions/stripe.png -> characters/companion-stripe.png
+  medieval-math-creatures-v6/companions/scarf.png -> characters/companion-scarf.png
+  medieval-math-creatures-v6/companions/feather.png -> characters/companion-feather.png
+  medieval-math-creatures-v6/companions/moustache.png -> characters/companion-moustache.png
+  medieval-math-animation-pack-v2/art/sprites/goblin.png -> characters/goblin.png
+  medieval-math-animation-pack-v2/art/sprites/skeleton.png -> characters/skeleton.png
+  medieval-math-animation-pack-v2/art/sprites/warlock.png -> characters/warlock.png
+  medieval-math-animation-pack-v2/art/sprites/scholar.png -> characters/scholar.png
+  medieval-math-animation-pack-v2/art/sprites/friar.png -> characters/friar.png
+  concept-art/expansion-v2/characters/black-knight-one-arm-blood.png -> characters/black_knight.png
+  medieval-math-production-v8/atlases/knight-death.png -> sequences/knight-death.png
+  medieval-math-production-v8/atlases/rabbit-hit-and-death.png -> sequences/rabbit-hit-and-death.png
+  medieval-math-production-v8/atlases/rabbit-hit-and-death.png -> sequences/rabbit-hit-and-death.png
+  medieval-math-production-v8/atlases/rabbit-hit-and-death.png -> sequences/rabbit-hit-and-death.png
+  medieval-math-creatures-v6/graves/rabbit.png -> graves/grave-rabbit.png
+  medieval-math-creatures-v6/graves/dragon.png -> graves/grave-dragon.png
+  medieval-math-creatures-v6/graves/toad.png -> graves/grave-toad.png
+  medieval-math-creatures-v6/graves/goblin.png -> graves/grave-goblin.png
+  medieval-math-production-v8/layers/camp-background.png -> scenes/camp-background.png
+  medieval-math-production-v8/layers/camp-seats.png -> scenes/camp-seats.png
+  medieval-math-production-v8/layers/camp-foreground.png -> scenes/camp-foreground.png
+  medieval-math-production-v8/layers/tavern-background.png -> scenes/tavern-background.png
+  medieval-math-production-v8/layers/tavern-seats.png -> scenes/tavern-seats.png
+  medieval-math-production-v8/layers/tavern-foreground.png -> scenes/tavern-foreground.png
+  medieval-math-production-v8/layers/tavern-bar-seats.png -> scenes/tavern-bar-seats.png
+  medieval-math-production-v8/layers/exterior-background.png -> scenes/exterior-background.png
+  medieval-math-production-v8/layers/exterior-door-interior.png -> scenes/exterior-door-interior.png
+  medieval-math-production-v8/layers/exterior-facade.png -> scenes/exterior-facade.png
+  medieval-math-production-v8/layers/props/facade.png -> scenes/props/facade.png
+  medieval-math-production-v8/art/exit.png -> ui/exit.png
+  medieval-math-production-v8/dice/roll-to-1.png -> dice/roll-to-1.png
+  medieval-math-production-v8/dice/result-1.png -> dice/result-1.png
+  medieval-math-production-v8/dice/roll-to-2.png -> dice/roll-to-2.png
+  medieval-math-production-v8/dice/result-2.png -> dice/result-2.png
+  medieval-math-production-v8/dice/roll-to-3.png -> dice/roll-to-3.png
+  medieval-math-production-v8/dice/result-3.png -> dice/result-3.png
+  medieval-math-production-v8/dice/roll-to-4.png -> dice/roll-to-4.png
+  medieval-math-production-v8/dice/result-4.png -> dice/result-4.png
+  medieval-math-production-v8/dice/roll-to-5.png -> dice/roll-to-5.png
+  medieval-math-production-v8/dice/result-5.png -> dice/result-5.png
+  medieval-math-production-v8/dice/roll-to-6.png -> dice/roll-to-6.png
+  medieval-math-production-v8/dice/result-6.png -> dice/result-6.png
+  medieval-math-production-v8/dice/roll-to-7.png -> dice/roll-to-7.png
+  medieval-math-production-v8/dice/result-7.png -> dice/result-7.png
+  medieval-math-production-v8/dice/roll-to-8.png -> dice/roll-to-8.png
+  medieval-math-production-v8/dice/result-8.png -> dice/result-8.png
+  medieval-math-production-v8/dice/roll-to-9.png -> dice/roll-to-9.png
+  medieval-math-production-v8/dice/result-9.png -> dice/result-9.png
+  medieval-math-production-v8/dice/roll-to-10.png -> dice/roll-to-10.png
+  medieval-math-production-v8/dice/result-10.png -> dice/result-10.png
+  medieval-math-production-v8/dice/roll-to-11.png -> dice/roll-to-11.png
+  medieval-math-production-v8/dice/result-11.png -> dice/result-11.png
+  medieval-math-production-v8/dice/roll-to-12.png -> dice/roll-to-12.png
+  medieval-math-production-v8/dice/result-12.png -> dice/result-12.png
+  medieval-math-production-v8/dice/roll-to-13.png -> dice/roll-to-13.png
+  medieval-math-production-v8/dice/result-13.png -> dice/result-13.png
+  medieval-math-production-v8/dice/roll-to-14.png -> dice/roll-to-14.png
+  medieval-math-production-v8/dice/result-14.png -> dice/result-14.png
+  medieval-math-production-v8/dice/roll-to-15.png -> dice/roll-to-15.png
+  medieval-math-production-v8/dice/result-15.png -> dice/result-15.png
+  medieval-math-production-v8/dice/roll-to-16.png -> dice/roll-to-16.png
+  medieval-math-production-v8/dice/result-16.png -> dice/result-16.png
+  medieval-math-production-v8/dice/roll-to-17.png -> dice/roll-to-17.png
+  medieval-math-production-v8/dice/result-17.png -> dice/result-17.png
+  medieval-math-production-v8/dice/roll-to-18.png -> dice/roll-to-18.png
+  medieval-math-production-v8/dice/result-18.png -> dice/result-18.png
+  medieval-math-production-v8/dice/roll-to-19.png -> dice/roll-to-19.png
+  medieval-math-production-v8/dice/result-19.png -> dice/result-19.png
+  medieval-math-production-v8/dice/roll-to-20.png -> dice/roll-to-20.png
+  medieval-math-production-v8/dice/result-20.png -> dice/result-20.png
+  medieval-math-animation-pack-v2/art/sprites/digit-0.png -> numerals/digit-0.png
+  medieval-math-animation-pack-v2/art/sprites/digit-1.png -> numerals/digit-1.png
+  medieval-math-animation-pack-v2/art/sprites/digit-2.png -> numerals/digit-2.png
+  medieval-math-animation-pack-v2/art/sprites/digit-3.png -> numerals/digit-3.png
+  medieval-math-animation-pack-v2/art/sprites/digit-4.png -> numerals/digit-4.png
+  medieval-math-animation-pack-v2/art/sprites/digit-5.png -> numerals/digit-5.png
+  medieval-math-animation-pack-v2/art/sprites/digit-6.png -> numerals/digit-6.png
+  medieval-math-animation-pack-v2/art/sprites/digit-7.png -> numerals/digit-7.png
+  medieval-math-animation-pack-v2/art/sprites/digit-8.png -> numerals/digit-8.png
+  medieval-math-animation-pack-v2/art/sprites/digit-9.png -> numerals/digit-9.png
+  medieval-math-animation-pack-v2/art/sprites/operator-0.png -> numerals/operator-0.png
+  medieval-math-animation-pack-v2/art/sprites/operator-1.png -> numerals/operator-1.png
+  medieval-math-animation-pack-v2/art/sprites/operator-2.png -> numerals/operator-2.png
+  medieval-math-animation-pack-v2/art/sprites/operator-3.png -> numerals/operator-3.png
+  medieval-math-animation-pack-v2/art/sprites/operator-4.png -> numerals/operator-4.png
+
+Rectangular crops (no pixel edits):
+  medieval-math-production-v8/layers/exterior-background.png [0, 640, 1774, 887] -> ui/parchment.png  (plain parchment below the divider, tiled behind the scene)
+  medieval-math-production-v8/layers/exterior-background.png [0, 0, 1774, 230] -> ui/sky.png  (parchment sky with the painted cloud scribbles and birds)
+  medieval-math-production-v8/layers/exterior-background.png [0, 597, 1774, 887] -> ui/strip_bg.png  (strip background: painted ground divider (diamond) + parchment)
+  concept-art/expansion-v2/parallax/05-tree-props.png [15, 15, 595, 724] -> parallax/tree-0.png  (single tree cut from 05-tree-props at transparent columns)
+  concept-art/expansion-v2/parallax/05-tree-props.png [614, 43, 1327, 724] -> parallax/tree-1.png  (single tree cut from 05-tree-props at transparent columns)
+  concept-art/expansion-v2/parallax/05-tree-props.png [1351, 11, 1628, 712] -> parallax/tree-2.png  (single tree cut from 05-tree-props at transparent columns)
+  concept-art/expansion-v2/parallax/05-tree-props.png [1688, 23, 2164, 724] -> parallax/tree-3.png  (single tree cut from 05-tree-props at transparent columns)
+  medieval-math-production-v8/layers/exterior-door-interior.png [655, 25, 1695, 583] -> scenes/exterior-door-backing-cut.png  (door backing cropped to the facade placement rect so it registers with facade.png)
+  medieval-math-production-v8/layers/exterior-facade.png [655, 25, 1695, 583] -> scenes/exterior-facade-cut.png  (facade layer cropped to its placement rect (registered with the door backing))
