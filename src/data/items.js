@@ -20,14 +20,12 @@ KM_DATA.items = {
     // sounds: existing SFX only (src/config/audio_map.js events). Charlie can make proper ones later.
     // sounds: events in assets/audio_map.json (Charlie's ElevenLabs set, assets/audio/sfx/NOTES_fire.md). The fire sounds
     // are cued by KM.FireFx on the art's own clock: throw on release, smash on impact, ignite at burst frame 1 (its peak
-    // lands on burst frame 2 = the hit), a yelp per enemy hit, crackle loop while it lingers, fizzle as the fire fades.
+    // lands on burst frame 2 = the hit), crackle loop while it lingers, fizzle as the fire fades.
     sfx: {
       letterOk: "spell_letter_ok", letterBad: "spell_letter_bad",
-      throw: "fire_throw", smash: "fire_smash", ignite: "fire_ignite", burn: "goblin_burn",
+      throw: "fire_throw", smash: "fire_smash", ignite: "fire_ignite", // v12q: no goblin_burn yelps (Magnus)
       crackle: "fire_crackle", fadeOut: "fire_fizzle", // the lingering loop, and the sound as the fire dies
       fizzle: "fire_fizzle",                             // too slow: the bottle fizzles
-      burnStagger: 0.06,        // seconds between the enemies' yelps
-      burnGainAfter2: 0.7,      // the 3rd and later yelps are quieter
       crackleFadeSecs: 0.3      // the crackle's fade-out (with the fire's fade)
     },
     // v12m (Magnus): how the word's letters look. Maggi's ink letters are tinted in code (source-atop) to these colours.

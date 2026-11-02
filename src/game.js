@@ -267,7 +267,13 @@
     fire: `<img class="itemicon" src="${IT.art.dir + IT.art.icon}" alt="">`, // v12k Maggi's fire bottle stamp
     sacrifice: `<svg viewBox="0 0 40 40"><path d="M10 6 H30 V22 C30 30 20 35 20 35 C20 35 10 30 10 22Z" fill="#efe0c0" ${INK}/><path d="M20 10 V30 M13 17 H27" ${INK}/></svg>`
   };
-  const BANNER = `<svg class="plq" viewBox="0 0 300 90" preserveAspectRatio="none" aria-hidden="true"><path d="M6 5 Q150 0 294 5 L280 45 L294 85 Q150 90 6 85 L20 45Z" fill="#efe0c0" stroke="#2a1d12" stroke-width="3" vector-effect="non-scaling-stroke"/><path d="M19 13 Q150 9 281 13 L270 45 L281 77 Q150 81 19 77 L30 45Z" fill="none" stroke="#2a1d12" stroke-width="1.2" stroke-dasharray="5 4" opacity=".55" vector-effect="non-scaling-stroke"/></svg>`;
+  // v12q: strip buttons wear Maggi's ornamented ink frame (CSS border-image from KM_UI.frame, src/config/ui_frames.js);
+  // the old SVG banner is gone. BANNER stays as the one hook in every button template (empty now).
+  const BANNER = "";
+  if (window.KM_UI && KM_UI.frame) { const F = KM_UI.frame, st = document.documentElement.style, u = f => `url("${F.root + f}")`;
+    st.setProperty("--bf-n", u(F.normal)); st.setProperty("--bf-h", u(F.hover)); st.setProperty("--bf-d", u(F.disabled));
+    st.setProperty("--bf-sv", F.slice[0]); st.setProperty("--bf-sh", F.slice[1]); st.setProperty("--bf-bv", F.border[0] / F.h); st.setProperty("--bf-bh", F.border[1] / F.h);
+    [F.normal, F.hover, F.disabled].forEach(f => { const im = new Image(); im.src = F.root + f; }); } // no flash on the first hover
   // Magnus's riddle frame: ONE uniform scale (RF_S stage px per source px) for the whole frame; a 9-slice keeps both
   // corner halves intact and stretches only the ink-free middle columns to the riddle's width
   const RF = window.KM_ART11 && KM_ART11.riddleFrame, RF_H = 84, RF_S = RF ? RF_H / RF.size[1] : 0;
@@ -1153,7 +1159,7 @@
   }
   cv.addEventListener("mousemove", ev => { const h = hotspotAt(ev); cv.style.cursor = h ? "pointer" : "";
     const id = h ? h.id : null; if (id === S.hoverSpot) return; S.hoverSpot = id;
-    if (h && h.i != null && S.enc.tv.sel !== h.i) { S.enc.tv.sel = h.i; if (tvSpots()[h.i].kind === "menu") swingSign(3); renderTavernInside(); } });
+    if (h && h.i != null && S.enc.tv.sel !== h.i) { S.enc.tv.sel = h.i; renderTavernInside(); } });
   cv.addEventListener("mouseleave", () => { S.hoverSpot = null; cv.style.cursor = ""; });
   document.addEventListener("click", ev => {
     const b = ev.target.closest("button");
@@ -1216,7 +1222,9 @@
       case "rest": {
         if (S.view && S.view.id === "tavern-interior" && e.tv) { // v11b tavern: pick a thing, then its options
           if (e.phase !== "rest") return;
-          if (/^[1-9]$/.test(k)) { const b = document.querySelector(`#panel button[data-n="${k}"]:not([disabled])`); if (b) { A.play("ui_click"); actions[b.dataset.act](b); }
+          const cur = tvSpots()[e.tv.sel];
+          if (/^[1-9]$/.test(k) && cur && cur.kind === "fare") { const it = fareItems()[+k - 1]; if (it) buyFare(it.id); } // v12q: 1 Mead, 2 Stew, 3 Fire bottle (silent keys)
+          else if (/^[1-9]$/.test(k)) { const b = document.querySelector(`#panel button[data-n="${k}"]:not([disabled])`); if (b) { A.play("ui_click"); actions[b.dataset.act](b); }
             else if (document.querySelector(`#panel button[data-n="${k}"][data-lot]`)) keeperSay(restT().limits.lot); }
           else if (k === "ArrowLeft" || K1 === "A") tvMove(-1); else if (k === "ArrowRight" || K1 === "D") tvMove(1);
           else if (k === "Enter") tvOpen(); else if (k === "Escape") tvBack();
@@ -1536,32 +1544,70 @@
   // the doorway in Magnus's reference_tavern_fullscreen exterior (scene-tavern-arrival.png source px): click = go in
   const ARRIVAL_DOOR = [1670, 520, 270, 380], arrivalDoor = () => tvImgRect(KM.RestView.mapper("tavern-arrival"), ARRIVAL_DOOR);
   const tvImgRect = (m, r) => ({ x: (m.x0 + r[0] * m.s), y: (m.y0 + r[1] * m.s), w: r[2] * m.s, h: r[3] * m.s }); // source px -> layout
-  // v11b: Magnus's TAVERN FARE sign hangs on the interior wall (nail at SIGN.at, interior source px) at ONE uniform scale
-  // SIGN.s stage px per sign source px; it is the menu hotspot and swings about its nail like a damped pendulum
-  const SIGN = { at: [1184, 150], s: 0.19, deg: 8, period: 0.8, tau: 0.36, dur: 1.5 };
-  function signGeom(m) {
-    const G = window.KM_ART11 && KM_ART11.tavernSign; if (!G) return null;
-    const k = SIGN.s / K, nx = m.x0 + SIGN.at[0] * m.s, ny = m.y0 + SIGN.at[1] * m.s, w = G.size[0] * k, h = G.size[1] * k;
-    const x = nx - G.pivot[0] * k, y = ny - G.pivot[1] * k; return { G, k, nx, ny, w, h, r: { x, y, w, h } };
+  // v12q (Magnus): Maggi's hanging sign IS the tavern menu (KM_DATA.tavernRoom.sign). Mead / Stew / Fire bottle are
+  // lines on its board: hover / arrows light a line (orange underline), click / Enter / 1-2-3 buy, an item you can't have
+  // is greyed. The board swings about the chains' bar when knocked (a buy); the iron bracket stays on the wall.
+  const SG = () => D.tavernRoom.sign;
+  function signGeom() {
+    const G = SG(); if (!G) return null; const k = G.scale / K, x = G.atStage[0] / K, y = G.atStage[1] / K, w = G.size[0] * k, h = G.size[1] * k;
+    return { G, k, nx: x + G.pivot[0] * k, ny: y + G.pivot[1] * k, w, h, r: { x, y, w, h } };
+  }
+  // the fare on the sign, in order (tavern rest type: mead, stew, + the fire bottle where it is sold); buy = the existing
+  // purchase (each one refuses on its own and has the barkeep say why: limits, "That's your lot.", one mead at a time)
+  function fareItems() {
+    const e = S.enc; if (!e || !e.st || !e.st.rest) return []; const T = restT(), M = T.mead, h = T.heals && T.heals[0], out = [];
+    if (M) { const lot = fareLeft("mead") <= 0; out.push({ id: "mead", label: M.short || "Mead", cost: M.cost, lot, off: lot || S.gold < M.cost || !!S.mead, buy: buyMead }); }
+    if (h) { const lot = fareLeft("stew") <= 0; out.push({ id: "stew", label: h.short || "Stew", cost: h.cost, lot, off: lot || S.gold < h.cost || S.hp >= maxHp(), buy: () => restHeal(h.key) }); }
+    if (IT.sellAt.includes(e.st.rest)) out.push({ id: "fire", label: IT.name, cost: IT.price, lot: false, off: S.gold < IT.price || S.bottles >= IT.max, buy: buyBottle });
+    return out;
+  }
+  const fareIcon = id => KM.Assets.loadImg(id === "fire" ? IT.art.dir + IT.art.icon : SG().root + SG().icons[id]);
+  function fareLines(sg, n) { // line i's rect in sign px (the safe rect split evenly) and in layout units (unswung)
+    const [sx, sy, sw, sh] = sg.G.safe, lh = sh / Math.max(n, 1);
+    return Array.from({ length: n }, (_, i) => ({ src: [sx, sy + i * lh, sw, lh], r: { x: sg.r.x + sx * sg.k, y: sg.r.y + (sy + i * lh) * sg.k, w: sw * sg.k, h: lh * sg.k } }));
   }
   function swingSign(deg) { const e = S.enc; if (e && e.tv) e.tv.swing = { t0: performance.now(), a0: deg }; }
-  const signAngle = () => { const sw = S.enc && S.enc.tv && S.enc.tv.swing; if (!sw) return 0; const t = (performance.now() - sw.t0) / 1000;
-    if (t > SIGN.dur) { S.enc.tv.swing = null; return 0; } return sw.a0 * Math.exp(-t / SIGN.tau) * Math.cos(2 * Math.PI * t / SIGN.period) * Math.PI / 180; };
-  function drawSign() {
-    const sg = signGeom(KM.RestView.mapper("tavern-interior")); if (!sg) return; const im = KM.Assets.loadImg(KM_ART11.root + sg.G.img); if (!im._ok) return;
-    ctx.save(); ctx.translate(sg.nx, sg.ny); ctx.rotate(signAngle()); ctx.drawImage(im, -sg.G.pivot[0] * sg.k, -sg.G.pivot[1] * sg.k, sg.w, sg.h); ctx.restore();
+  const signAngle = () => { const sw = S.enc && S.enc.tv && S.enc.tv.swing, W2 = SG().swing; if (!sw) return 0; const t = (performance.now() - sw.t0) / 1000;
+    if (t > W2.dur) { S.enc.tv.swing = null; return 0; } return sw.a0 * Math.exp(-t / W2.tau) * Math.cos(2 * Math.PI * t / W2.period) * Math.PI / 180; };
+  function drawSign(selId) {
+    const sg = signGeom(); if (!sg) return; const G = sg.G, im = KM.Assets.loadImg(G.root + G.img); if (!im._ok) return;
+    const k = sg.k, ox = -G.pivot[0] * k, oy = -G.pivot[1] * k, clip = (rects, invert) => { ctx.beginPath();
+      if (invert) { ctx.rect(ox, oy, sg.w, sg.h); G.fixed.forEach(f => ctx.rect(ox + f[0] * k, oy + f[1] * k, f[2] * k, f[3] * k)); ctx.clip("evenodd"); return; } // board = all minus the bracket
+      else rects.forEach(f => ctx.rect(ox + f[0] * k, oy + f[1] * k, f[2] * k, f[3] * k)); ctx.clip(); };
+    ctx.save(); ctx.translate(sg.nx, sg.ny);
+    ctx.save(); clip(G.fixed); ctx.drawImage(im, ox, oy, sg.w, sg.h); ctx.restore();                 // the bracket, still
+    ctx.rotate(signAngle()); ctx.save(); clip(null, true); ctx.drawImage(im, ox, oy, sg.w, sg.h); ctx.restore(); // the board, swinging
+    const items = fareItems(), lines = fareLines(sg, items.length), px = v => v / K; // stage px -> layout
+    const ip = px(G.icon), gap = px(G.gap), pp = px(G.purse), purse = window.KM_ART11 && KM_ART11.purse && KM.Assets.loadImg(KM_ART11.root + KM_ART11.purse.img);
+    let fs = px(G.font); ctx.font = `${fs}px Georgia, serif`;                                       // shrink to fit the widest line
+    const need = Math.max(...items.map(it => ip + gap + ctx.measureText(it.label).width + gap * 2 + pp + ctx.measureText(String(it.cost)).width)), room = G.safe[2] * k;
+    if (need > room) fs *= room / need; ctx.font = `${fs}px Georgia, serif`; S.signFontStage = fs * K;
+    ctx.textBaseline = "middle";
+    items.forEach((it, i) => { const L0 = lines[i].src, x0 = ox + L0[0] * k, x1 = x0 + L0[2] * k, cy = oy + (L0[1] + L0[3] / 2) * k, ink = it.off ? G.off : G.ink;
+      ctx.save(); if (it.off) { ctx.globalAlpha = 0.45; ctx.filter = "grayscale(1)"; }
+      const ic = fareIcon(it.id); if (ic._ok) { const s2 = Math.min(ip / ic.naturalWidth, ip / ic.naturalHeight), w2 = ic.naturalWidth * s2, h2 = ic.naturalHeight * s2; ctx.drawImage(ic, x0 + (ip - w2) / 2, cy - h2 / 2, w2, h2); }
+      const cw = ctx.measureText(String(it.cost)).width;
+      if (purse && purse._ok) { const s3 = pp / Math.max(purse.naturalWidth, purse.naturalHeight); ctx.drawImage(purse, x1 - cw - gap / 2 - purse.naturalWidth * s3, cy - purse.naturalHeight * s3 / 2, purse.naturalWidth * s3, purse.naturalHeight * s3); }
+      ctx.restore();
+      ctx.fillStyle = ink; ctx.textAlign = "left"; ctx.fillText(it.label, x0 + ip + gap, cy + fs * 0.04);
+      ctx.textAlign = "right"; ctx.fillText(String(it.cost), x1, cy + fs * 0.04);
+      if (selId === it.id) { const lw = ctx.measureText(it.label).width; ctx.fillStyle = G.lit; ctx.fillRect(x0 + ip + gap, cy + fs * 0.55, lw, px(G.underline)); } // lit line
+    });
+    ctx.restore();
   }
   function tvSpots() {
     const e = S.enc; if (!e || !S.view || S.view.id !== "tavern-interior") return [];
-    const m = KM.RestView.mapper("tavern-interior"), sg = signGeom(m), out = [{ id: "menu", kind: "menu", name: "Tavern fare", r: sg ? sg.r : tvImgRect(m, [1975, 345, 715, 265]) }];
+    const m = KM.RestView.mapper("tavern-interior"), sg = signGeom(), items = fareItems(), lines = sg ? fareLines(sg, items.length) : [];
+    const out = items.map((it, i) => ({ id: "fare:" + it.id, kind: "fare", item: it.id, name: it.label, r: lines[i].r }));
     const n = (e.st.cands || []).length;
     (e.st.cands || []).forEach((p, j) => { if (p) out.push({ id: "npc" + j, kind: "npc", j, p, name: shortName(p.name), r: seatGeom(j, n).hot }); });
     out.push({ id: "door", kind: "door", name: "The door", r: tvImgRect(m, [3150, 280, 360, 800]) });
     return out;
   }
+  function buyFare(id) { const it = fareItems().find(f => f.id === id); if (!it) return; swingSign(SG().swing.deg); A.play("ui_click"); it.buy(); renderTavernInside(); }
   function drawTavernInside(cands) {
     const e = S.enc, tv = e && e.tv, spots = tvSpots(); if (tv && tv.sel >= spots.length) tv.sel = Math.max(0, spots.length - 1);
-    drawSign();
+    const cur = tv && spots[tv.sel]; drawSign(cur && cur.kind === "fare" ? cur.item : null);
     const R = TR(), n = (e.st.cands || []).length;
     drawProp(propRect("counter", R.bar.x, W.groundY - R.bar.back)); // the bar, against the back wall
     for (let i = S.party.length - 1; i >= 0; i--) { const mm = S.party[i];
@@ -1573,10 +1619,10 @@
       if (S.view.a >= 1) { occ.push(Object.assign({ owner: p }, g.hot)); pushSay(p, g.x, g.top); }
     });
     if (S.view.a >= 1) S.voices.forEach(q => pushSay(q, q.x, q.y));
-    if (tv && spots[tv.sel]) { // subtle ink outline on the highlighted thing + its name in one small bubble
+    if (tv && spots[tv.sel] && spots[tv.sel].kind !== "fare") { // subtle ink outline on the highlighted recruit / door + its name in one small bubble (fare: lit on the sign)
       const sp = spots[tv.sel], r = sp.r; ctx.save(); ctx.strokeStyle = "rgba(42,29,18,.85)"; ctx.lineWidth = 5 / K; ctx.setLineDash([16 / K, 10 / K]);
       ctx.beginPath(); ctx.roundRect(r.x - 8, r.y - 8, r.w + 16, r.h + 16, 18); ctx.stroke(); ctx.restore();
-      if (sp.kind !== "menu" && !(sp.p && speechNow(sp.p))) { tvName.text = sp.name; bubbleQ.push({ text: sp.name, lines: [sp.name], x: r.x + r.w / 2, y: r.y, owner: tvName }); }
+      if (!(sp.p && speechNow(sp.p))) { tvName.text = sp.name; bubbleQ.push({ text: sp.name, lines: [sp.name], x: r.x + r.w / 2, y: r.y, owner: tvName }); }
     }
   }
   const tvName = { text: "" };
@@ -1589,19 +1635,14 @@
     const sp = spots[e.tv.sel]; e.tv.open = sp ? sp.id : null;
     if (!sp) return showPanel(`<div class="center tavernp"><div class="prompt">Look around</div></div>`, "rest");
     const pl = [];
-    if (sp.kind === "menu") { // the sign's fare as the battle's plaque buttons (seal key, icon, name, price)
-      const M = T.mead, h = T.heals[0];
-      const mOut = fareLeft("mead") <= 0, sOut = fareLeft("stew") <= 0;
-      if (M) pl.push(move("1", `Mead${coin(M.cost)}`, "buyMead", "mead", `data-n="1"${mOut ? ' data-lot="1"' : ""}`, mOut || S.gold < M.cost || !!S.mead));
-      if (h) pl.push(move(String(pl.length + 1), `Stew${coin(h.cost)}`, "restHeal", "stew", `data-n="${pl.length + 1}" data-k="${h.key}"${sOut ? ' data-lot="1"' : ""}`, sOut || S.gold < h.cost || S.hp >= maxHp()));
-      if (IT.sellAt.includes(e.st.rest)) pl.push(move(String(pl.length + 1), `${IT.name}${coin(IT.price)}`, "buyBottle", "fire", `data-n="${pl.length + 1}"`, S.gold < IT.price || S.bottles >= IT.max)); // v12k
+    if (sp.kind === "fare") { // v12q: the fare is on the sign itself; nothing on the strip
     } else if (sp.kind === "npc") pl.push(move("1", esc(D.recruitTalk.ask), "tvJoin", "", `data-n="1" data-j="${sp.j}"`, partyFull()));
     else { pl.push(move("1", "Go outside", "leaveInside", "", `data-n="1"`)); pl.push(move("2", "Walk on", "leaveRest", "", `data-n="2"`)); }
     showPanel(`<div class="center tavernp"><div class="opts big3 turn moves tvmenu">${pl.join("")}</div></div>`, "rest");
   }
-  function tvMove(d) { const e = S.enc, n = tvSpots().length; if (!e || !e.tv || !n || e.phase !== "rest") return; e.tv.sel = (e.tv.sel + d + n) % n; A.play("ui_click"); if (tvSpots()[e.tv.sel].kind === "menu") swingSign(3); renderTavernInside(); } // a small nudge on highlight
+  function tvMove(d) { const e = S.enc, n = tvSpots().length; if (!e || !e.tv || !n || e.phase !== "rest") return; e.tv.sel = (e.tv.sel + d + n) % n; A.play("ui_click"); renderTavernInside(); } // a small nudge on highlight
   function tvOpen(i) { const e = S.enc, spots = tvSpots(); if (!e || !e.tv || e.phase !== "rest") return; if (i != null) e.tv.sel = i; const sp = spots[e.tv.sel]; if (!sp) return; A.play("ui_click");
-    if (sp.kind === "menu") { keeperSay(pickOne(["Stew's hot. Mead's strong.", "Mead or stew, love?"])); swingSign(8); renderTavernInside(); }
+    if (sp.kind === "fare") return buyFare(sp.item); // v12q: click / Enter on a sign line buys it
     else if (sp.kind === "npc" && i == null) tvJoin(sp.j); // Enter on a recruit = "Join my party?"
     else if (sp.kind === "door" && i == null) leaveInside(); else renderTavernInside(); }
   function tvBack() { const e = S.enc; if (!e || !e.tv || e.phase !== "rest") return; leaveInside(); }
@@ -1713,14 +1754,14 @@
     chunks: t => chunksOf(t), speechOverflow: () => speechOverflow.slice(),
     bubbles: () => bubbleQ.filter(b => b.rect).map(b => Object.assign({ text: b.text, lines: b.lines.slice(), font: SP.font, art: !!(b.rect.side && bubArt), textW: Math.max(...b.lines.map(l => (ctx.font = `${SP.font}px Georgia, serif`, ctx.measureText(l).width))), maxW: SP.maxW }, b.rect)),
     statusRects: () => statusRects(),
-    tavern: () => S.enc && S.enc.tv ? { sel: Math.min(S.enc.tv.sel, tvSpots().length - 1), open: S.enc.tv.open, spots: tvSpots().map(q => ({ id: q.id, kind: q.kind, name: q.name, r: q.r })) } : null,
+    tavern: () => S.enc && S.enc.tv ? { sel: Math.min(S.enc.tv.sel, tvSpots().length - 1), open: S.enc.tv.open, spots: tvSpots().map(q => ({ id: q.id, kind: q.kind, item: q.item, name: q.name, r: q.r })) } : null,
     heartsUI: () => ({ party: partyHeartsRect() && Object.assign({ hp: S.hp, max: maxHp() }, partyHeartsRect()), foe: foeHeartsRect() && Object.assign({ hp: S.enc.hp, max: S.enc.maxHp }, foeHeartsRect()) }),
     spellBadge: () => spellBadgeRect() && Object.assign({ left: S.spellLeft, mead: S.mead }, spellBadgeRect()), mead: () => ({ state: S.mead, now: meadNow() }), group: () => S.enc && S.enc.foes ? S.enc.foes.map(a => ({ id: a.id, hp: a.hp, maxHp: a.maxHp, gone: !!a.gone, x: a.x, sx: screenX(a.x), state: a.state, ext: wideOf(a.id) })) : null,
     foeHearts: () => foeHeartsRects().map(r => ({ id: r.id, hp: r.hp, max: r.max, shown: r.shown, full: r.full, x: r.x, y: r.y, w: r.w, h: r.h })),
     forceGroup: (ids) => { const i = S.stops.findIndex((s2, k) => k >= S.stop && s2.type === "math"); const st = S.stops[i]; if (!st) return null;
       S.actors = S.actors.filter(a => !(a.stop === i && a.extra)); st.group = ids; addGroup(st, i); const m = S.actors.find(a => a.stop === i && a.main);
       if (m) { m.homeX = st.homeX; if (!m.active) { m.x = st.stopX + 500; m.state = "waiting"; } } return i; },
-    foeFeet: () => S.actors.filter(a => a.foe && !a.dead && !a.hidden).map(a => { const ln = laneOf(a), fx = actFx(a.id, a.act, -1); return { id: a.id, state: a.state, hill: !!a.hill, distant: !!a.distant, sx: screenX(a.x), feetY: (ln ? ln.y : W.groundY) + a.dy + (fx ? fx.dy : 0), groundY: W.groundY }; }), fareLeft: k => fareLeft(k), signAngle: () => signAngle() * 180 / Math.PI, sign: () => { const g = signGeom(KM.RestView.mapper("tavern-interior")); return g && { r: g.r, k: g.k, nail: [g.nx, g.ny] }; },
+    foeFeet: () => S.actors.filter(a => a.foe && !a.dead && !a.hidden).map(a => { const ln = laneOf(a), fx = actFx(a.id, a.act, -1); return { id: a.id, state: a.state, hill: !!a.hill, distant: !!a.distant, sx: screenX(a.x), feetY: (ln ? ln.y : W.groundY) + a.dy + (fx ? fx.dy : 0), groundY: W.groundY }; }), fareLeft: k => fareLeft(k), fare: () => fareItems().map(({ id, label, cost, off, lot }) => ({ id, label, cost, off, lot, icon: fareIcon(id)._ok })), signFont: () => S.signFontStage, signAngle: () => signAngle() * 180 / Math.PI, sign: () => { const g = signGeom(); return g && { r: g.r, k: g.k, nail: [g.nx, g.ny] }; },
     heads: () => heads().map(({ x, y, w, h }) => ({ x, y, w, h })), speechLog: () => speechLog.slice(), speaking: () => [...speakers].filter(o => o.sp).map(o => speechNow(o).join(" ")),
     panelText: () => panel.innerText, answerTimer: () => S.enc && S.enc.tmr ? { t: S.enc.tmr.t, secs: S.enc.tmr.secs, frac: Math.min(1, S.enc.tmr.t / S.enc.tmr.secs) } : null,
     bottles: () => S.bottles, spelling: () => S.enc && S.enc.spell ? Object.assign({ phase: S.enc.phase }, S.enc.spell) : null, fireFx: () => KM.FireFx.state(), timedOut: () => S.enc && S.enc.timedOut || 0, dvFill: () => dvFillFrac

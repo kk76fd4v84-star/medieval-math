@@ -27,7 +27,7 @@ KM.FireFx = (function () {
   function cues(smashAt, burstAt, hitAt, bDur, fadeAt, n) {
     const F = KM_DATA.items.fireBottle.sfx, A = KM.Audio, c = [];
     c.push([smashAt, () => A.play(F.smash)], [burstAt, () => A.play(F.ignite)]);
-    for (let i = 0; i < n; i++) c.push([hitAt + i * F.burnStagger, () => A.play(F.burn, { gain: i >= 2 ? F.burnGainAfter2 : 1 })]);
+    // v12q (Magnus): no goblin yelps on the hit
     c.push([burstAt + bDur, () => A.loop(F.crackle)], [fadeAt, () => { A.stop(F.crackle, F.crackleFadeSecs); A.play(F.fadeOut); }]);
     return c.sort((a, b) => a[0] - b[0]);
   }

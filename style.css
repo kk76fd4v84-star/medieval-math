@@ -194,3 +194,21 @@ button.opt.plaque { padding: 14px 36px; }
 @keyframes kmMiss { 0%, 100% { transform: translateX(0); } 15% { transform: translateX(calc(var(--shakepx) * -1)); } 35% { transform: translateX(var(--shakepx)); } 55% { transform: translateX(calc(var(--shakepx) * -.6)); } 75% { transform: translateX(calc(var(--shakepx) * .4)); } }
 button.opt.plaque img.itemicon { display: block; height: 40px; width: auto; flex: none; }
 .tvmenu button.opt.plaque img.itemicon { height: 40px; }
+
+/* ===== v12q (Magnus): every strip button wears Maggi's ornamented ink frame (assets/ui/tavern_ui_v1, KM_UI.frame).
+   Horizontal-only 9-slice (caps fixed, middle stretched), fixed height per button size via --bh: the frame scales
+   uniformly with the height. Hover / keyboard focus = the orange frame + 2 px lift + orange underline. Disabled =
+   the faded frame and grey text / icons, NO extra opacity (the frame is already faded). Riddle answers (.ansf) keep
+   Magnus's answer frame. */
+button.opt.plaque { --bh: 84px; height: var(--bh); box-sizing: border-box; background: none; box-shadow: none; border-radius: 0;
+  border-style: solid; border-width: 0; border-image-source: var(--bf-n); border-image-slice: var(--bf-sv) var(--bf-sh) fill;
+  border-image-width: calc(var(--bh) * var(--bf-bv)) calc(var(--bh) * var(--bf-bh)); border-image-repeat: stretch;
+  padding: 0 calc(var(--bh) * var(--bf-bh) + 6px); color: #1b1410; }
+button.opt.plaque .plq { display: none; }
+button.opt.plaque:hover:not([disabled]), button.opt.plaque:focus-visible:not([disabled]) { border-image-source: var(--bf-h); transform: translateY(-2px); outline: none; }
+button.opt.plaque:hover:not([disabled]) .nm, button.opt.plaque:focus-visible:not([disabled]) .nm { text-decoration: underline; text-decoration-color: #c46228; text-decoration-thickness: 3px; text-underline-offset: 6px; }
+button.opt.plaque[disabled] { opacity: 1; filter: none; border-image-source: var(--bf-d); color: #8f8478; cursor: default; }
+button.opt.plaque[disabled] svg, button.opt.plaque[disabled] img { filter: grayscale(1); opacity: .5; }
+.restgrid button.opt.plaque, .restp .opts.end button.opt.plaque { --bh: 70px; padding: 0 calc(var(--bh) * var(--bf-bh) + 4px); }
+.riddlemoves button.opt.plaque { --bh: 64px; padding: 0 calc(var(--bh) * var(--bf-bh) + 4px); }
+.gear button.opt.plaque.mini { --bh: 46px; padding: 0 calc(var(--bh) * var(--bf-bh) + 2px); }

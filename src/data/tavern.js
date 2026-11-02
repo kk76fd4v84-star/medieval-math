@@ -31,3 +31,19 @@ KM_DATA.tavernRoom = {
   hotspotW: 360,               // layout units: click / highlight width around a STANDING recruit (a sitter's is his drawing)
   keeperAt: [1470, 330]        // the barkeep's voice (no barkeep art yet): behind the bar, under the mug shelf
 };
+
+// v12q (Magnus: "I want the wall menu to look like that and there is where that menu is"): Maggi's hanging sign
+// (assets/ui/tavern_ui_v1/tavern_sign.png, plain variant: more room for text) IS the menu. Mead / Stew / Fire bottle are
+// the clickable lines on its board (icon, name, purse + price), Georgia in dark ink. Stage px here (README numbers).
+KM_DATA.tavernRoom.sign = {
+  root: "assets/ui/tavern_ui_v1/", img: "tavern_sign.png", size: [637, 875],
+  atStage: [158, 48],          // top-left on the 1600x900 stage (README: (172,56) at 0.36; nudged left/up for the bigger scale)
+  scale: 0.39,                 // stage px per sign px (README 0.36; +8 % so "Fire bottle" + price fit at a readable 23 px)
+  safe: [95, 320, 480, 480],   // text-safe rect on the board (sign px)
+  pivot: [335, 100],           // the chains hang from the bracket bar here: the board swings about it, the bracket stays put
+  fixed: [[0, 0, 637, 100], [0, 100, 56, 152]], // the bracket (bar + wall plate): never swings
+  font: 23, icon: 30, gap: 8, purse: 20,   // stage px
+  ink: "#1b1410", off: "#9a8e80", lit: "#c46228", underline: 3,
+  icons: { mead: "icon_mead.png", stew: "icon_stew.png" }, // Maggi's keyed mug + bowl; the fire bottle uses its item icon
+  swing: { deg: 5, period: 0.8, tau: 0.36, dur: 1.5 }      // a buy (or a refused one) knocks the board
+};
