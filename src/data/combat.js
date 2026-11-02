@@ -5,7 +5,10 @@ KM_DATA.combat = {
   TEMP_BALANCE: true,
   // v12c (Magnus): the divider under the ground fills while a battle sum waits; full = the enemies strike as on a wrong
   // answer, then the next sum resets it. Seconds per battle sum (0 = off). Tests can open the game with ?notimer.
-  answerSecs: 20, answerTickLast: 3, answerTickSfx: "type_blip",
+  answerSecs: 35, // v12h (Magnus): 35 s
+  // v12h (Magnus): the very first normal fights use simpler sums (weak -> starter_easy, hard -> starter_hard)
+  starterFights: 2,
+  answerTickLast: 3, answerTickSfx: "type_blip",
   // One turn = choose an action, solve its problem, then a SURVIVING enemy acts. Dead enemies never retaliate.
   // A failed problem: the action does nothing, hunters advance ONE block, then the normal enemy turn (no extra hit).
   actions: {

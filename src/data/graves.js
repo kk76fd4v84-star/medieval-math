@@ -3,7 +3,8 @@
 window.KM_DATA = window.KM_DATA || {};
 KM_DATA.graves = {
   max: 20,              // how many deaths are remembered (oldest dropped first; the furthest is always kept)
-  ahead: 260,           // grave sits this far (scene px) in front of where the hero stood when he fell
+  ahead: 260,           // grave sits this far (road px) in front of where the hero stood when he fell (v12g: on the ground line)
+  respectAt: 520,       // v12g: the party halts this far before the grave to pay respects (grave just in front of the hero)
   merge: 240,           // deaths closer than this share one grave stop (stacked stones)
   respectsSecs: 2.4,    // how long the party stops to pay respects
   // {name} = the fallen player's name, {d} = leagues. Bark is one line in the scene; full text goes to the strip.
@@ -29,5 +30,5 @@ KM_DATA.graves = {
              skeleton_knight: "grave_skeleton_knight", black_knight: "grave_black_knight", hunters: "grave_hunters", turd_dragon: "grave_turd_dragon" },
   killedBy: { killer_rabbit: "a rabbit", dragon: "the dragon", goblin: "a goblin", skeleton_knight: "a skeleton", black_knight: "the Black Knight",
               hunters: "the King's hunters", toad: "a toad", ogre: "the ogre", turd_dragon: "a turd dragon", unknown: "something" },
-  laneScale: 1.05       // grave size on the hill lane
+  laneScale: 1.05       // (unused since v12g: graves are drawn at artScale on the road)
 };

@@ -89,6 +89,14 @@ KM.Scenery = (function () {
     const c = document.createElement("canvas"); c.width = w; c.height = h; const g = c.getContext("2d");
     g.imageSmoothingQuality = "high"; g.drawImage(src, 0, 0, w, h); devCache.set(k, c); return c;
   }
+  // v12g (Magnus: "a lot of see-through images"): the silhouette that hides what is behind a drawing is made SOLID: the
+  // painted alpha is hardened once per device-size copy (soft canopy / brush alpha -> opaque), so back layers never show through
+  function solidOf(src, key, w, h) {
+    const k = key + "|solid|" + w + "x" + h; if (devCache.has(k)) return devCache.get(k);
+    const c = devOf(src, key, w, h), o = document.createElement("canvas"); o.width = w; o.height = h; const g = o.getContext("2d"); g.drawImage(c, 0, 0);
+    try { const d = g.getImageData(0, 0, w, h), a = d.data; for (let i = 3; i < a.length; i += 4) a[i] = a[i] < 12 ? 0 : a[i] > 44 ? 255 : (a[i] - 12) * 8; g.putImageData(d, 0, 0); } catch (e) {}
+    devCache.set(k, o); return o;
+  }
   function inked(ctx, draws) {
     if (!draws.length) return;
     const inks = draws.map(d => inkOf(d[0]));
@@ -98,13 +106,13 @@ KM.Scenery = (function () {
     if (T.b || T.c) { draws.forEach(d => ctx.drawImage(d[0], d[1], d[2], d[3], d[4])); return; } // (never rotated in this game)
     // d[5] (optional) = layout x where the NEXT tile starts: the width then snaps to it (abutting tiles, no gap/overlap px)
     const place = draws.map((d, i) => { const x = Math.round(T.a * d[1] + T.e), w = d[5] != null ? Math.round(T.a * d[5] + T.e) - x : Math.round(d[3] * T.a), h = Math.round(d[4] * T.d);
-      return { x, y: Math.round(T.d * d[2] + T.f), sil: devOf(d[0], d[0].src, w, h), ink: devOf(inks[i], d[0].src + "#ink", w, h) }; });
+      return { x, y: Math.round(T.d * d[2] + T.f), sil: solidOf(d[0], d[0].src, w, h), ink: devOf(inks[i], d[0].src + "#ink", w, h) }; });
     const cv = ctx.canvas, bx0 = Math.max(0, Math.min(...place.map(q => q.x))), by0 = Math.max(0, Math.min(...place.map(q => q.y)));
     const bx1 = Math.min(cv.width, Math.max(...place.map(q => q.x + q.sil.width))), by1 = Math.min(cv.height, Math.max(...place.map(q => q.y + q.sil.height)));
     if (bx1 <= bx0 || by1 <= by0) return;
     const B = [bx0, by0, bx1 - bx0, by1 - by0], s = scratch(ctx), pb = parchmentCanvas(ctx), ox = Math.round(T.e), oy = Math.round(T.f);
     s.setTransform(1, 0, 0, 1, 0, 0); s.globalAlpha = 1; s.filter = "none"; s.globalCompositeOperation = "source-over"; s.clearRect(B[0], B[1], B[2], B[3]);
-    place.forEach(q => s.drawImage(q.sil, q.x, q.y));                                   // silhouette = the painted alpha
+    place.forEach(q => s.drawImage(q.sil, q.x, q.y));                                   // silhouette (v12g: solid, see solidOf)
     s.globalCompositeOperation = "source-in";                                             // filled with the parchment behind
     s.drawImage(pb, B[0] - ox, B[1] - oy, B[2], B[3], B[0], B[1], B[2], B[3]);
     s.globalCompositeOperation = "source-over"; place.forEach(q => s.drawImage(q.ink, q.x, q.y)); // the ink, as painted

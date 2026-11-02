@@ -16,7 +16,7 @@ KM_DATA.world = {
   // roadside props live in a back lane behind the road, also kept clear of halt spots
   propEvery: [700, 1200],
   propKinds: ["signpost", "dead_cart", "haystack", "gallows_tree", "shrubbery"],
-  propLaneY: 850, propScale: 0.8, propAlpha: 0.85, propClearance: 80,
+  propLaneY: 850, propScale: 0.8, propAlpha: 1 /* v12g: solid (was 0.85) */, propClearance: 80,
   skyEventEvery: [14, 24], // seconds between distant dragon fly-bys
   // v7: with the painted scenery (KM_DATA.scenery) the old box obstacles / props / sky dragon are off (no approved art)
   boxScenery: false,

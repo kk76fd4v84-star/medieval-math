@@ -154,21 +154,25 @@
   }
   // ---------- graves of past deaths (KM.Save profile, survives new games) ----------
   // v7: a death remembers WHICH encounter killed the knight (progress.encounter = KM_DATA.encounters index) and the killer.
-  // The grave stands on the hill (mid layer) GR.before px before that encounter; legacy deaths use their old camera x.
+  // v12g (Magnus: "the grave should be where you die and nowhere else and sit on the ground layer"): the grave stands ON
+  // THE ROAD (ground line, same layer as the party, artScale) at the spot where the knight fell = his camera x at death
+  // (that encounter's halt + the saved offset, so it survives a rebuilt road) + GR.ahead (he falls forward). No clamping,
+  // no hill lane. g.wx = the grave's road x (camera units); g.cam = where the party halts to pay respects (grave in front).
   const markerOf = d => (d.killer && GR.markers[d.killer]) || "grave";
-  function graveCam(d) {
+  function graveX(d) {
     if (d.progress && d.progress.encounter != null) {
       const st = S.stops.find(s => s.src === d.progress.encounter);
-      if (st) return Math.max(2600, haltCam(st) - GR.before);
+      if (st) return haltCam(st) + (d.progress.offset || 0) + GR.ahead;
     }
-    return isFinite(d.x) ? Math.max(2600, d.x - GR.before) : null;
+    return isFinite(d.x) ? d.x + GR.ahead : null;
   }
+  const graveCam = d => { const x = graveX(d); return x == null ? null : Math.max(0, x - GR.respectAt); };
   function buildGraves() {
-    const ds = KM.Save.deaths().map(d => ({ d, cam: graveCam(d) })).filter(o => o.cam != null).sort((a, b) => a.cam - b.cam);
+    const ds = KM.Save.deaths().map(d => ({ d, cam: graveCam(d), wx: graveX(d) })).filter(o => o.cam != null).sort((a, b) => a.cam - b.cam);
     S.graves = []; S.respect = null;
-    ds.forEach(({ d, cam }) => {
+    ds.forEach(({ d, cam, wx }) => {
       const g = S.graves[S.graves.length - 1];
-      if (g && cam - g.cam < GR.merge) g.deaths.push(d); else S.graves.push({ cam, deaths: [d], done: false });
+      if (g && cam - g.cam < GR.merge) g.deaths.push(d); else S.graves.push({ cam, wx, deaths: [d], done: false });
     });
     S.graves.forEach(g => {
       const d = g.deaths[g.deaths.length - 1];
@@ -176,8 +180,8 @@
       g.actor = mkActor({ id: g.marker, grave: true, name: g.deaths.length > 1 ? "Gravestones" : "Gravestone", label: g.deaths.length > 1 ? `${g.deaths.length} knights` : `Sir ${d.name}` });
     });
   }
-  // grave screen x: rides the hill lane (mid parallax speed) and sits ~in front of the party at its respects stop
-  const graveSX = g => W.partyScreenX + 600 + (g.cam - S.camX) * D.scenery.mid.speed;
+  // grave screen x: a road prop (moves with the road, speed 1) at its death spot
+  const graveSX = g => W.partyScreenX + (g.wx - S.camX);
   function epitaph(g) {
     const d = g.deaths[Math.floor(Math.random() * g.deaths.length)];
     const t = pickOne(GR.epitaphs).replace(/\{name\}/g, d.name).replace(/\{d\}/g, (+d.leagues || 0).toFixed(1));
@@ -417,7 +421,7 @@
   }
   function startJourney() {
     S.intro = null;
-    const nar = narrator(); if (nar) { nar.sp = null; nar.dead = true; } // v8: no flying-off placeholder box
+    const nar = narrator(); if (nar) { nar.sp = null; nar.quiet = true; } // v12g (Magnus): he stays on his rock; the party walks past him
     setCheckpoint(); S.mode = "walk"; MU.setScene("walk"); renderWalk();
   }
 
@@ -559,7 +563,9 @@
   function pickAction(kind) {
     const e = S.enc; if (!e || e.phase !== "choose") return;
     if (kind === "heal" && (e.heals <= 0 || S.hp >= maxHp())) return;
-    const a = C.actions[kind], level = kind === "heal" ? pickOne(a.levels) : a.level;
+    const a = C.actions[kind]; let level = kind === "heal" ? pickOne(a.levels) : a.level;
+    { const si = S.stops.indexOf(e.st), nth = S.stops.slice(0, si < 0 ? 0 : si).filter(q => q.type === "math").length; // v12h: first fights simpler
+      if (e.st && e.st.type === "math" && nth < (C.starterFights || 0) && D.mathLevels["starter_" + level]) level = "starter_" + level; }
     e.action = kind; e.msg = "";
     ask(level, () => turnRight(kind), () => turnWrong(kind), () => renderChoice());
     if (C.answerSecs > 0 && !/[?&]notimer\b/.test(location.search)) e.tmr = { t: 0, q: e.q }; // v12c: battle sums only (not riddles, recruits, Frank)
@@ -1337,7 +1343,7 @@
   function laneOf(a) {
     // Magnus: enemies never float. Ordinary foes stand ON the ground line from the moment they slide in (grey + misty
     // until the commit = hidden strength); only the optional special creature (Frank's dragon) sits on its hill lane.
-    if (a.distant && a.hill) return { y: ML().y, filter: "grayscale(1) contrast(.7) brightness(1.15)", alpha: 0.85 }; // grey + mist, NOT shrunk (v8)
+    if (a.distant && a.hill) return { y: ML().y, filter: "grayscale(1)", alpha: 1 }; // grey, NOT shrunk (v8); v12g: solid (no mist / see-through)
     if (a.distant) return { y: W.groundY, filter: "grayscale(1) contrast(.7) brightness(1.15)", alpha: 0.85 };
     if (a.closing) { const k = Math.min(1, a.closing.t / a.closing.dur), y0 = a.hill ? ML().y : W.groundY; return { y: y0 + (W.groundY - y0) * k, filter: k < 0.5 ? "grayscale(.6)" : "", alpha: 1 }; }
     return null;
@@ -1379,8 +1385,8 @@
   function drawGraves() {
     for (const g of S.graves) {
       const sx = graveSX(g); if (sx < -600 || sx > VW + 600) continue;
-      const y = ML().y + 12;
-      if (g.deaths.length > 1) KM.Assets.drawEntity(ctx, g.marker, sx - 150, y - 6, { alpha: 0.8 }); // more deaths here: a second stone behind (same size)
+      const y = W.groundY; // v12g: on the ground line, like the party
+      if (g.deaths.length > 1) KM.Assets.drawEntity(ctx, g.marker, sx - 150, y); // more deaths here: a second stone beside it (same size, solid)
       KM.Assets.drawEntity(ctx, g.marker, sx, y, { name: g.actor.label });
       const h = occupy(g.actor, g.marker, sx, y);
       pushSay(g.actor, sx, y - h);
@@ -1554,12 +1560,13 @@
     const live = S.actors.filter(a => a.active && !a.dead);
     if (S.view && S.view.a >= 1) drawView();
     else {
-      if (SCN()) KM.Scenery.draw(ctx, S.camX, S.t, { seed: S.fgSeed, swaps: S.swaps, keepOut: foeHeartsRects().concat(partyHeartsRect() ? [partyHeartsRect()] : [], statusRects()).map(r => ({ x: r.x / K, y: r.y / K, w: r.w / K, h: r.h / K })), midLane: () => { drawGraves(); live.filter(a => a.distant && a.hill).forEach(drawActor); } });
-      else { KM_ART.layers.forEach(Ly => KM.World.drawLayer(ctx, Ly, S.camX, S.t)); drawGraves(); live.filter(a => a.distant && a.hill).forEach(drawActor); }
-      S.skyEvents.forEach(s => KM.Assets.drawEntity(ctx, "sky_dragon", s.x, s.y + Math.sin(s.t * 4) * 14, { scale: 0.6, alpha: 0.7 }));
+      if (SCN()) KM.Scenery.draw(ctx, S.camX, S.t, { seed: S.fgSeed, swaps: S.swaps, keepOut: foeHeartsRects().concat(partyHeartsRect() ? [partyHeartsRect()] : [], statusRects()).map(r => ({ x: r.x / K, y: r.y / K, w: r.w / K, h: r.h / K })), midLane: () => { live.filter(a => a.distant && a.hill).forEach(drawActor); } });
+      else { KM_ART.layers.forEach(Ly => KM.World.drawLayer(ctx, Ly, S.camX, S.t)); live.filter(a => a.distant && a.hill).forEach(drawActor); }
+      S.skyEvents.forEach(s => KM.Assets.drawEntity(ctx, "sky_dragon", s.x, s.y + Math.sin(s.t * 4) * 14, { scale: 0.6 })); // v12g: solid
       if (SCN()) S.trees.forEach(tr => { const x = screenX(tr.x); if (x > -600 && x < VW + 600) KM.Scenery.tree(ctx, tr.i, x); });
       S.props.forEach(p => { const x = screenX(p.x); if (x > -400 && x < VW + 400) KM.Assets.drawEntity(ctx, p.id, x, W.propLaneY, { scale: W.propScale, alpha: W.propAlpha }); });
       S.obstacles.forEach(o => { const x = screenX(o.x); if (x > -400 && x < VW + 400) KM.Assets.drawEntity(ctx, o.id, x, W.groundY + 10); });
+      drawGraves(); // v12g: graves are road props on the ground line (behind the party and road actors)
       const behind = a => (a.back || a.narrator) && !(a.distant && a.hill);
       live.filter(a => a.facade).forEach(drawFacade);
       live.filter(behind).forEach(drawActor);
@@ -1638,7 +1645,7 @@
     S, L, strength, maxHp, leagues, lungeDbg: () => [lungeReach(S.party[0], S.enc && S.enc.act), S.party[0].sx, S.enc && screenX(S.enc.act.x), wideOf(artId(S.party[0])), S.enc && wideOf(S.enc.act.id)], partyFull, weakDmg, hardDmg, rerenderMath: () => S.enc && S.enc.phase === "math" && renderMath(), setSpeed: k => (S.speedMul = k), audioLog: A.log, audioCounts: A.counts, forceRoll: 0, forceContest: null, props: () => S.props,
     answer: () => (S.enc && S.enc.phase === "math" && S.enc.problem ? S.enc.problem.answer : null), phase: () => S.enc && S.enc.phase, mode: () => S.mode,
     voLog: A.voLog, music: () => MU.state(), musicLog: MU.log,
-    graves: () => S.graves.map(g => ({ cam: g.cam, n: g.deaths.length, marker: g.marker, killer: g.killer, done: g.done, sx: graveSX(g) })),
+    graves: () => S.graves.map(g => ({ cam: g.cam, wx: g.wx, n: g.deaths.length, marker: g.marker, killer: g.killer, done: g.done, sx: graveSX(g) })),
     respect: () => S.respect && { t: S.respect.t, cam: S.respect.g.cam }, further: () => S.furtherDone, toast: () => S.toast && S.toast.text, view: () => S.view && S.view.id, arrivalDoor: () => S.view && S.view.id === "tavern-arrival" ? arrivalDoor() : null, hoverSpot: () => S.hoverSpot,
     hunters: () => S.hunters, enemy: () => (S.enc && S.enc.revealed ? { id: S.enc.act.id, hp: S.enc.hp, maxHp: S.enc.maxHp, atk: S.enc.atk } : null),
     dice: () => S.dice.map(d => ({ result: d.result, done: d.done })), spell: () => ({ charges: S.spells, left: S.spellLeft, problem: S.enc && S.enc.problem ? { text: S.enc.problem.text, stupid: !!S.enc.problem.stupid, level: S.enc.problem.level } : null }),
