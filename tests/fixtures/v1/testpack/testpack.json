@@ -1,0 +1,251 @@
+{
+ "stage": [
+  1600,
+  900
+ ],
+ "backgrounds": {
+  "mountains": {
+   "file": "mountains.png",
+   "size": [
+    2400,
+    900
+   ]
+  },
+  "strip_bg": {
+   "file": "strip_bg.png",
+   "size": [
+    1600,
+    306
+   ]
+  }
+ },
+ "cutouts": {
+  "hero": {
+   "file": "hero.png",
+   "size": [
+    200,
+    400
+   ],
+   "anchor": [
+    100,
+    400
+   ]
+  },
+  "digit_0": {
+   "file": "glyphs/digit_0.png",
+   "size": [
+    80,
+    110
+   ],
+   "anchor": [
+    40,
+    110
+   ]
+  },
+  "digit_1": {
+   "file": "glyphs/digit_1.png",
+   "size": [
+    80,
+    110
+   ],
+   "anchor": [
+    40,
+    110
+   ]
+  },
+  "digit_2": {
+   "file": "glyphs/digit_2.png",
+   "size": [
+    80,
+    110
+   ],
+   "anchor": [
+    40,
+    110
+   ]
+  },
+  "digit_3": {
+   "file": "glyphs/digit_3.png",
+   "size": [
+    80,
+    110
+   ],
+   "anchor": [
+    40,
+    110
+   ]
+  },
+  "digit_4": {
+   "file": "glyphs/digit_4.png",
+   "size": [
+    80,
+    110
+   ],
+   "anchor": [
+    40,
+    110
+   ]
+  },
+  "digit_5": {
+   "file": "glyphs/digit_5.png",
+   "size": [
+    80,
+    110
+   ],
+   "anchor": [
+    40,
+    110
+   ]
+  },
+  "digit_6": {
+   "file": "glyphs/digit_6.png",
+   "size": [
+    80,
+    110
+   ],
+   "anchor": [
+    40,
+    110
+   ]
+  },
+  "digit_7": {
+   "file": "glyphs/digit_7.png",
+   "size": [
+    80,
+    110
+   ],
+   "anchor": [
+    40,
+    110
+   ]
+  },
+  "digit_8": {
+   "file": "glyphs/digit_8.png",
+   "size": [
+    80,
+    110
+   ],
+   "anchor": [
+    40,
+    110
+   ]
+  },
+  "digit_9": {
+   "file": "glyphs/digit_9.png",
+   "size": [
+    80,
+    110
+   ],
+   "anchor": [
+    40,
+    110
+   ]
+  },
+  "op_plus": {
+   "file": "glyphs/op_plus.png",
+   "size": [
+    80,
+    110
+   ],
+   "anchor": [
+    40,
+    110
+   ]
+  },
+  "op_minus": {
+   "file": "glyphs/op_minus.png",
+   "size": [
+    80,
+    110
+   ],
+   "anchor": [
+    40,
+    110
+   ]
+  },
+  "op_times": {
+   "file": "glyphs/op_times.png",
+   "size": [
+    80,
+    110
+   ],
+   "anchor": [
+    40,
+    110
+   ]
+  },
+  "op_divide": {
+   "file": "glyphs/op_divide.png",
+   "size": [
+    80,
+    110
+   ],
+   "anchor": [
+    40,
+    110
+   ]
+  },
+  "op_equals": {
+   "file": "glyphs/op_equals.png",
+   "size": [
+    80,
+    110
+   ],
+   "anchor": [
+    40,
+    110
+   ]
+  },
+  "divider": {
+   "file": "divider.png",
+   "size": [
+    1600,
+    14
+   ],
+   "anchor": [
+    800,
+    14
+   ]
+  }
+ },
+ "animations": {
+  "walk": {
+   "frames": [
+    "anim/hero/walk_1.png",
+    "anim/hero/walk_2.png"
+   ],
+   "order": [
+    1,
+    2
+   ],
+   "ms": [
+    150,
+    150
+   ],
+   "loop": true,
+   "anchor": [
+    100,
+    400
+   ]
+  },
+  "attack": {
+   "frames": [
+    "anim/hero/attack_1.png",
+    "anim/hero/attack_2.png"
+   ],
+   "order": [
+    1,
+    2
+   ],
+   "ms": [
+    120,
+    200
+   ],
+   "loop": false,
+   "anchor": [
+    100,
+    400
+   ]
+  }
+ }
+}
