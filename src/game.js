@@ -1670,9 +1670,11 @@
     KM.Assets.preloadGlyphs(); applyLayout();
     const ms = KM.Save.musicSettings(); MU.settings({ volume: ms.volume == null ? D.music.volume : ms.volume, muted: ms.muted });
     MU.onChange(m => KM.Save.saveMusic(m));
-    if (ART7) { KM.Scenery.preload(); ["camp", "tavern-interior", "tavern-arrival"].forEach(KM.RestView.preload); }
+    if (ART7) KM.Scenery.preload(); // v12f: road / title art first (KM.Loader); the rest views stream in after the bar
     await Promise.all([KM.Assets.loadPacks(KM_ART.packs), KM.Audio.init()]);
     skinStrip(); setTimeout(skinStrip, 600);
     showTitle(); requestAnimationFrame(frame);
+    if (KM.Loader) { await KM.Loader.ready(); KM.Loader.finish(); skinStrip(); }
+    if (ART7) ["camp", "tavern-interior", "tavern-arrival"].forEach(KM.RestView.preload);
   })();
 })();

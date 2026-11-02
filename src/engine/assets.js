@@ -9,8 +9,8 @@ KM.Assets = (function () {
     im._ok = false;
     im.onload = () => { im._ok = true; };
     im.onerror = () => { im._bad = true; console.info("[art] missing image, using box:", src); };
-    im.src = src;
     imgCache[src] = im;
+    if (!(KM.Loader && KM.Loader.gate(im, src))) im.src = src; // v12f: off the first set = loads after the bar
     return im;
   }
   function register(path, j) {

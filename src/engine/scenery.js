@@ -16,7 +16,7 @@ KM.Scenery = (function () {
   const A = () => window.KM_ART7, C = () => KM_DATA.scenery;
   const root = p => (/^assets\//.test(p) ? p : A().root + p);
   const img = p => KM.Assets.loadImg(root(p));
-  const ok = im => im && im._ok && im.naturalWidth > 0;
+  const ok = im => (im && !im._ok && KM.Loader && KM.Loader.want(im), im && im._ok && im.naturalWidth > 0); // v12f: road art asked for by a draw loads first
   const VW = () => KM_LAYOUT.viewW, H = () => KM_LAYOUT.artSpaceH, G = () => KM_LAYOUT.art;
   const OV = () => 1 / KM_LAYOUT.k; // tiles overlap by one stage pixel (exact size, no stretch) so no hairline seams
   const A10 = () => window.KM_ART10, PRE = () => !!(A10() && C().tint && C().tint.precomputed !== false);
