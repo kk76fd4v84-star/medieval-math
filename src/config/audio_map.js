@@ -72,8 +72,10 @@ window.KM_AUDIO_MAP = {
   "vol": 0.8
  },
  "riddle": {
-  "files": [],
-  "vol": 0.8
+  "files": [
+   "sfx/riddle_hihuuu.ogg"
+  ],
+  "vol": 1.0
  },
  "boss_intro": {
   "files": [],
