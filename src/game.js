@@ -600,8 +600,7 @@
     { const si = S.stops.indexOf(e.st), nth = S.stops.slice(0, si < 0 ? 0 : si).filter(q => q.type === "math").length; // v12h: first fights simpler
       if (e.st && e.st.type === "math" && nth < (C.starterFights || 0) && D.mathLevels["starter_" + level]) level = "starter_" + level; }
     e.action = kind; e.msg = "";
-    ask(level, () => turnRight(kind), () => turnWrong(kind), () => renderChoice());
-    if (C.answerSecs > 0 && !NOTIMER) e.tmr = { t: 0, q: e.q, secs: C.answerSecs }; // v12c: battle sums only (not riddles, recruits, Frank)
+    ask(level, () => turnRight(kind), () => turnWrong(kind), () => renderChoice(), C.answerSecs); // v12c: battle sums only (not riddles, recruits, Frank)
   }
   // ---- v12c answer timer (Magnus: "This bar down here, lets try turning that into a timer for the answers. If you don't
   // answer before it is full, the enemies will strike and not wait. Then it resets. If you answer it will reset for the
@@ -609,12 +608,19 @@
   // strikes, deaths, the scene toast, a sacrifice prompt, enemies walking up. Full = exactly a wrong answer.
   const NOTIMER = /[?&]notimer\b/.test(location.search);
   let tmrHold = 0;
+  // v12r (Magnus: "Very often the math timer does not start"): the ONE place a timer starts; every timed sum / word
+  // (ask() for battle sums, the fire bottle's word) comes through here, bound to the question now on screen.
+  function startAnswerTimer(secs) {
+    const e = S.enc; if (!e || !(secs > 0) || NOTIMER || !e.q) return null;
+    return (e.tmr = { t: 0, q: e.q, secs, held: 0 });
+  }
   function tickAnswerTimer(dt) {
     const e = S.enc, T = e && e.tmr;
     if (!T || !["math", "spell"].includes(e.phase) || e.q !== T.q || S.mode !== "encounter") { if (e && T && e.q !== T.q) e.tmr = null; tmrHold = Math.max(0, tmrHold - dt); return dividerFill(tmrHold > 0 ? 1 : 0); }
-    const foes = e.foes || [e.act];
-    const paused = S.dying || S.toast || S.view || e.sub || S.party.some(m => m.act || m.dying) || foes.some(a => a && (a.act || a.state === "walkin"));
-    if (!paused) T.t += dt;
+    // a hold (strike, toast, a foe stepping up) is short; a stale one (an act on a dead / inactive foe, a stuck walk-in)
+    // must never freeze the bar, so after C.answerPauseMax s of continuous hold it runs anyway
+    const paused = timerPause(e); T.held = paused ? (T.held || 0) + dt : 0;
+    if (!paused || T.held > (C.answerPauseMax || 3)) T.t += dt;
     const secs = T.secs || C.answerSecs, left = secs - T.t; // v12k: the fire bottle's word has its own (shorter) time
     if (left > 0 && left <= (C.answerTickLast || 0) && Math.ceil(left) !== T.tick) { T.tick = Math.ceil(left); A.play(C.answerTickSfx || "type_blip"); } // subtle tick, existing SFX hook
     dividerFill(Math.min(1, T.t / secs));
@@ -622,6 +628,14 @@
       const q = e.q; e.q = null; e.tmr = null; e.phase = "busy"; e.timedOut = (e.timedOut || 0) + 1; tmrHold = 1.2;
       S.stats.wrong++; S.stats.timeouts = (S.stats.timeouts || 0) + 1; A.play(q.sfx || "wrong"); q.onWrong();
     }
+  }
+  // why the answer timer is holding right now (null = running); also exposed as __km.timerWhy for the tests
+  function timerPause(e) {
+    const foes = e.foes || [e.act];
+    if (S.dying) return "dying"; if (S.toast) return "toast"; if (S.view) return "view"; if (e.sub) return "sub";
+    const m = S.party.find(m => m.act || m.dying); if (m) return "party:" + (m.dying ? "dying" : m.act.name);
+    const a = foes.find(a => a && a.active && !a.dead && !a.gone && (a.act || a.state === "walkin")); if (a) return "foe:" + a.id + ":" + (a.act ? a.act.name : a.state) + (a.dead ? ":dead" : "") + (a.active ? "" : ":inactive") + (a.gone ? ":gone" : "");
+    return null;
   }
   // the warm fill: an orange-tinted copy of Magnus's divider ink, revealed from the centre ornament out to both ends
   let dvFillFrac = -1;
@@ -668,7 +682,7 @@
     S.bottles--; save(); e.action = "fire"; e.msg = ""; e.phase = "spell";
     e.spell = KM.Spelling.start(KM.Spelling.pickWord(D.words[IT.words]));
     e.q = { onWrong: fireFizzle, sfx: IT.sfx.fizzle }; // the timer's "too slow" path
-    if (IT.spellSecs > 0 && !NOTIMER) e.tmr = { t: 0, q: e.q, secs: IT.spellSecs };
+    startAnswerTimer(IT.spellSecs);
     heroSay(pickOne(IT.lines.light)); renderSpell();
   }
   const renderSpell = cls => showPanel(`<div class="center spellp">${KM.Spelling.drawWord(S.enc.spell, cls)}</div>`, "math");
@@ -776,13 +790,14 @@
   function finishEncounter() { if (S.dying) return; meadEnds(); S.enc = null; S.dice = []; S.voices = []; S.stop++; save(); S.mode = "walk"; MU.setScene("walk"); renderWalk(); }
 
   // ---- generic maths question (combat actions, recruits, Frank)
-  function ask(level, onRight, onWrong, back) {
-    const e = S.enc; e.phase = "math"; e.input = "";
+  function ask(level, onRight, onWrong, back, secs) {
+    const e = S.enc; e.phase = "math"; e.input = ""; e.tmr = null;
     const mead = meadNow(), stupid = mead || S.spellLeft > 0; // v11 Spell of Stupidity: the next N sums drop to the easiest level; v11b mead: all of this battle's sums
     e.problem = KM.MathGen.make(stupid ? SPL.level : level); e.problem.stupid = stupid; e.problem.level = stupid ? SPL.level : level;
     if (stupid) e.stupidUsed = true;
     const after = f => () => { if (e.problem.stupid && !mead) spellTick(); f(); }; // mead sums never use up a scroll
     e.q = { onRight: after(onRight), onWrong: after(onWrong), back, level }; renderMath();
+    startAnswerTimer(secs);
   }
   // ---- v11 Spell of Stupidity: consumable, cast with Z (road / your turn / mid-sum), lasts SPL.problems sums
   function castSpell() {
@@ -1803,7 +1818,7 @@
     foeFeet: () => S.actors.filter(a => a.foe && !a.dead && !a.hidden).map(a => { const ln = laneOf(a), fx = actFx(a.id, a.act, -1); return { id: a.id, state: a.state, hill: !!a.hill, distant: !!a.distant, sx: screenX(a.x), feetY: (ln ? ln.y : W.groundY) + a.dy + (fx ? fx.dy : 0), groundY: W.groundY }; }), fareLeft: k => fareLeft(k), fare: () => fareItems().map(({ id, label, cost, off, lot }) => ({ id, label, cost, off, lot, icon: fareIcon(id)._ok })), signFont: () => S.signFontStage, signAngle: () => signAngle() * 180 / Math.PI, sign: () => { const g = signGeom(); return g && { r: g.r, k: g.k, nail: [g.nx, g.ny] }; },
     heads: () => heads().map(({ x, y, w, h }) => ({ x, y, w, h })), speechLog: () => speechLog.slice(), speaking: () => [...speakers].filter(o => o.sp).map(o => speechNow(o).join(" ")),
     panelText: () => panel.innerText, answerTimer: () => S.enc && S.enc.tmr ? { t: S.enc.tmr.t, secs: S.enc.tmr.secs, frac: Math.min(1, S.enc.tmr.t / S.enc.tmr.secs) } : null,
-    bottles: () => S.bottles, spelling: () => S.enc && S.enc.spell ? Object.assign({ phase: S.enc.phase }, S.enc.spell) : null, fireFx: () => KM.FireFx.state(), timedOut: () => S.enc && S.enc.timedOut || 0, dvFill: () => dvFillFrac
+    bottles: () => S.bottles, spelling: () => S.enc && S.enc.spell ? Object.assign({ phase: S.enc.phase }, S.enc.spell) : null, fireFx: () => KM.FireFx.state(), timedOut: () => S.enc && S.enc.timedOut || 0, timerWhy: () => S.enc ? timerPause(S.enc) : "no-enc", dvFill: () => dvFillFrac
   };
 
   // v19 debug hook, OFF unless the page is opened with ?debug (screenshots / quick checks): jump the road to the first stop

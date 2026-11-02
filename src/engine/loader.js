@@ -33,14 +33,16 @@ KM.Loader = (function () {
     im.addEventListener("load", fin); im.addEventListener("error", fin); draw();
   }
   // v12r: a non-image file in the first set (music): real bytes as they stream in, then `after(blobUrl)` (e.g. decode)
-  // must resolve before the bar can finish. Falls back to the plain URL if fetch / streams are not available.
+  // must resolve before the bar can finish. Falls back to the plain URL (Audio element preload) under file:// or if fetch / streams fail.
   function fetchFile(src, after) {
     const w = size(src), tok = {}; totW += w; pend.add(tok); lastChange = performance.now(); let got = 0;
     const add = n => { const d = Math.min(n, w - got); if (d > 0) { got += d; doneW += d; lastChange = performance.now(); draw(); } };
     const end = () => { if (!pend.delete(tok)) return; add(w); lastChange = performance.now(); draw(); };
     (async () => {
       let url = src;
-      try { const r = await fetch(src); if (!r.ok) throw new Error(r.status);
+      // file:// (a local double-click): fetch() is refused there, so skip it and let `after` preload the plain URL
+      // through the <audio> element (canplaythrough); the bar counts the file when that resolves.
+      if (location.protocol !== "file:" && window.fetch) try { const r = await fetch(src); if (!r.ok) throw new Error(r.status);
         if (r.body && r.body.getReader) { const rd = r.body.getReader(), parts = []; for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); add(value.length); }
           url = URL.createObjectURL(new Blob(parts, { type: r.headers.get("content-type") || "audio/mpeg" })); }
         else url = URL.createObjectURL(await r.blob());

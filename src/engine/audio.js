@@ -31,7 +31,24 @@ KM.Audio = (function () {
   const OGG = (() => { try { return !!new Audio().canPlayType('audio/ogg; codecs="vorbis"'); } catch (e) { return true; } })();
   const src = f => "assets/audio/" + (OGG ? f : f.replace(/\.ogg$/, ".mp3"));
   const volOf = (m, g) => Math.min(1, (m.vol == null ? 1 : m.vol) * (g == null ? 1 : g));
-  function out(f, m, g, loop) { try { const a = new Audio(src(f)); a.volume = volOf(m, g); a.loop = !!(loop || m.loop); a.play().catch(() => {}); return a; } catch (e) { return null; } }
+  // v12s sfx pool (Magnus: "slower and slower the longer you walk"): one new <audio> per play meant ~2-5 new media
+  // elements a second while walking (footsteps), each a full media player freed only by GC (Safari keeps them a long
+  // time). Now every file keeps at most POOL elements and replays a finished one, so the count stays flat.
+  const POOL = 4, pool = {}; // file -> [<audio>]
+  function elFor(f) {
+    const list = pool[f] || (pool[f] = []);
+    const free = list.find(a => !a._held && (a.paused || a.ended)); if (free) return free;
+    if (list.length < POOL) { const a = new Audio(src(f)); a.preload = "auto"; list.push(a); return a; }
+    const busy = list.filter(a => !a._held); // all playing: restart the one that has played longest (never a running loop)
+    return busy.length ? busy.reduce((o, a) => (a.currentTime > o.currentTime ? a : o)) : null;
+  }
+  function out(f, m, g, loop) {
+    try { const a = elFor(f); if (!a) return null;
+      a.loop = !!(loop || m.loop); a._held = a.loop; a.volume = volOf(m, g);
+      try { a.currentTime = 0; } catch (e) {}
+      a.play().catch(() => {}); return a;
+    } catch (e) { return null; }
+  }
   // v12n loops (e.g. the fire crackle): one per event. loop(ev) starts it (restarts if already on); stop(ev, secs) fades it
   // out over secs and stops it; stopLoops(secs) stops them all (battle end / scene change). Plain <audio loop> (.ogg seamless).
   const loops = {}; // ev -> { a, fade }
@@ -42,8 +59,9 @@ KM.Audio = (function () {
   function stop(ev, secs) {
     const L = loops[ev]; if (!L) return; delete loops[ev];
     const a = L.a, v0 = a.volume, t0 = performance.now(), ms = (secs || 0) * 1000;
-    if (ms <= 0) { a.pause(); return; }
-    const iv = setInterval(() => { const u = (performance.now() - t0) / ms; if (u >= 1) { clearInterval(iv); a.pause(); } else a.volume = v0 * (1 - u); }, 30);
+    const end = () => { a.pause(); a.loop = false; a._held = false; }; // back in the pool
+    if (ms <= 0) return end();
+    const iv = setInterval(() => { const u = (performance.now() - t0) / ms; if (u >= 1) { clearInterval(iv); end(); } else a.volume = v0 * (1 - u); }, 30);
   }
   const stopLoops = secs => Object.keys(loops).forEach(ev => stop(ev, secs));
   document.addEventListener("visibilitychange", () => { if (document.hidden) stopLoops(0); }); // no crackle left running in a hidden tab
@@ -86,5 +104,5 @@ KM.Audio = (function () {
   // dialogue line helpers: a line is "text" or { text, vo }
   const text = l => (l && typeof l === "object" ? l.text : l || "");
   const voOf = l => (l && typeof l === "object" ? l.vo : null);
-  return { init, play, loop, stop, stopLoops, looping: () => Object.keys(loops), voice, text, voOf, log, counts, voLog, voPlayed, voFail, voBusy: () => !!vo, fileLog, map: () => map, setMuted: v => { muted = v; if (v) stopLoops(0); } };
+  return { init, play, loop, stop, stopLoops, looping: () => Object.keys(loops), voice, text, voOf, log, counts, voLog, voPlayed, voFail, voBusy: () => !!vo, fileLog, map: () => map, poolSize: () => Object.values(pool).reduce((n, l) => n + l.length, 0), setMuted: v => { muted = v; if (v) stopLoops(0); } };
 })();

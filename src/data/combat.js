@@ -9,6 +9,7 @@ KM_DATA.combat = {
   // v12h (Magnus): the very first normal fights use simpler sums (weak -> starter_easy, hard -> starter_hard)
   starterFights: 2,
   answerTickLast: 3, answerTickSfx: "type_blip",
+  answerPauseMax: 3, // v12r: the timer holds for strikes / toasts at most this many seconds in a row, then runs anyway (never stuck)
   // One turn = choose an action, solve its problem, then a SURVIVING enemy acts. Dead enemies never retaliate.
   // A failed problem: the action does nothing, hunters advance ONE block, then the normal enemy turn (no extra hit).
   actions: {
