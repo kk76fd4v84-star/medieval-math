@@ -19,6 +19,19 @@ KM_DATA.items = {
     hunters: 0,             // hunters steps on a fizzle (0 = none; a wrong sum costs 1)
     // sounds: existing SFX only (src/config/audio_map.js events). Charlie can make proper ones later.
     sfx: { letterOk: "spell_letter_ok", letterBad: "spell_letter_bad", throw: "swing_hard", fizzle: "wrong" },
+    // v12m (Magnus): how the word's letters look. Maggi's ink letters are tinted in code (source-atop) to these colours.
+    // Not typed yet = grey. A right letter flashes hot with a warm glow, then cools to black ink like forged metal.
+    // A wrong key: the current letter shakes and stays grey (no red, no Backspace; just type the right one next).
+    letters: {
+      grey: "#8a8580",      // every letter not typed yet
+      hot: "#ff7a1a",       // a right letter, the moment it is typed
+      cooled: "#1c140e",    // ... and what it cools to (black ink)
+      glow: "#ffb04a",      // the warm glow around a hot letter
+      glowPx: 14,           // glow blur radius (stage px) at its brightest
+      coolSecs: 0.7,        // hot -> black
+      shakeSecs: 0.32,      // the wrong-key shake
+      shakePx: 9            // how far it shakes (stage px)
+    },
     lines: {
       light: ["Spell it before the wick burns down!"],
       throw: ["Catch!", "Warm yourselves, lads!", "Fire! Lovely fire!"],
@@ -26,9 +39,9 @@ KM_DATA.items = {
       buy: ["One fire bottle. Throw it AWAY from you, love.", "Fire in a bottle. Don't drink it."],
       full: "You can't carry more than two, love."
     },
-    // Maggi's woodblock v2 art (assets/items/fire_bottle/NOTES.md). All drawn at artScale (source px x 0.6).
+    // Maggi's v4 woodcut art (assets/items/fire_bottle/v4/NOTES.md). All drawn at artScale (source px x 0.6).
     art: {
-      dir: "assets/items/fire_bottle/v2/", // Maggi's woodblock v2 (swap the look here)
+      dir: "assets/items/fire_bottle/v4/", // Maggi's v4 woodcut, washed-out ochre #D9B46A (Magnus approved; swap the look here)
       icon: "bottle_icon.png",          // 128x128, the move plaque + the tavern sign
       item: "bottle_item.png",          // 224x224, pivot = centre, spins in flight
       throwSecs: 0.5, spinDeg: 540, arcH: 260, // flight time, spin (deg/s), arc height (stage px)

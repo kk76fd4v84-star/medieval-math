@@ -646,7 +646,7 @@
   function spellKey(k) {
     const e = S.enc; if (!e || e.phase !== "spell" || e.sub) return;
     const r = KM.Spelling.key(e.spell, k); if (!r) return;
-    A.play(r === "bad" ? IT.sfx.letterBad : r === "back" ? "key_tap" : IT.sfx.letterOk); renderSpell();
+    A.play(r === "bad" ? IT.sfx.letterBad : IT.sfx.letterOk); renderSpell();
     if (r === "done") { e.q = null; e.tmr = null; e.phase = "busy"; S.stats.correct++; fireThrow(); }
   }
   function fireThrow() {
@@ -1172,8 +1172,8 @@
   document.addEventListener("keydown", ev => {
     const k = ev.key, K1 = k.length === 1 ? k.toUpperCase() : k;
     if (S.mode === "name") { if (k === "Enter") submitName(); return; }
-    if (S.mode === "encounter" && S.enc && S.enc.phase === "spell") { // v12k fire bottle word: letters + Backspace only (M, Z... are letters here)
-      if (k === "Backspace") { ev.preventDefault(); spellKey("back"); } else if (/^[a-z]$/i.test(k)) spellKey(k.toUpperCase()); return; }
+    if (S.mode === "encounter" && S.enc && S.enc.phase === "spell") { // v12k fire bottle word: letters only (M, Z... are letters here); v12m: Backspace does nothing
+      if (k === "Backspace") ev.preventDefault(); else if (/^[a-z]$/i.test(k)) spellKey(k.toUpperCase()); return; }
     if (K1 === "M") { MU.toggleMute(); renderHUD(); return; }
     if (k === "[" || k === "]") { MU.setVolume(MU.settings().volume + (k === "]" ? 1 : -1) * D.music.volumeStep); renderHUD(); return; }
     if ([" ", "Enter", "Backspace"].includes(k)) ev.preventDefault();

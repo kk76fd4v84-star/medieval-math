@@ -333,20 +333,69 @@
  },
  "spell_letter_ok": {
   "files": [
-   "sfx/sfx_correct_01.ogg",
-   "sfx/sfx_correct_02.ogg",
-   "sfx/sfx_correct_03.ogg"
+   "sfx/spell_ok_1.ogg",
+   "sfx/spell_ok_2.ogg",
+   "sfx/spell_ok_3.ogg",
+   "sfx/spell_ok_4.ogg"
   ],
-  "vol": 0.5,
-  "_note": "v12k fire bottle: a right letter. Reuses Charlie's anvil strikes (= 'correct'), quieter; a proper ding can replace it"
+  "vol": 0.65,
+  "_note": "v12m fire bottle: a right letter (it glows hot, then cools). Charlie's ElevenLabs strikes, a random variant each time (never the same twice in a row)"
  },
  "spell_letter_bad": {
   "files": [
-   "sfx/sfx_wrong_01.ogg",
-   "sfx/sfx_wrong_02.ogg",
-   "sfx/sfx_wrong_03.ogg"
+   "sfx/spell_miss_1.ogg",
+   "sfx/spell_miss_2.ogg"
   ],
-  "vol": 0.7,
-  "_note": "v12k fire bottle: a wrong letter. Reuses Charlie's clunks (= 'wrong'), quieter"
+  "vol": 0.8,
+  "_note": "v12m fire bottle: a wrong key (the letter shakes and stays grey). Charlie's ElevenLabs water hiss"
+ },
+ "fire_throw": {
+  "files": [],
+  "vol": 0.8,
+  "_next": [
+   "sfx/fire_throw_1.ogg"
+  ],
+  "_note": "v12m READY, not wired yet (no file from Charlie yet, so it stays silent and makes no request): the bottle leaves the hand. When it lands, move _next into files, re-run tools/build_audio_map.py and play it from the fire bottle code (src/game.js fireThrow / fireFizzle, src/engine/firefx.js)."
+ },
+ "fire_smash": {
+  "files": [],
+  "vol": 0.8,
+  "_next": [
+   "sfx/fire_smash_1.ogg"
+  ],
+  "_note": "v12m READY, not wired yet (no file from Charlie yet, so it stays silent and makes no request): the bottle smashes (smash frame 1). When it lands, move _next into files, re-run tools/build_audio_map.py and play it from the fire bottle code (src/game.js fireThrow / fireFizzle, src/engine/firefx.js)."
+ },
+ "fire_ignite": {
+  "files": [],
+  "vol": 0.8,
+  "_next": [
+   "sfx/fire_ignite_1.ogg"
+  ],
+  "_note": "v12m READY, not wired yet (no file from Charlie yet, so it stays silent and makes no request): the fire bursts; its peak on burst frame 2 (the hit). When it lands, move _next into files, re-run tools/build_audio_map.py and play it from the fire bottle code (src/game.js fireThrow / fireFizzle, src/engine/firefx.js)."
+ },
+ "fire_crackle": {
+  "files": [],
+  "vol": 0.8,
+  "_next": [
+   "sfx/fire_crackle_loop.ogg"
+  ],
+  "_note": "v12m READY, not wired yet (no file from Charlie yet, so it stays silent and makes no request): loops while the fire lingers, fade out over 300 ms (needs a stop/fade hook in audio.js). When it lands, move _next into files, re-run tools/build_audio_map.py and play it from the fire bottle code (src/game.js fireThrow / fireFizzle, src/engine/firefx.js)."
+ },
+ "fire_fizzle": {
+  "files": [],
+  "vol": 0.8,
+  "_next": [
+   "sfx/fire_fizzle_1.ogg"
+  ],
+  "_note": "v12m READY, not wired yet (no file from Charlie yet, so it stays silent and makes no request): the bottle fizzles (too slow). When it lands, move _next into files, re-run tools/build_audio_map.py and play it from the fire bottle code (src/game.js fireThrow / fireFizzle, src/engine/firefx.js)."
+ },
+ "goblin_burn": {
+  "files": [],
+  "vol": 0.8,
+  "_next": [
+   "sfx/goblin_burn_1.ogg",
+   "sfx/goblin_burn_2.ogg"
+  ],
+  "_note": "v12m READY, not wired yet (no file from Charlie yet, so it stays silent and makes no request): a goblin yelps as it burns. When it lands, move _next into files, re-run tools/build_audio_map.py and play it from the fire bottle code (src/game.js fireThrow / fireFizzle, src/engine/firefx.js)."
  }
 }
