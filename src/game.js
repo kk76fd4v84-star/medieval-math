@@ -984,7 +984,9 @@
   function keeperSay(text) {
     const T = restT(), v = S.view && S.view.id;
     if (v === "tavern-interior" || v === "camp") {
-      const m = KM.RestView.mapper(v), sc = KM.RestView.scene(v), at = v === "camp" ? [sc.canvas[0] * 0.5, sc.canvas[1] * 0.62] : sc.full ? [sc.canvas[0] * 0.64, sc.canvas[1] * 0.42] /* by the mug shelf: no bar/bartender in the new room */ : (sc.barStaffAnchor || [1200, 550]);
+      const m = KM.RestView.mapper(v), sc = KM.RestView.scene(v);
+      if (sc.full && v === "tavern-interior") return voice("keeper", text, D.tavernRoom.keeperAt[0], D.tavernRoom.keeperAt[1]); // v12o: behind the bar (layout units)
+      const at = v === "camp" ? [sc.canvas[0] * 0.5, sc.canvas[1] * 0.62] : (sc.barStaffAnchor || [1200, 550]);
       return voice("keeper", text, m.x0 + at[0] * m.s, m.y0 + at[1] * m.s);
     }
     const keeper = S.actors.find(a => a.stop === S.stop && a.keeper);
@@ -1298,6 +1300,7 @@
     S.dice.forEach(d => avoid.push(toScr(dieRect(d))));
     if (S.toast) avoid.push(toScr({ x: VW / 2 - 800, y: 30, w: 1600, h: 120 }));
     if (spellBadgeRect()) avoid.push(spellBadgeRect());
+    if (S.view && S.view.id === "tavern-interior" && S.view.a >= 1) { const sg = signGeom(KM.RestView.mapper("tavern-interior")); if (sg) avoid.push(toScr(sg.r)); } // v12o: keep the TAVERN FARE sign readable
     if (partyHeartsRect()) avoid.push(partyHeartsRect()); avoid.push(...statusRects()); const hardAvoid = foeHeartsRects().map(r => ({ x: r.x - 8, y: r.y - 8, w: r.w + 16, h: r.h + 16 })); // monster hearts: never under a bubble
     const occS = occ.map(o => Object.assign(toScr(o), { owner: o.owner }));
     for (const b of bubbleQ) {
@@ -1495,10 +1498,10 @@
     if (SCN()) { ctx.save(); ctx.globalAlpha = v.a; KM.Scenery.draw(ctx, S.camX, S.t, { seed: S.fgSeed, swaps: S.swaps }); ctx.restore(); }
     KM.RestView.draw(ctx, v.id, {}, v.a);
     ctx.save(); ctx.globalAlpha = v.a;
+    if (v.id === "tavern-interior" && KM.RestView.scene(v.id).full) { drawTavernInside(cands); ctx.restore(); exitRect = null; return; } // v12o: draws its own party, after the sign
     for (let i = S.party.length - 1; i >= 0; i--) { const mm = S.party[i];
       KM.Assets.drawEntity(ctx, artId(mm), slotX(i), W.groundY, { name: mm.id === "hero" ? S.name : shortName(mm.name) });
       if (v.a >= 1) pushSay(mm, slotX(i), W.groundY - occupy(mm, artId(mm), slotX(i), W.groundY)); }
-    if (v.id === "tavern-interior" && KM.RestView.scene(v.id).full) { drawTavernInside(cands); ctx.restore(); exitRect = null; return; }
     if (v.id === "tavern-arrival" && S.hoverSpot === "arrivalDoor" && S.enc && S.enc.phase === "tavernOut") { const r = arrivalDoor(); // subtle ink outline on hover
       ctx.save(); ctx.strokeStyle = "rgba(42,29,18,.85)"; ctx.lineWidth = 5 / K; ctx.setLineDash([16 / K, 10 / K]); ctx.beginPath(); ctx.roundRect(r.x - 8, r.y - 8, r.w + 16, r.h + 16, 18); ctx.stroke(); ctx.restore(); }
     if (v.id !== "tavern-arrival") cands.forEach(({ p, j }, k) => { const x = VW - 300 - k * 330; KM.Assets.drawEntity(ctx, candArt(j), x, W.groundY, { flip: true, name: shortName(p.name) });
@@ -1507,19 +1510,29 @@
     ctx.restore();
     exitRect = null; // the painted EXIT sign (2172x724 source) is ~1300 px wide at 1:1: not drawn; [X]/Esc and the strip button exit
   }
-  // ---- v11b tavern interior (Magnus: "they would be sitting behind tables ... you only see info on what you click on"):
-  // recruits sit behind Magnus's v8 tavern table (layers/props/table.png, drawn at source px x artScale) with their lower
-  // bodies hidden; selectable things = the tavern menu (the mug shelf), each recruit, the door. Arrows/A/D move a subtle
-  // ink highlight + one name bubble; Enter opens that thing's options in the strip; Esc goes back. Click works too.
-  // Seated sheets (Magnus: keep the 0.5 adjustment unless a pair is off by > 3 %; match helmet/head AND shoulders to the
-  // walk, aspect kept; hips on the bench, table in front). Measured on the alpha outline (source px, seated vs walk atlas):
-  //  feather: great-helm width 279 vs 149 (0.534), helm height 240 vs 126 (0.525), shoulders 387 vs 200 (0.517) -> 0.52
-  //  scarf:   kettle-hat brim 355 vs 160 (0.451), hat height 124 vs 56 (0.452), shoulders 382 vs 225 (0.589): head and
-  //           shoulders disagree (the seated sheet is broader-shouldered than the hunched walk); the compromise that splits
-  //           the error (geometric mean 0.515) is within 3 % of 0.5 -> 0.5 kept (head ~11 % big, shoulders ~15 % narrow).
-  // hip = source row of the seat contact (bottom of the buttocks), measured by eye (+-15 px).
-  const SEAT_FIT = { feather: { mul: 0.52, hip: 1010 }, scarf: { mul: 0.5, hip: 880 } }, BENCH_H = 57; // bench seat 57 stage px above the floor
-  const TABLE = { img: "assets/v11/ui/tavern-table.png", size: [569, 284] }, TABLE_X = [870, 1215], SKIN_OF = { follower_1: "scarf", follower_2: "feather", follower_3: "moustache", follower_4: "stripe", follower_5: "coif" }, SIT = 25, SEAT_SINK = 60, TOP = 108; // TOP = source row of the tabletop board's lower edge // stage px; SIT = how far a sitter sinks
+  // ---- v11b tavern interior (Magnus: "you only see info on what you click on"): selectable things = the tavern menu
+  // (the TAVERN FARE sign), each recruit, the door. Arrows/A/D move a subtle ink highlight + one name bubble; click works too.
+  // v12o (Magnus: "There are actual knight sitting sprites and a bar. Improve this scene"): the recruits SIT, whole body
+  // and feet on the floor, on Magnus's v8 stools in front of his v8 bar counter (under the mug shelf). Every position,
+  // seat and scale is data: KM_DATA.tavernRoom (src/data/tavern.js). Seated sheets keep the v11b head match to the walks
+  // (feather 0.52: helm 0.525 / shoulders 0.517; scarf 0.5: head 0.45 / shoulders 0.59, geometric mean within 3 %).
+  // A recruit whose look has no seated pose (moustache / stripe / coif) stands at his seat by the bar, facing the party.
+  const SKIN_OF = { follower_1: "scarf", follower_2: "feather", follower_3: "moustache", follower_4: "stripe", follower_5: "coif" };
+  const TR = () => D.tavernRoom;
+  function propRect(name, cx, feetY) { // a room prop (crop of a v8 layer) standing on feetY, centred on cx: source px x artScale x propMul
+    const P = TR().props[name], k = L.art * TR().propMul, w = P.crop[2] * k, h = P.crop[3] * k;
+    return { P, x: cx - w / 2, y: feetY - h, w, h };
+  }
+  function drawProp(r) { const im = KM.RestView.img(r.P.img); if (im && im._ok) ctx.drawImage(im, r.P.crop[0], r.P.crop[1], r.P.crop[2], r.P.crop[3], r.x, r.y, r.w, r.h); }
+  // where recruit j (of the stop's n) sits or stands: pure geometry, shared by drawing and hit-testing
+  function seatGeom(j, n) {
+    const R = TR(), xs = R.seats[Math.min(Math.max(n, 1), 3)], x = xs[Math.min(j, xs.length - 1)], feetY = W.groundY - R.seatBack, hw = R.hotspotW;
+    const skin = SKIN_OF[candArt(j)], F = R.sitters[skin], SE = F && window.KM_ART11 && KM_ART11.seated && KM_ART11.seated[skin];
+    if (!SE) { const top = feetY - KM.Assets.entityHeight(candArt(j)); return { stand: true, x, feetY, top, hot: { x: x - hw / 2, y: top, w: hw, h: feetY - top } }; }
+    const k = L.art * F.mul, top = feetY - F.foot * k;
+    return { x, feetY, top, img: KM_ART11.root + SE.img, r: { x: x - F.seatX * k, y: top, w: SE.size[0] * k, h: SE.size[1] * k },
+      stool: propRect(F.stool, x, feetY), hot: { x: x - F.seatX * k, y: top, w: SE.size[0] * k, h: feetY - top } };
+  }
   // the doorway in Magnus's reference_tavern_fullscreen exterior (scene-tavern-arrival.png source px): click = go in
   const ARRIVAL_DOOR = [1670, 520, 270, 380], arrivalDoor = () => tvImgRect(KM.RestView.mapper("tavern-arrival"), ARRIVAL_DOOR);
   const tvImgRect = (m, r) => ({ x: (m.x0 + r[0] * m.s), y: (m.y0 + r[1] * m.s), w: r[2] * m.s, h: r[3] * m.s }); // source px -> layout
@@ -1541,33 +1554,23 @@
   function tvSpots() {
     const e = S.enc; if (!e || !S.view || S.view.id !== "tavern-interior") return [];
     const m = KM.RestView.mapper("tavern-interior"), sg = signGeom(m), out = [{ id: "menu", kind: "menu", name: "Tavern fare", r: sg ? sg.r : tvImgRect(m, [1975, 345, 715, 265]) }];
-    (e.st.cands || []).forEach((p, j) => { if (!p) return; const tx = TABLE_X[out.length - 1] / K, h = KM.Assets.entityHeight(candArt(j));
-      out.push({ id: "npc" + j, kind: "npc", j, p, name: shortName(p.name), r: { x: tx - 120 / K, y: W.groundY + SIT / K - h, w: 240 / K, h: h - SIT / K } }); });
+    const n = (e.st.cands || []).length;
+    (e.st.cands || []).forEach((p, j) => { if (p) out.push({ id: "npc" + j, kind: "npc", j, p, name: shortName(p.name), r: seatGeom(j, n).hot }); });
     out.push({ id: "door", kind: "door", name: "The door", r: tvImgRect(m, [3150, 280, 360, 800]) });
     return out;
   }
   function drawTavernInside(cands) {
     const e = S.enc, tv = e && e.tv, spots = tvSpots(); if (tv && tv.sel >= spots.length) tv.sel = Math.max(0, spots.length - 1);
     drawSign();
-    const ti = KM.Assets.loadImg(TABLE.img), tw = TABLE.size[0] * L.art, th = TABLE.size[1] * L.art;
+    const R = TR(), n = (e.st.cands || []).length;
+    drawProp(propRect("counter", R.bar.x, W.groundY - R.bar.back)); // the bar, against the back wall
     for (let i = S.party.length - 1; i >= 0; i--) { const mm = S.party[i];
       KM.Assets.drawEntity(ctx, artId(mm), slotX(i), W.groundY, { name: mm.id === "hero" ? S.name : shortName(mm.name) });
       if (S.view.a >= 1) pushSay(mm, slotX(i), W.groundY - occupy(mm, artId(mm), slotX(i), W.groundY)); }
-    TABLE_X.forEach((sx, k) => {
-      const x = sx / K, c = cands[k], sel = tv && spots[tv.sel] && spots[tv.sel].id === (c && "npc" + c.j);
-      if (c) { const bob = sel && !tv.open ? -Math.abs(Math.sin(S.t * 3)) * 6 : 0, y = W.groundY + SIT / K + bob;
-        const skin = SKIN_OF[candArt(c.j)], SE = window.KM_ART11 && KM_ART11.seated && KM_ART11.seated[skin];
-        const si = SE && KM.Assets.loadImg(KM_ART11.root + SE.img);
-        ctx.save(); ctx.beginPath(); ctx.rect(x - 400, 0, 800, W.groundY + 4 - th + TOP * L.art); ctx.clip(); // seated: nothing below the tabletop
-        if (si && si._ok) { // Magnus's sitting pose (feet on the floor behind the table, facing the party), heads matched to the walks
-          const F = SEAT_FIT[skin] || { mul: SE.seatMul, hip: SE.size[1] * 0.72 }, s2 = L.art * F.mul, w2 = SE.size[0] * s2, h2 = SE.size[1] * s2;
-          const top = W.groundY - BENCH_H / K + bob - F.hip * s2; // hips sit on the bench line (hidden behind the table)
-          ctx.translate(x, 0); ctx.scale(-1, 1); ctx.drawImage(si, -w2 / 2, top, w2, h2);
-          c.seatTop = top;
-        } else { KM.Assets.drawEntity(ctx, candArt(c.j), x, y, { flip: true }); c.seatTop = null; }
-        ctx.restore();
-        if (S.view.a >= 1) { if (c.seatTop != null) { occ.push({ owner: c.p, x: x - 120 / K, y: c.seatTop, w: 240 / K, h: W.groundY - c.seatTop }); pushSay(c.p, x, c.seatTop); } else pushSay(c.p, x, y - occupy(c.p, candArt(c.j), x, y)); } }
-      if (ti._ok) ctx.drawImage(ti, x - tw / 2, W.groundY + 4 - th, tw, th); // the table in front: their lower bodies hidden
+    cands.forEach(({ p, j }) => { const g = seatGeom(j, n);
+      if (g.stand) KM.Assets.drawEntity(ctx, candArt(j), g.x, g.feetY, { flip: true, name: shortName(p.name) }); // facing the party
+      else { drawProp(g.stool); const im = KM.Assets.loadImg(g.img); if (im._ok) ctx.drawImage(im, g.r.x, g.r.y, g.r.w, g.r.h); } // on the stool, facing the party
+      if (S.view.a >= 1) { occ.push(Object.assign({ owner: p }, g.hot)); pushSay(p, g.x, g.top); }
     });
     if (S.view.a >= 1) S.voices.forEach(q => pushSay(q, q.x, q.y));
     if (tv && spots[tv.sel]) { // subtle ink outline on the highlighted thing + its name in one small bubble
