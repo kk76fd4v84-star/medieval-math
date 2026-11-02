@@ -224,7 +224,14 @@
   // v11 (Magnus: "absolute destruction of unnecessary small texts"): the strip only holds the big carved sum, a few
   // LARGE key options and one icon status row. Every line of dialogue is a speech bubble above its speaker.
   const panel = $("panel");
-  function showPanel(html, cls) { panel.className = "panel " + (cls || ""); panel.innerHTML = html; fitSums(); fitMoves(); }
+  function showPanel(html, cls) { panel.className = "panel " + (cls || ""); panel.innerHTML = html; fitSums(); fitMoves(); fitRiddleQ(); }
+  // v12s: the strip is 184 px, so a riddle that wraps to 2-3 lines steps its font down (KM_UI.riddleQ.minFont) until the
+  // question frame + answer row fit inside the strip; every current riddle is one line at the full size.
+  function fitRiddleQ() {
+    const f = panel.querySelector(".riddleframe.qf"), q = f && f.querySelector(".rq"); if (!q) return;
+    const Q = KM_UI.riddleQ, pr = panel.getBoundingClientRect(), last = () => Math.max(...[...panel.querySelectorAll(".riddlep > *")].map(el => el.getBoundingClientRect().bottom));
+    for (let fs = Q.font; fs >= (Q.minFont || 26); fs -= 2) { q.style.fontSize = fs + "px"; if (last() <= pr.bottom - 2) break; }
+  }
   // v12r (Magnus: "the buttons are outside of frame"): move rows keep every button whole (flex: none, caps padding) and
   // inside the strip: the first height of KM_UI.moves.heights whose single row fits, else two centred rows (split at .brk).
   function fitMoves() {
@@ -296,6 +303,11 @@
   // Magnus's riddle frame: ONE uniform scale (RF_S stage px per source px) for the whole frame; a 9-slice keeps both
   // corner halves intact and stretches only the ink-free middle columns to the riddle's width
   const RF = window.KM_ART11 && KM_ART11.riddleFrame, RF_H = 84, RF_S = RF ? RF_H / RF.size[1] : 0;
+  { const Q = KM_UI.riddleQ, st = document.documentElement.style, k = Q.scale || 1; // v12s riddle question frame
+    st.setProperty("--rq-img", `url("${Q.root + Q.img}")`); st.setProperty("--rq-sv", Q.slice[0]); st.setProperty("--rq-sh", Q.slice[1]);
+    st.setProperty("--rq-bv", Q.border[0] * k + "px"); st.setProperty("--rq-bh", Q.border[1] * k + "px");
+    st.setProperty("--rq-pv", Q.safe[0] * k + "px"); st.setProperty("--rq-ph", Q.safe[1] * k + "px"); st.setProperty("--rq-h", Q.h * k + "px");
+    st.setProperty("--rq-minw", Q.minW + "px"); st.setProperty("--rq-maxw", Q.maxW + "px"); st.setProperty("--rq-fs", Q.font + "px"); st.setProperty("--rq-lh", Q.lineH); st.setProperty("--rq-gap", Q.gap + "px"); }
   if (RF) { const st = document.documentElement.style; st.setProperty("--rf-img", `url("${KM_ART11.root + RF.img}")`);
     st.setProperty("--rf-l", RF.slice[0]); st.setProperty("--rf-r", RF.slice[1]); st.setProperty("--rf-v", Math.ceil(RF.size[1] / 2));
     st.setProperty("--rf-lw", (RF.slice[0] * RF_S).toFixed(1) + "px"); st.setProperty("--rf-rw", (RF.slice[1] * RF_S).toFixed(1) + "px");
@@ -892,7 +904,7 @@
     const e = S.enc, r = e.riddle, wrong = e.wrong || []; e.phase = "riddle";
     // v11b (Magnus): the riddle where the big numbers usually are, inside his riddle frame; the answers under it as the
     // battle's plaque buttons (seal key + answer, nothing else); a struck answer greys out like Heal
-    showPanel(`<div class="center riddlep"><div class="riddleframe${r.q.length > 58 ? " long" : ""}"><div class="rq">${esc(r.q)}</div></div>
+    showPanel(`<div class="center riddlep"><div class="riddleframe qf"><div class="rq">${esc(r.q)}</div></div>
       <div class="ansgrid">${r.choices.map((c, i) => ansBtn(RKEYS[i], esc(c), "answer", `data-i="${i}"`, wrong.includes(i))).join("")}${knights().length ? ansBtn("S", "Sacrifice", "sacrifice", "", false) : ""}</div></div>`, "riddle");
   }
   function answerRiddle(i) {
@@ -1818,7 +1830,7 @@
     foeFeet: () => S.actors.filter(a => a.foe && !a.dead && !a.hidden).map(a => { const ln = laneOf(a), fx = actFx(a.id, a.act, -1); return { id: a.id, state: a.state, hill: !!a.hill, distant: !!a.distant, sx: screenX(a.x), feetY: (ln ? ln.y : W.groundY) + a.dy + (fx ? fx.dy : 0), groundY: W.groundY }; }), fareLeft: k => fareLeft(k), fare: () => fareItems().map(({ id, label, cost, off, lot }) => ({ id, label, cost, off, lot, icon: fareIcon(id)._ok })), signFont: () => S.signFontStage, signAngle: () => signAngle() * 180 / Math.PI, sign: () => { const g = signGeom(); return g && { r: g.r, k: g.k, nail: [g.nx, g.ny] }; },
     heads: () => heads().map(({ x, y, w, h }) => ({ x, y, w, h })), speechLog: () => speechLog.slice(), speaking: () => [...speakers].filter(o => o.sp).map(o => speechNow(o).join(" ")),
     panelText: () => panel.innerText, answerTimer: () => S.enc && S.enc.tmr ? { t: S.enc.tmr.t, secs: S.enc.tmr.secs, frac: Math.min(1, S.enc.tmr.t / S.enc.tmr.secs) } : null,
-    bottles: () => S.bottles, spelling: () => S.enc && S.enc.spell ? Object.assign({ phase: S.enc.phase }, S.enc.spell) : null, fireFx: () => KM.FireFx.state(), timedOut: () => S.enc && S.enc.timedOut || 0, timerWhy: () => S.enc ? timerPause(S.enc) : "no-enc", dvFill: () => dvFillFrac
+    bottles: () => S.bottles, spelling: () => S.enc && S.enc.spell ? Object.assign({ phase: S.enc.phase }, S.enc.spell) : null, fireFx: () => KM.FireFx.state(), timedOut: () => S.enc && S.enc.timedOut || 0, timerWhy: () => S.enc ? timerPause(S.enc) : "no-enc", fitRiddleQ: () => fitRiddleQ(), dvFill: () => dvFillFrac
   };
 
   // v19 debug hook, OFF unless the page is opened with ?debug (screenshots / quick checks): jump the road to the first stop

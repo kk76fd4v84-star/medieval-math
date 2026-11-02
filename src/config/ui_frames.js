@@ -17,5 +17,11 @@ window.KM_UI = {
   // label + icon + both caps (the text stays out of the flourishes) and always fits inside the strip with `margin` px
   // each side. game.js fitMoves() tries each single-row height in turn; if none fits, the row splits into two centred
   // rows at twoRowH (attacks on top, items / specials below, at the .brk marker) and the prompt shrinks to twoRowPrompt.
+  // v12s (Magnus approved): Maggi's riddle question frame (assets/ui/tavern_ui_v1/riddle/, README.md there), a 9-slice
+  // like the buttons. slice = @2x source px (top/bottom, left/right); border / h / safe = her 1x px. The strip is only
+  // 184 px tall, so the frame is drawn at `scale` (130 -> 104 px) to leave room for the 64 px answer row. Width starts
+  // at minW and grows to maxW so riddles stay on one line; past that the text wraps and the box grows taller.
+  riddleQ: { root: "assets/ui/tavern_ui_v1/riddle/", img: "riddle_question_frame@2x.png", slice: [80, 124], border: [40, 62], h: 130,
+    safe: [20, 64], scale: 0.8, minW: 900, maxW: 1360, font: 40, minFont: 26, lineH: 1.15, gap: 6 },
   moves: { heights: [84, 70], twoRowH: 58, margin: 24, font: 0.405, icon: 0.45, spell: 0.55, twoRowPrompt: 34, rowGap: 6 }
 };

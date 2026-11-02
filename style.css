@@ -264,3 +264,13 @@ button.opt.plaque, .restgrid button.opt.plaque, .restp .opts.end button.opt.plaq
 .opts.moves.fit.tworow { flex-wrap: wrap; }
 .opts.moves.fit.tworow .brk { display: block; flex-basis: 100%; height: 0; }
 .panel.tworows .fightp .prompt { font-size: var(--mv-prompt, 34px); margin: 2px 0 6px; }
+
+/* v12s (Magnus approved): Maggi's riddle question frame, a 9-slice (KM_UI.riddleQ, ui_frames.js). The border-image is
+   drawn at her corner size (--rq-bv / --rq-bh) while the layout border is only her text-safe inset (--rq-pv / --rq-ph),
+   so a 40 px Georgia line fits inside the 104 px frame without touching the ink; more lines just grow the box. */
+.riddlep .riddleframe.qf { display: flex; width: fit-content; min-width: var(--rq-minw); max-width: var(--rq-maxw); min-height: var(--rq-h); height: auto;
+  box-sizing: border-box; padding: 0; margin: 0 auto var(--rq-gap); border-style: solid; border-width: var(--rq-pv) var(--rq-ph);
+  border-image-source: var(--rq-img); border-image-slice: var(--rq-sv) var(--rq-sh) fill; border-image-width: var(--rq-bv) var(--rq-bh); border-image-repeat: stretch; }
+.riddlep .riddleframe.qf::before { content: none; }
+.riddlep .riddleframe.qf .rq { font-size: var(--rq-fs); line-height: var(--rq-lh); max-width: none; }
+.riddlep:has(.riddleframe.qf) .ansgrid { margin-top: 0; }
