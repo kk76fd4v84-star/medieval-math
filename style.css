@@ -153,3 +153,14 @@ img.spellicon { display: block; width: auto; } img.spellicon.btn { height: 46px;
 .riddlep button.opt.ansf .ak { color: #975326; font-size: 28px; font-weight: bold; }
 .riddlep button.opt.ansf:hover:not([disabled]), .riddlep button.opt.ansf:focus-visible { background: rgba(223, 200, 158, .55); }
 .riddlep button.opt.ansf[disabled] { opacity: .38; text-decoration: line-through; cursor: default; }
+
+/* v12e (Magnus): every choice is the open plaque button, no visible key badges (keys still work); balanced padding */
+button.opt.plaque { padding: 14px 36px; }
+.opts:not(.moves) { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 18px; }
+.namerow button.opt.plaque { min-width: 150px; }
+.restgrid button.opt.plaque, .restp .opts.end button.opt.plaque { height: 70px; min-width: 0; padding: 10px 30px; font-size: 30px; margin: 0 4px; }
+.gear button.opt.plaque.mini { height: 46px; min-width: 0; padding: 4px 22px; margin: 2px 0; }
+.riddlemoves button.opt.plaque { padding: 10px 30px; }
+/* tavern arrival: Go in / Walk on fade + rise in once the big scene is fully up */
+.opts.arrive { opacity: 0; transform: translateY(14px); pointer-events: none; }
+.opts.arrive.in { opacity: 1; transform: none; pointer-events: auto; transition: opacity .3s ease-out, transform .3s ease-out; }

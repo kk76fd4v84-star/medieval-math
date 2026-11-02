@@ -12,8 +12,9 @@
   const pickOne = arr => arr[Math.floor(Math.random() * arr.length)];
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const G = s => KM.Assets.glyphHTML(s);
-  // Keyboard-first option line: "<kbd>R</kbd> roll the die". Still clickable, but no button chrome.
-  const opt = (key, label, act, attrs = "", off = false) => `<button class="opt" data-act="${act}" ${attrs} ${off ? "disabled" : ""}><kbd>${esc(key)}</kbd> ${label}</button>`;
+  // v12e: an option = the open plaque button (label only); the key is a silent shortcut
+  // v12e (Magnus): every choice is the battle's open plaque button; no visible key labels (the keys still work)
+  const opt = (key, label, act, attrs = "", off = false) => `<button class="opt plaque" data-act="${act}" ${attrs} ${off ? "disabled" : ""}>${BANNER}<span class="nm">${label}</span></button>`;
   const ART7 = !!window.KM_ART7, SCN = () => ART7 && KM.Scenery.available();
 
   const S = {
@@ -103,6 +104,7 @@
         clear.push([st.stopX - 900, st.stopX + 900]);
         if (i < fromStop) return;
         const view = ART7 && T.view;
+        if (view === "tavern" && KM.RestView.scene("tavern-arrival")) return; // v12e (Magnus): only the big arrival scene, no small road tavern first
         if (view === "tavern") { S.actors.push(mkActor({ stop: i, id: "tavern_facade", x: st.stopX, main: true, back: true, facade: true, name: T.name })); return; }
         if (T.view === "stall" && STALL()) { S.actors.push(mkActor({ stop: i, id: "scroll_seller", x: st.stopX, main: true, back: true, keeper: true, stall: true, name: T.keeperName })); return; }
         if (view === "camp") { S.actors.push(mkActor({ stop: i, id: T.exterior, x: st.stopX, main: true, back: true, hidden: true, name: T.name })); return; }
@@ -235,7 +237,7 @@
     });
   }
   new MutationObserver(() => { if (!fitSums.busy) { fitSums.busy = true; fitSums(); fitSums.busy = false; } }).observe(panel, { childList: true, subtree: true, characterData: true });
-  // a large key option: "<kbd>1</kbd> Weak"
+  // a large option (same plaque)
   const big = (key, label, act, attrs = "", off = false) => opt(key, label, act, attrs, off);
   // ---- v11b battle move buttons (Magnus's mockup + "more fun buttons"): ink-drawn swallow-tail banners in the parchment
   // style; a red wax seal with the key, a little ink icon, the name. No sub-lines. Stand-in vector art (MISSING_ART #38).
@@ -266,7 +268,7 @@
     st.setProperty("--rf-l", RF.slice[0]); st.setProperty("--rf-r", RF.slice[1]); st.setProperty("--rf-v", Math.ceil(RF.size[1] / 2));
     st.setProperty("--rf-lw", (RF.slice[0] * RF_S).toFixed(1) + "px"); st.setProperty("--rf-rw", (RF.slice[1] * RF_S).toFixed(1) + "px");
     st.setProperty("--rf-vw", (Math.ceil(RF.size[1] / 2) * RF_S).toFixed(2) + "px"); st.setProperty("--rf-h", (RF.size[1] * RF_S).toFixed(1) + "px"); }
-  const move = (key, label, act, icon, attrs = "", off = false) => `<button class="opt plaque" data-act="${act}" ${attrs} ${off ? "disabled" : ""}>${BANNER}<kbd class="seal">${esc(key)}</kbd>${MICON[icon] || ""}<span class="nm">${label}</span></button>`;
+  const move = (key, label, act, icon, attrs = "", off = false) => `<button class="opt plaque" data-act="${act}" ${attrs} ${off ? "disabled" : ""}>${BANNER}${MICON[icon] || ""}<span class="nm">${label}</span></button>`;
   // prices (rest stops): Magnus's purse, small, + the number (no coin icon, v11b)
   const coin = n => `<span class="cost">${window.KM_ART11 && KM_ART11.purse ? `<img class="purseimg mini" src="${KM_ART11.root + KM_ART11.purse.img}" alt="">` : `<i class="coin"></i>`}${n}</span>`;
   // v11b money: Magnus's painted purse (KM_ART11.purse) + the number, at the hearts' height
@@ -373,12 +375,12 @@
   function renderIntro() {
     if (S.mode === "name") {
       speak(narrator(), A.text(D.dialogue.namePrompt), { hold: true });
-      showPanel(`<div class="center dlg"><div class="namerow"><input id="nameInput" maxlength="16" placeholder="your name" autocomplete="off" spellcheck="false">${big("Enter", "✓", "submitName", 'id="nameOk"')}</div></div>`, "dialog");
+      showPanel(`<div class="center dlg"><div class="namerow"><input id="nameInput" maxlength="16" placeholder="your name" autocomplete="off" spellcheck="false">${big("Enter", "OK", "submitName", 'id="nameOk"')}</div></div>`, "dialog");
       setTimeout(() => { const i = $("nameInput"); if (i) i.focus(); }, 30);
       return;
     }
     speak(narrator(), S.intro.lines[S.intro.i] || "", { hold: true });
-    showPanel(`<div class="center dlg"><div class="opts">${big("Space", "▸", "nextLine")}${S.intro.after === "go" ? "" : big("Esc", "Skip", "skipIntro", 'id="skipBtn"')}</div></div>`, "dialog");
+    showPanel(`<div class="center dlg"><div class="opts">${big("Space", "Next", "nextLine")}${S.intro.after === "go" ? "" : big("Esc", "Skip", "skipIntro", 'id="skipBtn"')}</div></div>`, "dialog");
   }
   function advanceIntro(auto, wholeLine) {
     const it = S.intro; if (!it || S.mode !== "intro") return;
@@ -779,7 +781,7 @@
   // v18 (Magnus, riddles-v18): answers in his answer-frame (2 columns), keyed A B C (+ S Sacrifice in the 4th slot);
   // live text, no words in the art. 1-3 still work as silent aliases.
   const RKEYS = ["A", "B", "C", "D"];
-  const ansBtn = (key, label, act, attrs, off) => `<button class="opt ansf" data-act="${act}" ${attrs} ${off ? "disabled" : ""}><b class="ak">${key}</b><span>${label}</span></button>`;
+  const ansBtn = (key, label, act, attrs, off) => `<button class="opt ansf" data-act="${act}" ${attrs} ${off ? "disabled" : ""}><span>${label}</span></button>`;
   function renderRiddle() {
     const e = S.enc, r = e.riddle, wrong = e.wrong || []; e.phase = "riddle";
     // v11b (Magnus): the riddle where the big numbers usually are, inside his riddle frame; the answers under it as the
@@ -875,7 +877,7 @@
     const e = S.enc; if (!e || !["choose", "riddle"].includes(e.phase)) return;
     e.prevPhase = e.phase; e.sub = "sacrifice";
     heroSay("Who takes one for the team?", () => !!(S.enc && S.enc.sub === "sacrifice"));
-    showPanel(`<div class="center"><div class="opts big3">${knights().map((m, i) => `<button class="opt" data-act="doSacrifice" data-id="${m.id}"><kbd>${i + 1}</kbd> ${esc(shortName(m.name))}</button>`).join("")}${big("Esc", "Cancel", "cancelSacrifice")}</div></div>`, "riddle");
+    showPanel(`<div class="center"><div class="opts big3">${knights().map((m, i) => `<button class="opt plaque" data-act="doSacrifice" data-id="${m.id}">${BANNER}<span class="nm">${esc(shortName(m.name))}</span></button>`).join("")}${big("Esc", "Cancel", "cancelSacrifice")}</div></div>`, "riddle");
   }
   function cancelSacrifice() { const e = S.enc; e.sub = null; e.prevPhase === "riddle" ? renderRiddle() : renderChoice(); }
   function doSacrifice(id) {
@@ -938,7 +940,7 @@
   }
   function renderTavernOut() {
     S.enc.phase = "tavernOut";
-    showPanel(`<div class="center"><div class="opts big3">${big("I", "Go in", "goInside")}${big("Enter", "Walk on", "leaveRest")}</div></div>`, "info");
+    showPanel(`<div class="center"><div class="opts big3 moves${S.view && S.view.id === "tavern-arrival" && S.view.a < 1 ? " arrive" : ""}">${big("I", "Go in", "goInside")}${big("Enter", "Walk on", "leaveRest")}</div></div>`, "info");
   }
   function goInside() {
     const e = S.enc; if (!e || e.phase !== "tavernOut") return;
@@ -951,14 +953,14 @@
   function renderRest() {
     if (S.view && S.view.id === "tavern-interior" && KM.RestView.scene("tavern-interior").full) return renderTavernInside();
     const e = S.enc, st = e.st, T = restT(), g = T.gear; e.phase = "rest";
-    const heals = T.heals.map(h => `<button class="opt" data-act="restHeal" data-k="${h.key}" ${S.gold < h.cost || S.hp >= maxHp() || (h.once && e.used[h.key]) ? "disabled" : ""}><kbd>${h.key}</kbd> ${esc(h.short || h.label)} <span class="gain">+${h.hearts}<i class="heart">♥</i></span>${h.cost ? coin(h.cost) : ""}</button>`).join("");
-    const scroll = SPL.sellAt.includes(st.rest) ? `<button class="opt" data-act="buySpell" ${S.gold < SPL.price || S.spells >= SPL.max ? "disabled" : ""}><kbd>${SPL.key}</kbd> ${spellIcon("shop")}${coin(SPL.price)}</button>` : "";
+    const heals = T.heals.map(h => `<button class="opt plaque" data-act="restHeal" data-k="${h.key}" ${S.gold < h.cost || S.hp >= maxHp() || (h.once && e.used[h.key]) ? "disabled" : ""}>${BANNER}<span class="nm">${esc(h.short || h.label)}</span> <span class="gain">+${h.hearts}<i class="heart">♥</i></span>${h.cost ? coin(h.cost) : ""}</button>`).join("");
+    const scroll = SPL.sellAt.includes(st.rest) ? `<button class="opt plaque" data-act="buySpell" ${S.gold < SPL.price || S.spells >= SPL.max ? "disabled" : ""}>${BANNER}${spellIcon("shop")}${coin(SPL.price)}</button>` : "";
     const cands = st.cands.map((p, j) => p ? big(String(j + 1), esc(shortName(p.name).split(/[\s-]/)[0]), "restRecruit", `data-j="${j}"`, partyFull()) : "").join("");
     // gear: one column per party member (name, weapon pips, armour pips); the row labels are the icon + price
     const first = m => (m.id === "hero" ? S.name : shortName(m.name)).split(/[\s-]/)[0];
     const gear = g && (g.maxWeapon || g.maxArmor) ? `<div class="gear" style="grid-template-columns:auto repeat(${S.party.length},auto)"><span></span>${S.party.map(m => `<span class="nm">${esc(first(m))}</span>`).join("")}
-      ${g.maxWeapon ? `<span class="gh"><i class="ico">⚔</i>${coin(g.weaponCost)}</span>` + S.party.map((m, i) => `<button class="opt" data-act="restBuyW" data-i="${i}" ${m.weapon >= g.maxWeapon || S.gold < g.weaponCost ? "disabled" : ""}><kbd>${WKEYS[i]}</kbd>${pips(m.weapon, g.maxWeapon)}</button>`).join("") : ""}
-      ${g.maxArmor ? `<span class="gh"><i class="ico">⛨</i>${coin(g.armorCost)}</span>` + S.party.map((m, i) => `<button class="opt" data-act="restBuyA" data-i="${i}" ${m.armor >= g.maxArmor || S.gold < g.armorCost ? "disabled" : ""}><kbd>${AKEYS[i]}</kbd>${pips(m.armor, g.maxArmor)}</button>`).join("") : ""}</div>` : "";
+      ${g.maxWeapon ? `<span class="gh"><i class="ico">⚔</i>${coin(g.weaponCost)}</span>` + S.party.map((m, i) => `<button class="opt plaque mini" data-act="restBuyW" data-i="${i}" ${m.weapon >= g.maxWeapon || S.gold < g.weaponCost ? "disabled" : ""}>${BANNER}${pips(m.weapon, g.maxWeapon)}</button>`).join("") : ""}
+      ${g.maxArmor ? `<span class="gh"><i class="ico">⛨</i>${coin(g.armorCost)}</span>` + S.party.map((m, i) => `<button class="opt plaque mini" data-act="restBuyA" data-i="${i}" ${m.armor >= g.maxArmor || S.gold < g.armorCost ? "disabled" : ""}>${BANNER}${pips(m.armor, g.maxArmor)}</button>`).join("") : ""}</div>` : "";
     const inside = S.view && S.view.id === "tavern-interior", camp = S.view && S.view.id === "camp";
     // v11b: two rows (heal / scroll / recruits, then talk / leave) beside the gear table: fits the shorter strip
     showPanel(`<div class="center restp"><div class="restgrid"><div class="col"><div class="opts big3">${heals}${scroll}${cands}</div>
@@ -1178,6 +1180,7 @@
     if (S.mode === "walk") updateWalk(dt);
     if (S.toast) { S.toast.t += dt; if (S.toast.t > S.toast.dur) S.toast = null; }
     if (S.view) { S.view.a += (S.view.to ? 1 : -1) * dt / 0.5; S.view.a = Math.max(0, Math.min(1, S.view.a)); if (!S.view.to && S.view.a <= 0) S.view = null; }
+    if ((!S.view || S.view.a >= 1) && panel.querySelector(".arrive:not(.in)")) panel.querySelector(".arrive:not(.in)").classList.add("in"); // v12e: choices fade in after the scene
     if (S.entering) S.entering.t += dt;
     if (S.dice.length) { S.dice.forEach(d => KM.D20.update(d, dt)); if (S.diceDone && S.dice.every(d => d.done)) { const f = S.diceDone; S.diceDone = null; f(); } }
     S.party.forEach((m, i) => {
@@ -1519,7 +1522,7 @@
     const e = S.enc, T = restT(); e.phase = "rest"; e.tv = e.tv || { sel: 0, open: null };
     const spots = tvSpots(); if (e.tv.sel >= spots.length) e.tv.sel = spots.length - 1;
     const sp = spots[e.tv.sel]; e.tv.open = sp ? sp.id : null;
-    if (!sp) return showPanel(`<div class="center tavernp"><div class="prompt">← → to look</div></div>`, "rest");
+    if (!sp) return showPanel(`<div class="center tavernp"><div class="prompt">Look around</div></div>`, "rest");
     const pl = [];
     if (sp.kind === "menu") { // the sign's fare as the battle's plaque buttons (seal key, icon, name, price)
       const M = T.mead, h = T.heals[0];
@@ -1657,7 +1660,7 @@
   // v19 debug hook, OFF unless the page is opened with ?debug (screenshots / quick checks): jump the road to the first stop
   // matching `want` (a type, enemy, npc or id, e.g. "mega", "frank", "toad") with `looks` = follower skins (1-5) in the party.
   if (/[?&]debug\b/.test(location.search)) window.__km.debugJump = (want, looks = []) => {
-    const i = S.stops.findIndex(st => [st.type, st.enemy, st.npc, st.id].includes(want)); if (i < 0) return false;
+    const i = S.stops.findIndex(st => [st.type, st.enemy, st.npc, st.id, st.rest].includes(want)); if (i < 0) return false;
     hush(); S.runId = S.runId || "run-debug"; S.name = S.name === "Nobody" ? "Magnus" : S.name;
     const party = [newMember("hero", slotX(0))].concat(looks.map((k, j) => Object.assign(followerFrom(D.recruitPool[j % D.recruitPool.length], slotX(j + 1), k), { skin: k })));
     applyCore(Object.assign(core(), { stop: i, party, hp: HPM() * party.length, hunters: 0 })); S.mode = "walk"; MU.setScene("walk"); renderWalk(); return S.stops[i];
