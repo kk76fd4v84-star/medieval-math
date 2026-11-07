@@ -1017,15 +1017,17 @@
     const struck=e.deadlineStruck||(e.deadlineStruck=new Set());
     const foes=living(e).filter(f=>KM.Timing.pattern(f.id).deadline&&intentDamage(e,f)>0&&!struck.has(f));
     if(!foes.length)return;
-    const phase=e.phase;e.phase='deadline';e.deadlineBusy=true;
+    const phase=e.phase;e.phase='deadline';e.deadlineBusy=true;e.deadlineFrom=phase; // typing keeps working during the strike (typeKey)
     foes.forEach(f=>struck.add(f));
-    const resume=()=>{if(S.enc!==e||S.dying)return;e.deadlineBusy=false;
+    const resume=()=>{if(S.enc!==e||S.dying)return;e.deadlineBusy=false;e.deadlineFrom=null;
+      const enter=e.enterQueued;e.enterQueued=false;
       // A dead card owner cannot cast from the grave. The committed card stays spent.
       if(e.activeCard?.owners.some(id=>!S.party.some(m=>m.id===id&&PA.alive(m)))){
         if(e.problem?.scrollAssisted)spellTick();
         e.q=null;e.tmr=null;return returnToHand(e);
       }
       e.phase=phase;
+      if(phase==='math'){const el=$("answer");if(el)el.innerHTML=G(e.input)||"&nbsp;";if(enter)submitAnswer();} // Enter pressed mid-strike
     };
     foes.forEach((f,i)=>later(i*.6,()=>{if(S.enc===e&&!S.dying)foeStrike(e,f,false,{deadline:true});}));
     later((foes.length-1)*.6+.6,()=>{if(S.enc===e&&!S.dying)afterHits(foes[foes.length-1].id,resume);});
@@ -1308,7 +1310,7 @@
 
   // ---- generic maths question (combat actions, recruits, Frank)
   function ask(level, onRight, onWrong, back, secs, kind="recruit") {
-    const e = S.enc; e.phase = "math"; e.input = ""; e.tmr = null;
+    const e = S.enc; e.phase = "math"; e.input = ""; e.tmr = null; e.enterQueued = false;
     if(isFellowship() && S.spells>0 && !S.spellLeft && !meadNow()){S.spells--;S.spellLeft=SPL.problems;A.play(SPL.sfx.cast);renderHUD();}
     const mead = meadNow(), stupid = mead || S.spellLeft > 0; // Scroll: the next maths problem only. Mead: all sums in this battle.
     const grade=KM.Progression.level(level,e.st,S.stops),stage=KM.Progression.stage(e.st,S.stops);
@@ -1370,10 +1372,11 @@
       </div>`, "math"); // v11: only the carved sum (no title, hint or key captions; Esc still goes back)
   }
   function typeKey(k) {
-    const e = S.enc; if (!e || e.phase !== "math" || e.sub) return;
+    const e = S.enc, striking = e && e.phase === "deadline" && e.deadlineFrom === "math"; // a deadline strike must not eat keystrokes
+    if (!e || (e.phase !== "math" && !striking) || e.sub) return;
     A.play("key_tap");
     if (k === "back") e.input = e.input.slice(0, -1);
-    else if (k === "enter") return submitAnswer();
+    else if (k === "enter") { if (striking) { e.enterQueued = true; return; } return submitAnswer(); }
     else if (/^\d$/.test(k) && e.input.length < 6) e.input += k;
     const el = $("answer"); if (el) el.innerHTML = G(e.input) || "&nbsp;";
   }
@@ -2062,7 +2065,7 @@
     const canSac = priests().length > 0;
     switch (e.phase) {
       case 'replace': if(k==='Escape')keepParty();else if(/^[1-3]$/.test(k)){const m=knights()[+k-1];if(m)replaceMember(m.id);}return;
-      case "math":
+      case "math": case "deadline":
         if (/^\d$/.test(k)) typeKey(k); else if (k === "Backspace") typeKey("back"); else if (k === "Enter") typeKey("enter");
         else if (k === "Escape" && e.q && e.q.back) press("mathBack");
         return;
