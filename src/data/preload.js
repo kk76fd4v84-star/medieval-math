@@ -9,5 +9,10 @@ KM_DATA.preload = {
   // combat sounds warmed with the bar (missing ids are skipped); music keeps streaming as before
   sfx: ["correct", "wrong", "key_tap", "type_blip", "hit_flesh", "hit_armour", "hit_boss", "hit_party", "hit_blocked",
         "heart_crack", "heart_break", "cue_knight", "cue_healer", "cue_fire", "cue_wizard", "cue_executioner"],
-  sfxWaitMs: 4000   // never hold the bar longer than this for one sound
+  sfxWaitMs: 4000,  // never hold the bar longer than this for one sound
+  // Magnus: "stuff is still not loaded". all = every image the game can show (src/config/preload_images.js, made by
+  // tools/preload_capture.js) loads + decodes with the bar, nothing is held back for after it; every sound effect is
+  // fetched once with the bar too (played from memory). Music keeps streaming. false = the old first set only.
+  all: true,
+  skip: []          // path parts left out of `all` (e.g. "/dice/roll-to-" if the dice sheets make loading too long)
 };
