@@ -868,7 +868,7 @@
     if(S.enc!==e || S.dying || e.hp<=0)return;
     e.action='fellowship';e.answerTiming=null;e.fellowshipVolley=null;
     let level=KM.Progression.stage(e.st,S.stops)===0?'easy':'normal';
-    e.leader=BT.on('whoActs')?BT.pickLeader(S.party.filter(PA.alive),{foes:living(e).length,boss:['boss','mega'].includes(e.st.type),hurt:S.hp<maxHp()/2},Math.random,role=>CARDS?CARDS.levelBonus(S,role):0):null;
+    e.leader=BT.on('whoActs')?BT.pickLeader(S.party.filter(PA.alive),{foes:living(e).length,boss:['boss','mega'].includes(e.st.type),hurt:S.hp<maxHp()/2,correct:S.stats?.correct||0},Math.random,role=>CARDS?CARDS.levelBonus(S,role):0):null;
     if(e.leader){level=e.leader.level;if(e.leader.cue)A.play(e.leader.cue);const p=partyPose(e.leader.member);float(e.leader.sign,p.x,W.groundY-tallOf(artId(e.leader.member))-40,'#ecdcc4');}
     ask(level,()=>fellowshipVolley(e),()=>fellowshipWrong(e),null,undefined,'fellowship');
   }
