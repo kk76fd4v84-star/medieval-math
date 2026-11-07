@@ -72,5 +72,13 @@ KM.Audio = (function () {
   const voice = () => null;
   const text = l => (l && typeof l === "object" ? l.text : l || "");
   const voOf = () => null;
-  return { init, play, loop, stop, stopLoops, looping: () => Object.keys(loops), voice, text, voOf, log, counts, voLog, voPlayed, voFail, voBusy: () => false, fileLog, map: () => map, poolSize: () => Object.values(pool).reduce((n, l) => n + l.length, 0), setMuted: v => { muted = v; if (v) stopLoops(0); } };
+  // warm the given sfx ids (their files' <audio> elements buffer now); resolves when each can play, errors or waits maxMs
+  function warm(ids, maxMs = 4000) {
+    if (typeof Audio === "undefined") return Promise.resolve();
+    const files = [...new Set(ids.flatMap(id => (map[id] && map[id].files) || []))];
+    return Promise.all(files.map(f => new Promise(res => { const a = elFor(f); if (!a) return res(); if (a.readyState >= 4) return res();
+      const t = setTimeout(res, maxMs); const fin = () => { clearTimeout(t); res(); };
+      a.addEventListener("canplaythrough", fin, { once: true }); a.addEventListener("error", fin, { once: true }); a.load(); })));
+  }
+  return { init, play, warm, loop, stop, stopLoops, looping: () => Object.keys(loops), voice, text, voOf, log, counts, voLog, voPlayed, voFail, voBusy: () => false, fileLog, map: () => map, poolSize: () => Object.values(pool).reduce((n, l) => n + l.length, 0), setMuted: v => { muted = v; if (v) stopLoops(0); } };
 })();
