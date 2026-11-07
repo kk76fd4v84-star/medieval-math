@@ -1004,13 +1004,14 @@
   }
   const NOTIMER = /[?&]debug\b/.test(location.search) && /[?&]notimer\b/.test(location.search);
   let tmrHold = 0;
+  const sumDrawn = () => [...panel.querySelectorAll(".sum img")].every(i => i.complete && i.naturalWidth > 0); // the on-screen glyphs have painted
   function startAnswerTimer(secs) {
     const e = S.enc; if (!e) return null;
     e.tmr = null; e.answerTiming = null; tmrHold = 0; dividerFill(0);
     if (!(secs > 0) || NOTIMER || !e.q) return null;
     const windows=e.revealed?combatWindows():KM.Timing.windows();
     // the timer starts only once the sum's glyphs are loaded + decoded and the sum has been drawn (wait: true -> 1 -> 0)
-    const wait = !!(e.phase === "math" && e.problem && KM.Assets.sumReady && !KM.Assets.sumReady(e.problem.text));
+    const wait = !!(e.phase === "math" && e.problem && KM.Assets.sumReady && !(KM.Assets.sumReady(e.problem.text) && sumDrawn()));
     return (e.tmr = { t: 0, q: e.q, secs: MP.seconds(secs, windows), held: 0, wait, windows }); // meter pressure: a Quick foe shortens the time
   }
   function tickAnswerTimer(dt) {
@@ -1019,7 +1020,7 @@
     const e = S.enc, T = e && e.tmr;
     if(e?.deadlineBusy)return dividerFill(1);
     if (!T || !["math", "spell", "riddle"].includes(e.phase) || e.q !== T.q || S.mode !== "encounter") { if (e && T && e.q !== T.q) e.tmr = null; tmrHold = Math.max(0, tmrHold - dt); return dividerFill(e?.answerTiming?.fraction??(tmrHold > 0 ? 1 : 0)); }
-    if (T.wait) { if (T.wait === true && KM.Assets.sumReady(e.problem.text)) { T.wait = 1; if (e.phase === "math") renderMath(); } else if (T.wait === 1) T.wait = 0; return dividerFill(0); }
+    if (T.wait) { if (T.wait === true && KM.Assets.sumReady(e.problem.text)) { T.wait = 1; if (e.phase === "math") renderMath(); } else if (T.wait === 1 && sumDrawn()) T.wait = 0; return dividerFill(0); }
     // a hold (strike, toast, a foe stepping up) is short; a stale one (an act on a dead / inactive foe, a stuck walk-in)
     // must never freeze the bar, so after C.answerPauseMax s of continuous hold it runs anyway
     const paused = timerPause(e); T.held = paused ? (T.held || 0) + dt : 0;
