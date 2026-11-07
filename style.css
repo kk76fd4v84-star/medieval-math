@@ -512,3 +512,15 @@ html[lang="ja"] .action-card .action-detail{font-size:18px;}
 
 /* Replacement is a choice, never an automatic dismissal. */
 .replacement-title{text-align:center;margin:0 0 8px;line-height:1.1}.replacement-title strong{font-size:23px}.replacement-title small{display:block;font-size:17px;margin-top:4px}.replacement-panel .action-card{height:150px;min-height:150px}.replacement-panel .action-icon{height:30px}.replacement-panel .action-label{font-size:25px}
+
+/* Magnus 2026-11-08: in combat the divider grows into the full-length meter (quick), and settles back after. */
+#divider .woodcut-divider{transition:opacity .3s ease,transform .3s ease}
+#divider.combat .woodcut-divider{opacity:0;transform:scaleX(1.02)}
+.timing-rail.combat .timing-ink{animation:meter-grow .45s cubic-bezier(.2,.75,.25,1) both;transform-origin:50% 50%}
+.timing-rail.combat .timing-emblem{animation:emblem-pop .28s cubic-bezier(.3,1.5,.5,1) both;animation-delay:.3s}
+.timing-rail.combat .timing-emblem[data-outcome="crit"]{animation-delay:.36s}
+.timing-rail.combat .timing-emblem[data-outcome="normal"]{animation-delay:.42s}
+.timing-rail.combat .timing-emblem[data-outcome="weak"]{animation-delay:.48s}
+@keyframes meter-grow{from{transform:scaleX(.04);opacity:.2}to{transform:none;opacity:1}}
+@keyframes emblem-pop{from{scale:0;opacity:0}to{scale:1;opacity:1}}
+@media(prefers-reduced-motion:reduce){.timing-rail.combat .timing-ink,.timing-rail.combat .timing-emblem{animation:none}}

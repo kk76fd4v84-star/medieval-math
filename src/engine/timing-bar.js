@@ -22,7 +22,7 @@ KM.TimingBar=(()=>{
   }
   function update(w,{visible=false,timed=false,jp=false,forgiving=false,deadline=false,hit=null}={}){
     if(!root)return;
-    root.hidden=!visible;rail.hidden=!(visible||timed);rail.classList.toggle("combat",visible);
+    root.hidden=!visible;rail.hidden=!(visible||timed);rail.classList.toggle("combat",visible);rail.parentElement?.classList.toggle("combat",visible);
     const signature=JSON.stringify([w,visible,jp,forgiving,deadline,hit]);if(signature===key)return;key=signature;
     const mark=root.querySelector('.timing-hit');mark.hidden=!Number.isFinite(hit);
     if(!mark.hidden){mark.style.left=(hit*100)+'%';mark.dataset.fraction=String(hit);mark.setAttribute('aria-label',jp?`命中位置 ${Math.round(hit*100)}％`:`Hit position: ${Math.round(hit*100)}%`);}
