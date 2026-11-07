@@ -47,3 +47,15 @@ KM_DATA.tavernRoom.sign = {
   icons: { mead: "icon_mead.png", stew: "icon_stew.png" }, // Maggi's keyed mug + bowl; the fire bottle uses its item icon
   swing: { deg: 5, period: 0.8, tau: 0.36, dur: 1.5 }      // a buy (or a refused one) knocks the board
 };
+
+// Tavern recruit cards (Magnus: "larger cards so you see what they can do"). Pure data, read by recruitCard in src/game.js.
+KM_DATA.recruitCards = {
+  title: "Choose one companion from this tavern.",
+  roles: {
+    knight:      { title: "Knight",      attack: "Answers + sums. Cleaves two foes." },
+    priest:      { title: "Priest",      attack: "Answers − sums. Heals the party." },
+    firestarter: { title: "Firestarter", attack: "Types fire words. Burns every foe." },
+    executioner: { title: "Executioner", attack: "Answers × sums. Finishes wounded foes." },
+    darkWizard:  { title: "Dark Wizard", attack: "Answers × sums. Strikes every foe." }
+  }
+};
