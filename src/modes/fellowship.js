@@ -9,10 +9,11 @@ KM.Fellowship = (() => {
   const health = hp => Math.ceil(hp * rules.enemyHealth);
   // Reserve in party order: knights cleave two, casters hit all, executioners finish
   // wounded foes. Priests reserve a limited heal before any later priest chooses.
-  function plan(party, foes, multiplier = 1, {failed=false,hp=0,maxHp=hp,heals=0,leader=null,leaderMultiplier=1}={}) {
+  function plan(party, foes, multiplier = 1, {failed=false,hp=0,maxHp=hp,heals=0,leader=null,leaderMultiplier=1,knightTargets=0,burn=0}={}) {
     const remaining = foes.map(f => f.hp), last = foes.length - 1;
     if (last < 0) return [];
     let wounds=Math.max(0,maxHp-hp), charges=heals;
+    let embersTick=burn&&!failed;
     return party.filter(m=>KM.PartyAbilities.alive(m)&&(!failed||risky(m))).map((member,index) => {
       const r=role(member), available=remaining.map((hp,i)=>hp>0?i:-1).filter(i=>i>=0);
       const live=available.length?available:[last];
@@ -20,15 +21,19 @@ KM.Fellowship = (() => {
       let heal=0, ids;
       if(r==='priest'&&wounds>0&&charges>0){kind='heal';heal=Math.min(1,wounds);wounds-=heal;charges--;ids=[];}
       else if(risky(member))ids=live;
-      else if(r==='knight')ids=live.slice(0,2);
+      else if(r==='knight')ids=live.slice(0,2+knightTargets);
       else if(r==='executioner')ids=[live.find(i=>remaining[i]>0&&remaining[i]<=foes[i].maxHp/2)??live[0]];
       else ids=live.slice(0,1);
+      const ticks=[];
+      if(embersTick&&r==='firestarter'){embersTick=false;foes.forEach((f,i)=>{if(f.burning&&remaining[i]>0){const amount=Math.min(remaining[i],f.burning);remaining[i]-=amount;ticks.push({target:f,amount,burn:true});}});} // Embers: burning foes take their burn first
       const impacts=ids.map(i=>{
         const execution=r==='executioner'&&remaining[i]>0&&remaining[i]<=foes[i].maxHp/2;
         const amount=damage(member)*(execution?2:1)*(failed?1:multiplier*(member===leader?leaderMultiplier:1));
         remaining[i]=Math.max(0,remaining[i]-amount);
         return {target:foes[i],amount};
       });
+      if(burn&&!failed&&r==='firestarter')impacts.forEach(h=>h.target.burning=burn); // Embers card
+      impacts.unshift(...ticks);
       return {member,kind,heal,impacts,target:impacts[0]?.target||foes[live[0]],amount:impacts.reduce((n,h)=>n+h.amount,0),backfire:failed?1:0,index,delay:index*rules.hitSpacing};
     });
   }

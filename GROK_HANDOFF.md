@@ -251,3 +251,11 @@ Try one for a run with the page address (start a **new** run after changing `hal
 - Combine them: `?curve=1&halfhearts=1&camparmour=1&whoacts=1`. Flip a switch to `true` in the data file to make it the default.
 
 Charlie's heart, crypt and class-cue sounds are in `assets/audio/sfx/` and mapped in `assets/audio_map.json`.
+
+## Upgrade cards (switch `cards`, off by default)
+- Data: `src/data/upgrade_cards.js` (Maggi's v9 cards in `assets/ui/cards/`). Engine: `src/engine/upgrade-cards.js` (`KM.Cards`).
+- On with `?cards=1` (also turns on who-acts). Fellowship only: each camp/shop/tavern stop offers 2 cards, pick one.
+- Cleave / Swing and a Miss: knights reach one more enemy (3 instead of 2). Cleave makes knight sums one level harder; Swing chips an ally on a miss (never the last heart).
+- Embers: Firestarter marks targets burning; burning foes take 1 at the start of the next Firestarter volley; fire sums +2 levels.
+- Shield Wall: a fight with no hits taken refills armour.
+- Test: `node tests/upgrade-cards.test.js`.
