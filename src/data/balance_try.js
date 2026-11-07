@@ -10,7 +10,8 @@ KM_DATA.balanceTry = {
   cards: false,       // Fellowship upgrade cards at rest stops (src/data/upgrade_cards.js); turns on whoActs for their maths costs
   meterPressure: false, // difficulty from the timing meter: foe pressures + helm / lantern (src/data/meter_pressure.js)
   gradual: false,     // slow step-by-step maths ladder (see `ladder` below); turns on whoActs
-  whoActs: false,     // Fellowship: each sum belongs to one member (+ knights, − healers, × fire / wizard / executioner); their strike counts double
+  whoActs: false,
+  castBar: false,     // looks only: the timing meter always on screen; moved band ends shake + slide with a green / red trail (src/data/cast_bar.js)     // Fellowship: each sum belongs to one member (+ knights, − healers, × fire / wizard / executioner); their strike counts double
   // curve: Fellowship enemy health = base hp x min(max, start + step x battles fought this run)
   health: { start: 2.0, step: 0.05, max: 2.6 },
   battlesBefore: { village: 0, hollowwood: 10, tomb: 18 }, // battles a run has usually fought before each chapter
