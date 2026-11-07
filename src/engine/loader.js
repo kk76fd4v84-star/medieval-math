@@ -58,10 +58,17 @@ KM.Loader = (function () {
     const [, src] = deferred.splice(k, 1)[0]; track(im, src); im.src = src;
   }
   // ---- gate: called by KM.Assets.loadImg before it sets im.src. true = held back until the first set is in.
+  const extra = () => ((window.KM_DATA && KM_DATA.preload && KM_DATA.preload.firstSet) || []);
   function gate(im, src) {
     if (phase === "done") return false;
-    if (!CRIT.test(src)) { deferred.push([im, src]); return true; }
+    if (!CRIT.test(src) && !extra().some(k => src.includes(k))) { deferred.push([im, src]); return true; }
     track(im, src); return false;
+  }
+  // a promise the bar must wait for (image decode, fonts, warmed sounds); counts as one small file
+  function hold(promise, src = "") {
+    if (phase === "done" || !promise) return promise; const w = src ? size(src) / 4 : 4000, tok = {}; totW += w; pend.add(tok); lastChange = performance.now(); draw();
+    const end = () => { if (!pend.delete(tok)) return; doneW += w; lastChange = performance.now(); draw(); };
+    Promise.resolve(promise).then(end, end); return promise;
   }
   // resolves once every first-set image is in (and nothing new was asked for for 300 ms), or after maxMs
   function ready(maxMs = 90000) {
@@ -79,5 +86,5 @@ KM.Loader = (function () {
       else { ov.classList.add("out"); setTimeout(() => ov.remove(), 450); }
     }, 150);
   }
-  return { gate, want, fetch: fetchFile, ready, finish, phase: () => phase, progress: () => ({ done: doneW, total: totW, pending: pend.size, deferred: deferred.length, shown }) };
+  return { gate, want, hold, fetch: fetchFile, ready, finish, phase: () => phase, progress: () => ({ done: doneW, total: totW, pending: pend.size, deferred: deferred.length, shown }) };
 })();
