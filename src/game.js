@@ -29,6 +29,8 @@
   // Every transition resolves music against the current chapter, including resumed runs.
   const musicScene = name => MU.setScene(name, S.chapter);
   const inTomb = () => !!KM.Tomb?.active(S);
+  const tombTest = () => inTomb() && !!KM.Tomb?.requested(); // the standalone ?preview=tomb test, not the campaign crypt
+  function syncChapterFlag(){const st=$("stage");if(!st)return;if(S.chapter==='tomb'){st.dataset.tomb='true';$("sky-title").hidden=true;}else delete st.dataset.tomb;}
   const isKnight = () => S.challengeMode === 'knight';
   const isFellowship = () => S.challengeMode === 'fellowship';
   const modeName = () => isFellowship()?'The Fellowship':isKnight()?'The Knight':'The Village Idiot';
@@ -289,7 +291,7 @@
   function save() { if (sketch || PREVIEW) return; KM.Save.write(Object.assign(core(), { checkpoint: S.checkpoint })); }
   function setCheckpoint() { S.checkpoint = core(); save(); }
   function applyCore(c) {
-    S.chapter=c.chapter==="tomb"&&KM.Tomb?.requested()?"tomb":c.chapter==="hollowwood"?"hollowwood":"village";
+    S.chapter=c.chapter==="tomb"?"tomb":c.chapter==="hollowwood"?"hollowwood":"village";syncChapterFlag();
     setChallengeMode(c.challengeMode || "math");
     S.pendingDismissal=c.pendingDismissal&&c.pendingDismissal.stop===c.stop?JSON.parse(JSON.stringify(c.pendingDismissal)):null;
     S.loot=(c.loot||[]).filter(q=>Number.isFinite(q.x)&&q.amount>0).map(q=>({...q}));
@@ -542,7 +544,7 @@
   function startRunBookkeeping() { const b = KM.Save.best(); S.bestAtStart = b ? b.leagues : 0; S.toast = null; }
   function newGame() {
     if(KM.Tomb?.requested())return startTomb();
-    S.chapter=KM.HollowWood?.requested()?"hollowwood":"village";
+    S.chapter=KM.HollowWood?.requested()?"hollowwood":"village";syncChapterFlag();
     hush(); S.deathDepth = null; S.dragonSlain = false;
     S.name = "Nobody"; S.hp = D.party.heartsPerMember; S.gold = 5; S.loot = []; S.score = 0; S.scoreLedger = KM.Score.empty(); S.riddleSolved=[];S.wizardUnlocked=false;S.lightning=null; S.stop = 0; S.dist = 0; S.fid = 0; S.hunters = 0; S.spells = 0; S.spellLeft = 0; S.mead = 0; S.bottles = 0; S.runId = "run-" + Date.now(); S.fgSeed = seedOf(S.runId);
     S.stats = { correct: 0, wrong: 0, riddles: 0, sacrificed: 0 }; S.usedRiddles = []; S.pendingDismissal=null; S.tavernRecruits = {}; S.restUses={}; S.routeVersion=3;
@@ -1853,7 +1855,7 @@
     later(Math.max(1.2, dur + 0.9), () => gameOver(killer, st));
   }
   function gameOver(killer, st) {
-    if(inTomb())return tombEnd(false);
+    if(tombTest())return tombEnd(false);
     if(sketch)return sketchPage("sketchLoss");
     S.mode = "gameover"; S.enc = null; A.play("gameover"); musicScene("gameover");
     if(!PREVIEW && S.routeVersion) KM.Save.clear();
@@ -1870,8 +1872,9 @@
     showRunScore();
   }
   function showWin(finalize=false) {
-    if(inTomb())return tombEnd(true);
-    if(!finalize && !sketch && S.chapter!=="hollowwood" && S.routeVersion && PREVIEW!=="score-win")return chapterGate();
+    if(tombTest())return tombEnd(true);
+    const next=!finalize && !sketch && S.routeVersion && PREVIEW!=="score-win" && D.chapters.next[S.chapter];
+    if(next)return chapterGate(next);
     if(sketch)return sketchPage("sketchWin");
     S.mode = "win"; A.play("victory"); musicScene("win"); if (!PREVIEW) KM.Save.clear();
     const isBest = !PREVIEW && KM.Save.recordBest(+leagues(), S.name);
@@ -1898,20 +1901,27 @@
     hush();S.enc=null;S.mode=won?'win':'gameover';S.timers=[];KM.FireFx.stop();musicScene(won?'win':'gameover');
     showPanel('<div class="chapter-gate"><h2>'+T(won?'The passage is clear.':'The tomb keeps its guests.')+'</h2><div class="opts">'+big('Enter','Try the passage again','tombRestart')+'<a class="tomb-return" href="./?mode='+S.challengeMode+'&v=chapter-music-44">'+T('Return to the road')+'</a></div></div>','info');
   }
-  function chapterGate(){
+  // Chapter gates read their words and order from D.chapters (src/data/chapters.js).
+  function chapterGate(next=D.chapters.next[S.chapter]||'hollowwood'){
     if(S.mode==='chapter')return;
-    S.mode='chapter';S.enc=null;hush();musicScene('walk');if(!PREVIEW)KM.HollowWood.unlock();save();
-    showPanel('<div class="chapter-gate"><h2>'+T('The Hollow Wood')+'</h2><p>'+T('Beyond the village, the graves have begun to stir.')+'</p><div class="opts">'+big('Enter','Enter the wood','enterWood')+big('','Finish this run','finishRun')+'</div></div>','info');
+    const g=D.chapters.gates[next];if(!g)return showWin(true);
+    S.mode='chapter';S.nextChapter=next;S.enc=null;hush();musicScene('walk');if(!PREVIEW&&next==='hollowwood')KM.HollowWood.unlock();save();
+    showPanel('<div class="chapter-gate"><h2>'+T(g.title)+'</h2><p>'+T(g.line)+'</p><div class="opts">'+big('Enter',g.enter,'enterChapter')+big('','Finish this run','finishRun')+'</div></div>','info');
   }
-  function enterWood(){
-    if(S.mode!=='chapter')return;S.mode='chapterLoading';showPanel('','info');
+  function enterChapter(){
+    if(S.mode!=='chapter')return;const next=S.nextChapter||'hollowwood';S.mode='chapterLoading';showPanel('','info');
+    if(next==='tomb')KM.Tomb.preload();
     inkTransition(()=>{
-      hush();S.chapter='hollowwood';S.stop=0;S.camX=0;S.winT=0;S.enc=null;S.view=null;
+      hush();S.chapter=next;S.nextChapter=null;S.stop=0;S.camX=0;S.winT=0;S.enc=null;S.view=null;
       S.loot=[];S.restUses={};S.tavernRecruits={};S.timers=[];S.floats=[];S.dice=[];S.respect=null;
       S.party.forEach((m,i)=>{m.act=null;m.sp=null;m.hopY=0;m.sx=slotX(i);});
-      buildWorld(0);setCheckpoint();S.mode='walk';musicScene('walk');renderWalk();
+      syncChapterFlag();
+      if(inTomb()){S.tombRoster=S.party.slice();S.tombBodies=[];KM.TombMemorials.reset(S);}
+      buildWorld(0);if(inTomb())S.camX=haltCam(S.stops[0])-2000;
+      setCheckpoint();S.mode='walk';musicScene('walk');hudCache='';renderWalk();renderHUD();
     });
   }
+  const enterWood = enterChapter; // older name kept for tests and saved links
   function showRunScore(){
     const summary=scoreSummary(),entry={mode:S.challengeMode,id:S.runId||('legacy-'+S.name+'-'+S.dist),name:S.name,score:summary.total,earned:summary.earned,survivors:summary.survivors,leagues:+leagues(),victory:S.mode==='win',at:Date.now()};
     const eligible=!PREVIEW&&!/[?&](debug|notimer)(?:[=&]|$)/.test(location.search);
@@ -1936,7 +1946,7 @@
     n.x = S.camX + 1320; n.state = "idle"; n.active = true; n.dead = false; const md = S.mode; speak(n, text, { keep: () => S.mode === md });
   }
   function retry() {
-    if(inTomb())return startTomb();
+    if(tombTest())return startTomb();
     if(S.routeVersion){const name=S.name;newGame();hush();S.name=name;S.intro=null;S.actors=S.actors.filter(a=>!a.narrator);S.mode='walk';musicScene('walk');setCheckpoint();renderWalk();return;}
     const c = S.checkpoint; if (!c) return newGame();
     hush(); applyCore(c); startRunBookkeeping(); S.hp = maxHp(); S.mode = "walk"; musicScene("walk"); S.floats = []; save(); renderWalk();
@@ -1945,7 +1955,7 @@
   // ---------- input ----------
   const actions = {
     replaceMember:b=>replaceMember(b.dataset.id), keepParty:keepParty,
-    tombRestart:startTomb, enterWood, finishRun:()=>{if(S.mode==="chapter")showWin(true);}, awakenBell, leaveBell,
+    tombRestart:startTomb, enterChapter, enterWood, finishRun:()=>{if(S.mode==="chapter")showWin(true);}, awakenBell, leaveBell,
     sketchStart, sketchExit:()=>location.assign('./?mode='+S.challengeMode),
     leaderboard:()=>KM.ScoreBanner?.showBoard({mode:S.challengeMode}),
     knightPlay:b=>playKnight(+b.dataset.knightSlot,null),knightScroll:()=>armKnightScroll(),
@@ -2033,7 +2043,7 @@
     if (S.mode === "intro") { if (k === " " || k === "Enter") advanceIntro(); if (k === "Escape") skipIntro(); return; }
     if (S.mode === "gameover") { if (k === "Enter") retry(); else if (K1 === "N") newGame(); return; }
     if (S.mode === "win") { if (k === "Enter") newGame(); return; }
-    if (S.mode === "chapter") { if(k === "Enter")enterWood();return; }
+    if (S.mode === "chapter") { if(k === "Enter")enterChapter();return; }
     if (K1 === SPL.key && !S.dying && !isFellowship()) { // Spell of Stupidity: on the road, on your turn, or mid-sum (buy it at a tavern / shop)
       const ph = S.enc && S.enc.phase;
       if (S.mode === "encounter" && ph === "cards") return armKnightScroll();
@@ -2691,7 +2701,7 @@
   }
 
   window.__km = { completeRecruit, replaceMember, keepParty, beginDismissalBattle, finishDismissalBattle,
-    startTomb,tombEnd,chapterGate,enterWood,showWin,
+    startTomb,tombEnd,chapterGate,enterChapter,enterWood,showWin,
     S, L, chooseMode, strength, maxHp, leagues, roleMembers, firestarter, executioner, canHeal, canResurrect, frankMember, partyPose, lungeDbg: () => [lungeReach(S.party[0], S.enc && S.enc.act), S.party[0].sx, S.enc && screenX(S.enc.act.x), wideOf(artId(S.party[0])), S.enc && wideOf(S.enc.act.id)], partyFull, weakDmg, hardDmg, rerenderMath: () => S.enc && S.enc.phase === "math" && renderMath(), rerenderRest: () => S.enc && S.enc.phase === "rest" && renderRest(), rerenderChoice: () => S.enc && S.enc.phase === "choose" && renderChoice(), setSpeed: k => (S.speedMul = k), audioLog: A.log, audioCounts: A.counts, forceRoll: 0, forceContest: null, props: () => S.props,
     answer: () => (S.enc && S.enc.phase === "math" && S.enc.problem ? S.enc.problem.answer : null), phase: () => S.enc && S.enc.phase, mode: () => S.mode,
     voLog: A.voLog, music: () => MU.state(), musicLog: MU.log,
