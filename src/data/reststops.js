@@ -28,20 +28,20 @@ KM_DATA.restStops = {
     },
     campsite: {
       label: "Campsite", name: "A smoky campsite", exterior: "campsite", keeper: "camp_keeper", keeperName: "Old Wally", view: "camp",
-      greet: "Fire's free. Logs are free. Advice is worth less.",
-      heals: [{ key: "H", label: "rest by the fire", short: "Rest", hearts: 2, cost: 0, once: true }],
-      recruits: [0, 1], recruitCost: 0, recruitVerb: "invite the wanderer along",
-      gear: { maxWeapon: 0, maxArmor: 1, weaponCost: 0, armorCost: 6 }
+      greet: "Rest here and mend every wound. One wanderer is waiting.",
+      heals: [{ key: "H", label: "rest by the fire", short: "Make camp — full health", full: true, cost: 0, once: true }],
+      recruits: [1, 1], recruitCost: 0, recruitVerb: "invite the wanderer along",
+      gear: null
     },
     // v11b: Magnus's roadside SCROLLS stall (scroll_stall.png + scroll_seller.png, KM_ART11.stall): buy Spell of Stupidity scrolls
     stall: {
-      label: "Scroll stall", name: "Scrolls", exterior: "scroll_stall", keeper: "scroll_seller", keeperName: "Mumbleweed the Seller", view: "stall",
+      label: "Scrolls and Stuff", name: "Scrolls and Stuff", exterior: "scroll_stall", keeper: "scroll_seller", keeperName: "Mumbleweed the Seller", view: "stall",
       greet: "Scrolls! Lovely stupid scrolls!",
       heals: [], recruits: [0, 0], recruitCost: 0, recruitVerb: "",
       gear: { maxWeapon: 0, maxArmor: 0, weaponCost: 0, armorCost: 0 }
     },
     shop: {
-      label: "Shop", name: "Honest Edmund's Arms & Bits", exterior: "shop", keeper: "shop_keeper", keeperName: "Honest Edmund",
+      label: "Scrolls and Stuff", name: "Scrolls and Stuff", exterior: "shop", keeper: "shop_keeper", keeperName: "Honest Edmund",
       art: "stall",   // v12r: drawn with Magnus's stall + seller (assets/v11/ui/scroll-stall.png, scroll-seller.png) until a shop is painted
       // v12r (Magnus: "I have no idea what the menu means"): the greeting says what the shop is for
       greet: "Better gear for your lads. Pick a knight.",

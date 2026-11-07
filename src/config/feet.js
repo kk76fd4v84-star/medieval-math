@@ -22,3 +22,11 @@ window.KM_WIDE = {"goblin":[-270,266],"killer_rabbit":[-160,166],"skeleton_knigh
 
 // opaque standing height above the feet, layout units (monster hearts and damage numbers sit just above it)
 window.KM_TALL = {"goblin":689,"killer_rabbit":425,"skeleton_knight":726,"turd_dragon":807,"frank":378,"enchanter":520,"black_knight":918,"hermit":435,"toad":282,"ogre":460,"dragon":358,"grave_rabbit":378,"grave_dragon":386,"grave_goblin":379,"grave_toad":373,"hero":531};
+
+KM_WIDE.ogre=KM_WIDE.ogre.map(v=>v*1.85); KM_TALL.ogre*=1.85;
+
+// Coiled boss deliberately extends above the viewport; all three low-hanging heads stay visible.
+KM_FEET.dragon=0; KM_WIDE.dragon=[-670*0.972,588*0.972]; KM_TALL.dragon=1144*0.972;
+
+// Re-measured after removing baked rectangle borders from the ogre atlas.
+KM_FEET.ogre=0;KM_WIDE.ogre=[-249,368];KM_TALL.ogre=591;

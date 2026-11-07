@@ -11,7 +11,7 @@ window.KM = window.KM || {};
 KM.FireFx = (function () {
   const cfg = () => KM_DATA.items.fireBottle.art;
   const img = f => KM.Assets.loadImg(cfg().dir + f);
-  let fx = null; // { t, from, to, targets: [{x, y, at, flip}], smashAt, hitAt, end }
+  let effects = []; // { t, from, to, targets: [{x, y, at, flip}], smashAt, hitAt, end }
 
   function start(o) {
     const A = cfg(), ts = o.targets.slice().sort((a, b) => a.x - b.x), mid = ts[Math.floor((ts.length - 1) / 2)];
@@ -20,7 +20,9 @@ KM.FireFx = (function () {
     const hitAt = burstAt + A.burst.hitFrame * A.burst.ms / 1000;
     const bDur = A.burst.frames * A.burst.ms / 1000, fadeAt = burstAt + bDur + A.linger.secs; // fadeAt: the centre patch starts to fade
     const end = Math.max(...targets.map(p => p.at)) + bDur + A.linger.secs + A.linger.fadeSecs;
-    fx = { t: 0, from: o.from, to: { x: mid.x, y: mid.y }, targets, smashAt, hitAt, end, cues: cues(smashAt, burstAt, hitAt, bDur, fadeAt, targets.length) };
+    const fx = { t: 0, from: o.from, to: { x: mid.x, y: mid.y }, targets, smashAt, hitAt, end, cues: cues(smashAt, burstAt, hitAt, bDur, fadeAt, targets.length) };
+    if(!o.append)stop();
+    effects.push(fx);
     return hitAt;
   }
   // [seconds, sound] in time order; each runs once when the clock passes it
@@ -32,12 +34,13 @@ KM.FireFx = (function () {
     return c.sort((a, b) => a[0] - b[0]);
   }
   function update(dt) {
-    if (!fx) return; fx.t += dt;
-    while (fx.cues.length && fx.cues[0][0] <= fx.t) fx.cues.shift()[1]();
-    if (fx.t >= fx.end) stop();
+    for(const fx of effects){fx.t+=dt;while(fx.cues.length&&fx.cues[0][0]<=fx.t)fx.cues.shift()[1]();}
+    const had=effects.length;effects=effects.filter(fx=>fx.t<fx.end);
+    if(had&&!effects.length)KM.Audio.stop(KM_DATA.items.fireBottle.sfx.crackle,KM_DATA.items.fireBottle.sfx.crackleFadeSecs);
   }
-  function stop() { if (!fx) return; fx = null; KM.Audio.stop(KM_DATA.items.fireBottle.sfx.crackle, KM_DATA.items.fireBottle.sfx.crackleFadeSecs); }
-  const active = () => !!fx;
+  function stop() { if(!effects.length)return;effects=[];KM.Audio.stop(KM_DATA.items.fireBottle.sfx.crackle,KM_DATA.items.fireBottle.sfx.crackleFadeSecs); }
+  const active = () => effects.length>0;
+  const hitDelay = () => {const a=cfg();return a.throwSecs+a.smash.frames*a.smash.ms/1000+a.burst.hitFrame*a.burst.ms/1000;};
 
   // one cell of a phase atlas, bottom-centre at (x, y), at artScale
   function cell(ctx, phase, i, x, y, alpha, flip) {
@@ -46,8 +49,7 @@ KM.FireFx = (function () {
     ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); if (flip) ctx.scale(-1, 1);
     ctx.drawImage(im, i * cw, 0, cw, ch, -ax * s, -ay * s, cw * s, ch * s); ctx.restore();
   }
-  function draw(ctx) {
-    if (!fx) return; const A = cfg(), t = fx.t, below = A.belowFoot / KM_LAYOUT.k;
+  function drawOne(ctx,fx) { const A = cfg(), t = fx.t, below = A.belowFoot / KM_LAYOUT.k;
     if (t < fx.smashAt) { // the bottle in flight: an arc, spinning about its centre
       const u = t / fx.smashAt, im = img(A.item), s = KM_LAYOUT.art; if (!im._ok) return;
       const x = fx.from.x + (fx.to.x - fx.from.x) * u, y = fx.from.y + (fx.to.y - 60 - fx.from.y) * u - Math.sin(Math.PI * u) * A.arcH / KM_LAYOUT.k;
@@ -64,7 +66,8 @@ KM.FireFx = (function () {
       if (fade > 0) cell(ctx, "linger", Math.floor(v / (A.linger.ms / 1000)) % A.linger.frames, p.x, p.y + below, fade, p.flip);
     }
   }
+  function draw(ctx){effects.forEach(fx=>drawOne(ctx,fx));}
   function preload() { const A = cfg(); [A.item, A.smash.atlas, A.burst.atlas, A.linger.atlas].forEach(img); }
 
-  return { start, update, stop, draw, active, preload, state: () => fx && { t: fx.t, hitAt: fx.hitAt, end: fx.end, targets: fx.targets.length } };
+  return { start, hitDelay, update, stop, draw, active, preload, state: () => {const fx=effects[effects.length-1];return fx?{t:fx.t,hitAt:fx.hitAt,end:fx.end,targets:fx.targets.length,casts:effects.length}:null;} };
 })();

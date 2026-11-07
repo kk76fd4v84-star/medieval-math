@@ -1,0 +1,10 @@
+{
+  "sprite": "fallen-skeleton.png",
+  "size": [
+    925,
+    1175
+  ],
+  "view": "prone, head away from camera",
+  "alpha": "transparent outside; opaque bone interiors",
+  "processing": "alpha <=12 removed, alpha >=240 solid; rescale alpha between; trim outer transparent border"
+}

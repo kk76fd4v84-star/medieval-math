@@ -8,9 +8,9 @@ KM_DATA.music = {
   duckVoice: 1,         // music multiplier while a voice-over clip is playing. v12r (Magnus: "Don't lower the music when the narrator speaks"): 1 = no dip (was 0.3)
   volumeStep: 0.1,      // [ and ] change the music volume by this much
   // v12r: categories whose first track loads WITH the loading bar (bytes counted, decoded before the bar ends):
-  // the title / intro music and the first road track (picked at random from world, not the title's track).
+  // Title, intro and road share one shuffled world queue; no fixed opening track or reset on entering the road.
   // Everything else streams when its scene starts. Music ships as .mp3 only (plays in every browser incl. Safari).
-  preload: ["title", "world"],
+  preload: ["world"],
   outside: "world",     // v12r: what plays instead of a `where`-tagged (vocal) category outside its place: the road music
 
   // category: { tracks, vol (category gain), resume (true = continue the paused track where it left off,
@@ -21,6 +21,11 @@ KM_DATA.music = {
     world: { vol: 0.85, resume: true, tracks: [
       "world/quest_theme.mp3", "world/march_of_the_brave_1.mp3", "world/march_of_the_brave_2.mp3", "world/march_of_the_brave_3.mp3",
       "world/march_of_the_pilgrim_1.mp3", "world/march_of_the_pilgrim_2.mp3"] },
+    // Magnus's chapter tracks. Keep the delivered filenames and audio unchanged.
+    graveyard: { vol: 0.85, resume: true, tracks: ["Graveyard music.mp3"] },
+    tomb: { vol: 0.85, resume: true, tracks: ["Tomb music regular.mp3", "Tomb music regular 2.mp3"] },
+    tomb_battle: { vol: 0.9, resume: false, tracks: ["Tomb regular battle.mp3"] },
+    tomb_boss: { vol: 1.0, resume: false, tracks: ["Tomb Boss Battle Music1.mp3", "Tomb Boss battlemusic 2.mp3"] },
     camp: { vol: 0.9, resume: false, tracks: ["camp/march_of_the_lonely_recorders_1.mp3", "camp/march_of_the_lonely_recorders_2.mp3"] },
     shop: { use: "camp", vol: 0.5, resume: false },   // no dedicated shop track yet: camp music, quieter
     // v12r (Magnus: "only play the bard music with voices inside the actual tavern"): every tavern track is a sung bard
@@ -39,8 +44,8 @@ KM_DATA.music = {
   // game scene -> { cat (null = fade to silence), duck (extra multiplier), outside (cat when `cat` is tagged `where`
   //                 and the current view is not that place) }
   scenes: {
-    title:        { cat: "title" },
-    intro:        { cat: "title" },
+    title:        { cat: "world" },
+    intro:        { cat: "world" },
     walk:         { cat: "world" },          // travelling; also graves
     battle:       { cat: "battle" },         // normal math fights (starts only when the fight engages)
     boss:         { cat: "wizard" },         // mid-boss (default for type "boss")
@@ -52,7 +57,24 @@ KM_DATA.music = {
     rest_shop:    { cat: "shop" },
     rest_stall:   { cat: "world" },  // v11b roadside scroll stall: the road music keeps playing
     gameover:     { cat: null },
-    win:          { cat: "title" }
+    win:          { cat: "world" }
+  },
+  // Chapter overrides inherit scene ducking and the tavern-interior restriction.
+  // Hollow Wood retains the existing combat/camp/shop scores; its road is the graveyard.
+  chapters: {
+    hollowwood: {
+      intro: { cat: "graveyard" }, walk: { cat: "graveyard" },
+      riddle: { cat: "graveyard" }, recruit: { cat: "graveyard" },
+      rest_stall: { cat: "graveyard" }, rest_tavern: { outside: "graveyard" },
+      win: { cat: "graveyard" }
+    },
+    tomb: {
+      intro: { cat: "tomb" }, walk: { cat: "tomb" },
+      riddle: { cat: "tomb" }, recruit: { cat: "tomb" },
+      rest_stall: { cat: "tomb" }, rest_tavern: { outside: "tomb" },
+      battle: { cat: "tomb_battle" }, boss: { cat: "tomb_boss" },
+      mega: { cat: "tomb_boss" }, win: { cat: "tomb" }
+    }
   },
   // per-enemy override of the fight scene (e.g. any future wizard enemy -> "boss")
   enemyScenes: { skeleton_knight: "boss", dragon: "mega" }

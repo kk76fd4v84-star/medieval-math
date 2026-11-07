@@ -3,42 +3,78 @@ window.KM_ART11 = {
   "root": "assets/v11/ui/",
   "bubbles": {
     "left": {
-      "img": "speech-left.png",
-      "source": "medieval-math-animation-pack-v2/art/sprites/ui-0.png",
-      "size": [
-        491,
-        262
-      ],
-      "tip": [
-        47.0,
-        259
-      ],
-      "text": [
-        39,
-        32,
-        419,
-        150
-      ]
+        "img": "speech-square.png",
+        "size": [
+            491,
+            262
+        ],
+        "flip": false,
+        "tip": [
+            42,
+            249
+        ],
+        "root": [
+            90,
+            195
+        ],
+        "canonicalRoot": [
+            90,
+            195
+        ],
+        "canonicalTip": [
+            42,
+            249
+        ],
+        "body": [
+            19,
+            22,
+            454,
+            177
+        ],
+        "text": [
+            38,
+            36,
+            416,
+            143
+        ]
     },
     "right": {
-      "img": "speech-right.png",
-      "source": "medieval-math-animation-pack-v2/art/sprites/ui-1.png",
-      "size": [
-        480,
-        262
-      ],
-      "tip": [
-        435.5,
-        256
-      ],
-      "text": [
-        27,
-        31,
-        416,
-        150
-      ]
+        "img": "speech-square.png",
+        "size": [
+            491,
+            262
+        ],
+        "flip": true,
+        "tip": [
+            449,
+            249
+        ],
+        "root": [
+            401,
+            195
+        ],
+        "canonicalRoot": [
+            90,
+            195
+        ],
+        "canonicalTip": [
+            42,
+            249
+        ],
+        "body": [
+            19,
+            22,
+            454,
+            177
+        ],
+        "text": [
+            38,
+            36,
+            416,
+            143
+        ]
     }
-  },
+},
   "purse": {
     "img": "money-purse.png",
     "source": "incoming/magnus_art/money_purse.png",
@@ -238,21 +274,7 @@ window.KM_ART11 = {
     ]
   },
   "stall": {
-    "stall": {
-      "img": "scroll-stall.png",
-      "source": "incoming/magnus_art/scroll_stall.png",
-      "size": [
-        1441,
-        998
-      ],
-      "crop": [
-        51,
-        11,
-        1492,
-        1009
-      ],
-      "scale": 0.6301
-    },
+    "stall": {"img":"scrolls-and-stuff.png","size":[1254,1254],"scale":0.5015},
     "seller": {
       "img": "scroll-seller.png",
       "source": "incoming/magnus_art/scroll_seller.png",
@@ -268,8 +290,8 @@ window.KM_ART11 = {
       ],
       "scale": 0.3278,
       "at": [
-        0.3684,
-        0.3114
+        0.285,
+        0.28
       ]
     },
     "ref": "incoming/magnus_art/reference_scroll_stall.png"

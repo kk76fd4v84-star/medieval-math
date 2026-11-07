@@ -4,7 +4,7 @@
 // pivot [384,680], measured standTop. Drawn at atlas px x the ONE global artScale (0.6) like every other piece: the
 // rig's own scale (hero 0.54, companions 0.85) is already baked into the atlases by the pack, nothing is re-scaled here.
 // Travel speed follows the README: speed = rootMotionSpeed x display scale x playback rate. The road moves at the HERO's
-// root motion at playback 1.0 (KM_DATA.world.walkSpeed is derived from it); each companion's playback rate is chosen so
+// root motion at the configured travel multiplier; each companion's playback rate is chosen so
 // its own root motion matches that same road speed (no foot sliding against the parallax-1.0 front ground).
 // Limitations (README): walk only. No idle, attack, heal or hurt drawings: standing = the walk's first key (frame 0,
 // both feet planted), combat lunges stay procedural, the hero's death is still the approved knight-death atlas.
@@ -22,6 +22,6 @@
   ["scarf", "feather", "moustache", "stripe"].forEach((n, i) => set("follower_" + (i + 1), walker(n)));
   KM_DATA.party.skins = 4;                                                  // four companion looks (party max stays 4 incl. hero)
   // road speed (layout units/s) = hero rootMotionSpeed (atlas px/s at playback 1) x artScale (stage px) / k (layout units)
-  KM_DATA.world.walkSpeed = A.walks.hero.rootMotionSpeed * KM_LAYOUT.artScale / KM_LAYOUT.k;
+  KM_DATA.world.walkSpeed = A.walks.hero.rootMotionSpeed * KM_LAYOUT.artScale / KM_LAYOUT.k * (KM_DATA.world.walkSpeedMultiplier || 1);
   KM_ART.walkRate = id => { const e = E[id], w = e && e.walk && A.walks[e.walk]; return w ? (KM_DATA.world.walkSpeed * KM_LAYOUT.k) / (w.rootMotionSpeed * KM_LAYOUT.artScale * (e.artMul || 1)) : 1; }; // v12b: artMul scales root motion too
 })();

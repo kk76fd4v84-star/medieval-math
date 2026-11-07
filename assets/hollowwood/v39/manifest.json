@@ -1,0 +1,162 @@
+{
+  "graveyard": {
+    "size": [
+      2117,
+      360
+    ],
+    "source": "exec-1c31778e-4893-4eac-a185-dd51d401e71c.png",
+    "sourceCrop": [
+      33,
+      314,
+      2118,
+      642
+    ],
+    "padding": 16,
+    "paper": [
+      210.0,
+      189.0,
+      159.0
+    ]
+  },
+  "trees": {
+    "size": [
+      1528,
+      1026
+    ],
+    "source": "exec-7350ecf7-1cb7-41d9-bf43-edcfb8c03cf8.png",
+    "sourceCrop": [
+      22,
+      12,
+      1518,
+      1006
+    ],
+    "padding": 16,
+    "paper": [
+      249.0,
+      218.0,
+      182.0
+    ]
+  },
+  "skeleton": {
+    "size": [
+      1214,
+      1281
+    ],
+    "source": "exec-9f9d4978-c63b-4234-a18b-13d003fa6ae8.png",
+    "sourceCrop": [
+      12,
+      17,
+      1194,
+      1266
+    ],
+    "padding": 16
+  },
+  "zombie": {
+    "size": [
+      1223,
+      1334
+    ],
+    "source": "exec-c114650b-ee63-43cf-b841-c6988e7d1c97.png",
+    "sourceCrop": [
+      4,
+      2,
+      1195,
+      1304
+    ],
+    "padding": 16
+  },
+  "spider": {
+    "size": [
+      1538,
+      1029
+    ],
+    "source": "exec-e179aa2e-a961-4365-8297-b3ebb04ad832.png",
+    "sourceCrop": [
+      12,
+      12,
+      1518,
+      1009
+    ],
+    "padding": 16
+  },
+  "roots": {
+    "size": [
+      1517,
+      1045
+    ],
+    "source": "exec-849b06af-2422-458b-b33c-d70709e0d931.png",
+    "sourceCrop": [
+      24,
+      6,
+      1509,
+      1019
+    ],
+    "padding": 16
+  },
+  "abbey": {
+    "size": [
+      2117,
+      641
+    ],
+    "source": "exec-b9e77f08-2a9b-455e-b498-43a787ecc678.png",
+    "sourceCrop": [
+      44,
+      62,
+      2129,
+      671
+    ],
+    "padding": 16,
+    "paper": [
+      230.0,
+      211.0,
+      183.0
+    ]
+  },
+  "abomination": {
+    "size": [
+      1545,
+      1052
+    ],
+    "source": "exec-4ee038ec-f0f3-48a2-903c-d43f33767850.png",
+    "sourceCrop": [
+      12,
+      0,
+      1525,
+      1020
+    ],
+    "padding": 16
+  },
+  "bellwraith": {
+    "size": [
+      1190,
+      1339
+    ],
+    "source": "exec-a79dcaf3-c6cf-4d37-aac9-a8db6c17f13c.png",
+    "sourceCrop": [
+      25,
+      4,
+      1183,
+      1311
+    ],
+    "padding": 16
+  },
+  "thorn": {
+    "size": [
+      2129,
+      296
+    ],
+    "source": "exec-d95666c2-da25-4772-a123-74574ac29d87.png",
+    "sourceCrop": [
+      38,
+      274,
+      2135,
+      538
+    ],
+    "padding": 16,
+    "paper": [
+      234.0,
+      218.0,
+      193.0
+    ]
+  }
+}

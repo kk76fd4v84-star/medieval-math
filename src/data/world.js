@@ -7,7 +7,8 @@ KM_DATA.world = {
   slotSpacing: 240,      // distance between party members
   soloBack: 240,         // v12j (Magnus): a lone hero stands this far behind partyScreenX; the front steps forward as the party fills (full party = partyScreenX)
   engageScreenX: 1750,   // where encounters stop (view x) in front of the party
-  walkSpeed: 420,        // scene px/s
+  walkSpeed: 420,        // fallback; calibrated from the hero walk atlas below
+  walkSpeedMultiplier: 1.8, // travel and animation: 20% faster
   enemyWalkSpeed: 260,
   gapScale: 1.8,         // multiplies the `gap` values in encounters.js
   hopHeight: 120,

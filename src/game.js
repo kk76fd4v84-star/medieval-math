@@ -11,87 +11,125 @@
   const rnd = (a, b) => a + Math.random() * (b - a);
   const pickOne = arr => arr[Math.floor(Math.random() * arr.length)];
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const T = s => KM.I18n?.t(s) ?? String(s);
   const G = s => KM.Assets.glyphHTML(s);
   // v12e: an option = the open plaque button (label only); the key is a silent shortcut
   // v12e (Magnus): every choice is the battle's open plaque button; no visible key labels (the keys still work)
   const opt = (key, label, act, attrs = "", off = false) => `<button class="opt plaque" data-act="${act}" ${attrs} ${off ? "disabled" : ""}>${BANNER}<span class="nm">${label}</span></button>`;
-  const ART7 = !!window.KM_ART7, SCN = () => ART7 && KM.Scenery.available();
+  const sketch = KM.Sketchbook;
+  const ART7 = !!window.KM_ART7, SCN = () => !!sketch || (ART7 && KM.Scenery.available());
 
   const S = {
-    mode: "title", t: 0, speedMul: 1, camX: 0, name: "Nobody", hp: 6, gold: 0, hunters: 0, spells: 0, spellLeft: 0, mead: 0, bottles: 0,
-    party: [], stop: 0, stops: [], actors: [], obstacles: [], props: [], trees: [], floats: [], skyEvents: [], timers: [],
-    enc: null, dice: [], stats: { correct: 0, wrong: 0, riddles: 0, sacrificed: 0 }, usedRiddles: [],
+    chapter: KM.Tomb?.requested()?"tomb":KM.HollowWood?.requested()?"hollowwood":"village", challengeMode: "math", mode: "title", t: 0, speedMul: 1, camX: 0, name: "Nobody", hp: D.party.heartsPerMember, gold: 0, score: 0, scoreLedger: KM.Score.empty(), riddleSolved: [], wizardUnlocked:false, lightning:null, hunters: 0, spells: 0, spellLeft: 0, mead: 0, bottles: 0,
+    party: [], pendingDismissal: null, loot: [], stop: 0, stops: [], actors: [], obstacles: [], props: [], trees: [], floats: [], skyEvents: [], timers: [],
+    enc: null, dice: [], stats: { correct: 0, wrong: 0, riddles: 0, sacrificed: 0 }, usedRiddles: [], tavernRecruits: {}, restUses: {}, routeVersion: 3,
     checkpoint: null, shake: 0, banner: null, winT: 0, stepT: 0, nextSky: 8, intro: null, dist: 0, fid: 0, runId: "",
-    graves: [], respect: null, bestAtStart: 0, furtherDone: false, toast: null, view: null, dying: null, voices: []
+    graves: [], companionGraves: [], respect: null, bestAtStart: 0, furtherDone: false, toast: null, view: null, dying: null, voices: []
   };
+  // Every transition resolves music against the current chapter, including resumed runs.
+  const musicScene = name => MU.setScene(name, S.chapter);
+  const inTomb = () => !!KM.Tomb?.active(S);
+  const isKnight = () => S.challengeMode === 'knight';
+  const isFellowship = () => S.challengeMode === 'fellowship';
+  const modeName = () => isFellowship()?'The Fellowship':isKnight()?'The Knight':'The Village Idiot';
+  function setChallengeMode(value){S.challengeMode=['knight','fellowship'].includes(value)?value:'math';KM.Save.selectMode(S.challengeMode);$("stage").dataset.challengeMode=S.challengeMode;}
+  // Retired mode links/preferences fall back safely; their old run and score data stay archived.
+  try {
+    const queryMode=new URLSearchParams(location.search).get('mode');
+    const preferredMode=localStorage.getItem('knightMath.mode');
+    setChallengeMode(queryMode || preferredMode);
+    if(preferredMode && !['math','knight','fellowship'].includes(preferredMode))localStorage.setItem('knightMath.mode',S.challengeMode);
+    if(queryMode && !['math','knight','fellowship'].includes(queryMode)){
+      const url=new URL(location.href);url.searchParams.set('mode',S.challengeMode);history.replaceState(null,'',url);
+    }
+  } catch (_) { setChallengeMode('math'); }
+  function chooseMode(value){if(S.mode!=='title')return;setChallengeMode(value);try{localStorage.setItem('knightMath.mode',S.challengeMode);}catch(_){}showTitle();}
   // scheduled steps run on game time (so test speed-ups apply)
   const later = (secs, fn) => S.timers.push({ at: S.t + secs, fn });
 
   // ---------- party / stats ----------
   // party: hero + up to D.party.maxFollowers followers (GAME_DESIGN: max 4 incl. the player)
-  const memberName = m => (m.id === "hero" ? "Sir " + S.name : m.name);
+  const memberName = m => (m.id === "hero" ? (PA.villager(m) && artId(m) !== "hero" ? S.name : (KM.I18n?.jp()?"騎士 ":"Sir ") + S.name) : m.name);
   const knights = () => S.party.filter(m => m.id !== "hero"); // followers
   const partyFull = () => knights().length >= D.party.maxFollowers;
   const strength = () => Math.min(D.party.strengthCap, S.party.reduce((s, m) => s + m.base + m.weapon, 0)); // party POWER
-  // v11b heart rule (Magnus): 2 hearts per party member (hero 2, each companion +2). Every 2 hearts lost in ONE battle,
-  // a party member dies horribly (companions first; the hero always dies last, only when no companion is left).
+  // Every party member has two red hearts, regardless of role or equipment. Unhealed red damage reaches that member's threshold;
+  // companions die before the hero. Silver armour absorbs damage before any red-heart loss.
   const HPM = () => D.party.heartsPerMember;
-  const maxHp = () => HPM() * S.party.length;
+  const PA = KM.PartyAbilities;
+  const maxHp = () => PA.maxHp(S.party);
+  const roleMembers = role => PA.members(S.party, role);
+  const priests = () => roleMembers('priest');
+  const firestarter = () => roleMembers('firestarter')[0];
+  const executioner = () => roleMembers('executioner')[0];
+  const canExecute = () => !!(executioner() && S.enc && S.enc.act && PA.executionReady(living(S.enc)[0]));
+  const canResurrect = () => !!(S.enc && priests().length>=2 && S.enc.fallen && S.enc.fallen.length && !S.enc.resurrected && !partyFull());
   // v12j (Magnus): the front of the party moves forward as it fills up; alone the hero stands soloBack further back
   const frontX = () => W.partyScreenX - (W.soloBack || 0) * (D.party.maxFollowers + 1 - ((S && S.party) ? S.party.length : 1)) / D.party.maxFollowers;
-  const slotX = i => frontX() - i * W.slotSpacing;
-  const artId = m => (m.id === "hero" ? "hero" : "follower_" + (m.skin || 1));
+  const slotX = i => frontX() - i * Math.min(W.slotSpacing, (frontX() - 280) / Math.max(1, S.party.length - 1));
+  const artId = m => (m.id === "hero" ? (sketch ? "sketch_knight" : PA.heroArt(m)) : m.art || "follower_" + (m.skin || 1));
+  const frankMember = () => S.party.find(m => m.companionId === "frank" && !m.dying && !m.eaten);
+  const canHeal = () => priests().length > 0;
+  const depthMoving = () => KM.DragonApproach.moving(S);
+  const partyPose = (m, i = S.party.indexOf(m)) => KM.Tomb?.partyPose(S,m) || KM.DragonApproach.partyPose(S, m, i);
+  const dragonPose = a => KM.Tomb?.actorPose(S,a) || KM.HollowWood?.pose(S,a) || KM.DragonApproach.actorPose(S, a);
+  const PREVIEW = /[?&]debug\b/.test(location.search) && new URLSearchParams(location.search).get("preview");
   const shortName = n => n.replace(/^(Sir|Dame|Brother) /, "");
   const freeSkin = () => { for (let k = 1; k <= D.party.skins; k++) if (!knights().some(m => m.skin === k)) return k; return 1; };
-  function newMember(id, sx) { return { id: "hero", kind: "hero", base: D.party.heroBase, weapon: 0, armor: 0, sx: sx == null ? slotX(0) : sx, hopY: 0 }; }
-  function followerFrom(p, sx, look) { return { id: "f" + (++S.fid), kind: "follower", name: p.name, base: p.base, skin: look && !knights().some(m => m.skin === look) ? look : freeSkin(), trait: p.trait, sacrifice: p.sacrifice, weapon: 0, armor: 0, sx, hopY: 0 }; }
+  function newMember(id, sx, villager = false) { return { ...(villager ? {origin:"villager",armorTrained:false} : {}), id: "hero", kind: "hero", base: D.party.heroBase, weapon: 0, armor: 0, sx: sx == null ? slotX(0) : sx, hopY: 0 }; }
+  function followerFrom(p, sx, look) { return { id: "f" + (++S.fid), kind: "follower", role: p.role, name: p.name, companionId: p.companionId, art: p.art, base: p.base, skin: look && !knights().some(m => m.skin === look) ? look : freeSkin(), trait: p.trait, sacrifice: p.sacrifice, weapon: 0, armor: 0, sx, hopY: 0 }; }
   const actorName = a => a.name || (a.narrator ? "The Narrator" : (D.enemies[a.id] && D.enemies[a.id].name) || a.id);
   const leagues = () => (S.dist / W.pxPerLeague).toFixed(1);
-  const weakDmg = () => C.weakBase + Math.floor(strength() / C.weakPer);
-  const hardDmg = () => weakDmg() * C.hardMul + C.hardAdd;
+  const weakDmg = () => PA.weak(S.party);
+  const hardDmg = () => PA.hard(S.party);
 
   // ---------- world building (all x in scene px along the road) ----------
   const haltCam = st => st.stopX - W.engageScreenX;
   const NARRATOR_X = 1650; // rock base centre (layout units): his rock clears the knight, his skull sits right of centre
   const isFight = st => ["math", "boss", "mega"].includes(st.type);
-  function pickCands(n, taken) {
+  function pickCands(n, taken, seed) {
+    if(S.routeVersion){
+      const rng=KM.Progression.random(seed),all=[...Object.values(D.companions).filter(p=>p.companionId!=='frank'&&p.companionId!=='darkWizard'),...D.recruitPool];
+      let pool=all.filter(p=>!taken.has(p.name));
+      if(pool.length<n)pool=all.filter(p=>!S.party.some(m=>m.name===p.name));
+      const out=[];while(out.length<n&&pool.length){const p=pool.splice(Math.floor(rng()*pool.length),1)[0];taken.add(p.name);out.push({...p});}return out;
+    }
     const pool = D.recruitPool.filter(p => !taken.has(p.name));
     const out = [];
+    // Named specialists are encountered in existing rest-stop seats, without changing saved road indices.
+    for (const id of ['timmy','executioner']) { const p=D.companions[id]; if(out.length<n && !taken.has(p.name)){out.push({...p});taken.add(p.name);} }
     while (out.length < n && pool.length) { const p = pool.splice(Math.floor(Math.random() * pool.length), 1)[0]; taken.add(p.name); out.push(p); }
     return out;
   }
   const mkActor = o => Object.assign({ active: true, state: "idle", t: 0, rot: 0, dy: 0, alpha: 1, flash: 0, sp: null, dead: false }, o);
   // v18: each candidate carries a look (st.candSkins, rotating through every skin incl. the coif) and joins AS that look
-  const candArt = (j, st = S.enc && S.enc.st) => "follower_" + (st && st.candSkins && st.candSkins[j] || 1 + (j % D.party.skins));
+  const candArt = (j, st = S.enc && S.enc.st) => (st && st.cands && st.cands[j] && st.cands[j].art) || "follower_" + (st && st.candSkins && st.candSkins[j] || 1 + (j % D.party.skins));
   // ---- v11b multi-enemy fights (TEMP_BALANCE combat.groups): a row of 2-3 foes on the ground line, front one first
   const GRP = () => C.groups || {};
   function rollGroup(st) {
+    if (S.routeVersion) return null; // New routes author safe groups inside their progression stage.
     const g = GRP(), lg = st.stopX / W.pxPerLeague; if (!g.pool || lg < g.fromLeague) return null;
     if (Math.random() >= (lg >= g.lateLeague ? g.lateChance : g.chance)) return null;
     const n = lg >= g.lateLeague && Math.random() < g.chance3 ? 2 : 1; return Array.from({ length: n }, () => pickOne(g.pool));
   }
-  // row slots: the front foe stands at homeX, the others behind it to the right, opaque extents (KM_WIDE) + gap apart;
-  // the whole row is shifted left so it fits on screen at the halt
   const wideOf = id => (window.KM_WIDE && KM_WIDE[id]) || [-KM.Assets.entitySize(id)[0] / 2, KM.Assets.entitySize(id)[0] / 2];
-  function rowSlots(st, ids) { const g = GRP(); let x = 0; const xs = [0];
-    for (let k = 1; k < ids.length; k++) { x += wideOf(ids[k - 1])[1] + g.gap - wideOf(ids[k])[0]; xs.push(x); }
-    const right = x + wideOf(ids[ids.length - 1])[1], room = VW - 40 - (st.stopX - haltCam(st)) - 0; // layout units right of the front foe's spot
-    // never shift the row into the knight: the front foe's drawing stays clear of the hero's (layout units)
-    const hw = wideOf("hero"), maxShift = Math.max(0, (st.stopX - haltCam(st)) - (slotX(0) + hw[1] + 30 - wideOf(ids[0])[0]));
-    const shift = Math.max(0, Math.min(right - room, maxShift)); const out = xs.map(v => st.stopX - shift + v); out.fits = right - shift <= room; return out; }
+  function rowSlots(st, ids) {
+    // Four enemy positions. Overlap within the enemy row is allowed; crossing the party boundary is not.
+    const partyRight=Math.max(W.partyScreenX+wideOf('hero')[1],...S.party.map((m,i)=>W.partyScreenX-i*Math.min(W.slotSpacing,(W.partyScreenX-280)/D.party.maxFollowers)+wideOf(artId(m))[1]));
+    const left=partyRight+80+Math.max(...ids.map(id=>-wideOf(id)[0]));
+    const right=VW-40-Math.max(...ids.map(id=>wideOf(id)[1]));
+    const step=Math.max(0,(right-left)/3);
+    return ids.slice(0,4).map((id,i)=>haltCam(st)+left+i*step);
+  }
   function addGroup(st, i) {
-    // the row must fit on screen without touching the knight: swap the widest extra for the narrowest pool monster, else drop one
-    const W2 = id => wideOf(id)[1] - wideOf(id)[0], small = GRP().pool.slice().sort((p, q) => W2(p) - W2(q))[0];
-    let ids = [st.enemy].concat(st.group), xs = rowSlots(st, ids);
-    for (let guard = 0; !xs.fits && ids.length > 1 && guard < 6; guard++) {
-      const k = ids.slice(1).reduce((b2, id, j) => W2(id) > W2(ids[b2]) ? j + 1 : b2, 1);
-      if (W2(ids[k]) > W2(small)) ids[k] = small; else ids.pop(); xs = rowSlots(st, ids); }
-    st.group = ids.slice(1); st.homeX = xs[0];
-    ids.slice(1).forEach((id, k) => S.actors.push(mkActor({ stop: i, id, x: xs[k + 1] + 500 + (k + 1) * 420, homeX: xs[k + 1], active: false, state: "waiting", foe: true, distant: true, extra: k + 1 })));
+    const ids=[st.enemy].concat(st.group).slice(0,4),xs=rowSlots(st,ids);
+    st.group=ids.slice(1);st.homeX=xs[0];
+    ids.slice(1).forEach((id,k)=>S.actors.push(mkActor({stop:i,id,x:xs[k+1]+500+(k+1)*420,homeX:xs[k+1],active:false,state:'waiting',foe:true,distant:true,extra:k+1})));
   }
   function buildWorld(fromStop) {
     S.stops = []; let x = 1800;
-    KM.Road.build().forEach((e, i) => { x += (e.gap || 1300) * (W.gapScale || 1); S.stops.push(Object.assign({ idx: i, stopX: x }, e)); });
+    const road = inTomb() ? KM.Tomb.route() : sketch ? sketch.route : S.chapter==="hollowwood" ? KM.HollowWood.route(S.runId) : KM.Road.build(S.routeVersion,S.runId);
+    road.forEach((e, i) => { x += (e.gap || 1300) * (W.gapScale || 1); S.stops.push(Object.assign({ idx: i, stopX: x }, e)); });
     S.actors = []; S.obstacles = []; S.props = []; S.trees = [];
     const taken = new Set(S.party.filter(m => m.name).map(m => m.name));
     let skinAt = Math.floor(Math.random() * D.party.skins); const looks = n => Array.from({ length: n }, () => 1 + (skinAt++ % D.party.skins));
@@ -102,29 +140,47 @@
       clear.push([h + slotX(D.party.maxFollowers) - 100, h + W.partyScreenX + 100]);
       if (st.type === "rest") {
         const T = RS.types[st.rest], [rn, rx] = T.recruits, w = T.view === "stall" || T.art === "stall" ? 0 : KM.Assets.entitySize(T.exterior)[0];
-        st.cands = pickCands(rn + Math.floor(Math.random() * (rx - rn + 1)), taken); st.candSkins = looks(st.cands.length);
+        st.cands = pickCands(rn + Math.floor((S.routeVersion ? KM.Progression.random(S.runId+":"+i)() : Math.random()) * (rx - rn + 1)), taken, S.runId+":"+i); st.candSkins = looks(st.cands.length);
+        if(st.rest==='tavern' && KM.DarkWizard?.unlocked() && !taken.has(D.companions.darkWizard.name) && KM.Progression.random(S.runId+':wizard:'+i)()<.6){
+          st.cands[0]={...D.companions.darkWizard};taken.add(D.companions.darkWizard.name);if(!st.candSkins.length)st.candSkins=looks(1);
+        }
+        if(st.rest==='campsite'&&!st.cands.length&&!S.tavernRecruits[st.idx]&&!S.restUses[st.idx]?.recruitLeft){st.cands=[{...D.recruitPool.find(p=>!S.party.some(m=>m.name===p.name))}];st.candSkins=looks(1);}
+        if(st.rest==='campsite'&&(S.tavernRecruits[st.idx]||S.restUses[st.idx]?.recruitLeft))st.cands=[];
+        for(const j of [...(S.restUses[st.idx]?.departedSeats||[]),...(S.restUses[st.idx]?.recruitedSeats||[])])st.cands[j]=null;
         clear.push([st.stopX - 900, st.stopX + 900]);
         if (i < fromStop) return;
         const view = ART7 && T.view;
-        if (view === "tavern" && KM.RestView.scene("tavern-arrival")) return; // v12e (Magnus): only the big arrival scene, no small road tavern first
         if (view === "tavern") { S.actors.push(mkActor({ stop: i, id: "tavern_facade", x: st.stopX, main: true, back: true, facade: true, name: T.name })); return; }
         if (T.view === "stall" && STALL()) { S.actors.push(mkActor({ stop: i, id: "scroll_seller", x: st.stopX, main: true, back: true, keeper: true, stall: true, name: T.keeperName })); return; }
         // v12r (Magnus: "the art is missing" at the shop): a stop type with art: "stall" uses Magnus's stall + seller drawing
         // (the shop has no painted building / keeper yet, MISSING_ART #23) and keeps its recruit candidates on the road
         if (T.art === "stall" && STALL()) { S.actors.push(mkActor({ stop: i, id: "scroll_seller", x: st.stopX, main: true, back: true, keeper: true, stall: true, name: T.keeperName }));
-          st.cands.forEach((p, j) => S.actors.push(mkActor({ stop: i, id: candArt(j, st), x: st.stopX - 860 + j * 165, candIdx: j, back: true, name: p.name, label: shortName(p.name) }))); return; }
-        if (view === "camp") { S.actors.push(mkActor({ stop: i, id: T.exterior, x: st.stopX, main: true, back: true, hidden: true, name: T.name })); return; }
+          st.cands.forEach((p, j) => p && S.actors.push(mkActor({ stop: i, id: candArt(j, st), x: st.stopX - 620 + j * 265, candIdx: j, back: true, name: p.name, label: shortName(p.name) }))); return; }
+        if (view === "camp") {
+          S.actors.push(mkActor({ stop:i,id:T.exterior,x:st.stopX,main:true,back:true,hidden:true,name:T.name }));
+          st.cands.forEach((p,j)=>p && S.actors.push(mkActor({stop:i,id:candArt(j,st),x:st.stopX+j*220,candIdx:j,back:true,name:p.name,label:shortName(p.name)})));
+          return;
+        }
         S.actors.push(mkActor({ stop: i, id: T.exterior, x: st.stopX, main: true, back: true, name: T.name }));
         S.actors.push(mkActor({ stop: i, id: T.keeper, x: st.stopX - w / 2 - 110, keeper: true, back: true, name: T.keeperName }));
-        st.cands.forEach((p, j) => S.actors.push(mkActor({ stop: i, id: candArt(j, st), x: st.stopX - 860 + j * 165, candIdx: j, back: true, name: p.name, label: shortName(p.name) })));
+        st.cands.forEach((p, j) => p && S.actors.push(mkActor({ stop: i, id: candArt(j, st), x: st.stopX - 620 + j * 265, candIdx: j, back: true, name: p.name, label: shortName(p.name) })));
         return;
       }
-      if (st.type === "recruit") { st.cands = pickCands(1, taken); st.candSkins = looks(st.cands.length); }
-      if (st.type === "special") { // Frank on the road, the (distant) turd dragon up on the hill
+      if (st.type === "recruit") {
+        if(st.onlyUnlocked&&!KM.DarkWizard?.unlocked()&&!S.wizardUnlocked){st.cands=[];st.candSkins=[];return;}
+        const isWizard=KM.DarkWizard?.unlocked()&&!st.companion&&!taken.has(D.companions.darkWizard.name)&&KM.Progression.random(S.runId+':wizard-road:'+i)()<.5;
+        const named = isWizard?D.companions.darkWizard:st.companion && D.companions[st.companion];
+        if(isWizard||st.companion==='darkWizard')st.wizardRock=true;
+        st.cands = named ? (taken.has(named.name) ? [] : [Object.assign({}, named)]) : pickCands(1, taken, S.runId+":"+i);
+        if(S.restUses[i]?.recruitedSeats?.includes(0))st.cands=[];
+        if (named) taken.add(named.name);
+        st.candSkins = looks(st.cands.length);
+        if (!st.cands.length) return;
+      }
+      if (st.type === "special" || st.type === "optional") { // The dragon is scenery; Frank must already be in the party.
         clear.push([st.stopX - 300, st.stopX + 700]);
         if (i < fromStop) return;
-        S.actors.push(mkActor({ stop: i, id: st.npc, x: st.stopX, main: true, back: true }));
-        S.actors.push(mkActor({ stop: i, id: st.enemy, x: st.stopX + 420, foe: true, distant: true, hill: true })); // optional creature: on its hill
+        S.actors.push(mkActor({ stop: i, id: st.enemy, x: st.stopX + 420, main: true, foe: true, distant: true, hill: true })); // optional creature: on its hill
         return;
       }
       const aid = st.type === "recruit" ? candArt(0, st) : st.enemy || st.npc;
@@ -132,17 +188,20 @@
       if (st.type === "math" && !st.group) st.group = rollGroup(st);
       if (i >= fromStop && st.group && st.group.length) addGroup(st, i);
       if (i >= fromStop) S.actors.push(mkActor({ stop: i, id: aid, main: true, x: st.walksIn || st.group ? st.stopX + 500 : st.homeX || st.stopX, homeX: st.homeX, active: !(st.walksIn || st.group), state: st.walksIn || st.group ? "waiting" : "idle",
-        foe: isFight(st), distant: isFight(st),   // hidden strength: seen far off (grey, in the mist) until the party commits
+        foe: isFight(st), distant: isFight(st),   // strength stays hidden until commitment; artwork stays opaque and in colour
+        wizardRock:!!st.wizardRock, riddleVariant:st.type==='riddle'?S.stops.slice(0,i).filter(q=>q.type==='riddle').length%3:null,
         back: ["bridgekeeper", "enchanter", "hermit"].includes(aid), candIdx: st.type === "recruit" ? 0 : undefined, name: st.type === "recruit" ? st.cands[0].name : undefined, label: st.type === "recruit" ? shortName(st.cands[0].name) : undefined }));
     });
+    if(inTomb()){S.graves=[];S.companionGraves=[];S.swaps=null;return;}
+    if(sketch)return;
     buildGraves();
     // v19: the snake dragon sits on its hill in the scenery (KM_ART19 hill strip swapped into the mid row), placed so it is
     // on screen at swap.screenX when the party halts at Frank's stop (v3 README); it leaves the hill on a commit
     const MS = ART7 && D.scenery.mid, hq = MS && MS.swap && KM_ART7.parallax[MS.swap.strip], fs = hq && S.stops.find(st => st.id === MS.swap.stop);
-    S.swaps = fs ? { mid: { at: MS.swap.screenX + haltCam(fs) * MS.speed - (hq.dragon[0] + hq.dragon[2]) / 2 * L.art, on: true } } : null;
+    S.swaps = fs ? { mid: { at: MS.swap.screenX + haltCam(fs) * MS.speed - (hq.dragon[0] + hq.dragon[2]) / 2 * L.art * (MS.artScale || D.scenery.terrainScale || 1), on: false, landmark: true } } : null;
     const end = S.stops[S.stops.length - 1].stopX + 4000;
     const free = (x, half) => !clear.some(([a, b]) => x + half > a && x - half < b);
-    if (ART7) { // roadside trees from Magnus's tree props (front lane, behind the party)
+    if (ART7 && S.chapter!=="hollowwood") { // roadside trees from Magnus's tree props (front lane, behind the party)
       const T = D.scenery.trees; let n = 0;
       for (let tx = 600; tx < end; tx += rnd(...T.every)) { const i = n++ % 4, half = KM.Scenery.treeWidth(i) / 2 + T.clearance; if (free(tx, half)) S.trees.push({ x: tx, i }); }
     }
@@ -151,7 +210,7 @@
         const id = pickOne(W.obstacleKinds), half = KM.Assets.entitySize(id)[0] / 2 + 140;
         if (free(ox, half)) S.obstacles.push({ x: ox, id });
       }
-      S.obstacles.forEach(o => clear.push([o.x - 140, o.x + 140]));
+      if(!arena)S.obstacles.forEach(o => clear.push([o.x - 140, o.x + 140]));
       for (let px = 400; px < end; px += rnd(...W.propEvery)) {
         const id = pickOne(W.propKinds), half = KM.Assets.entitySize(id, W.propScale)[0] / 2 + W.propClearance;
         if (free(px, half)) S.props.push({ x: px, id });
@@ -174,8 +233,8 @@
   }
   const graveCam = d => { const x = graveX(d); return x == null ? null : Math.max(0, x - GR.respectAt); };
   function buildGraves() {
-    const ds = KM.Save.deaths().map(d => ({ d, cam: graveCam(d), wx: graveX(d) })).filter(o => o.cam != null).sort((a, b) => a.cam - b.cam);
-    S.graves = []; S.respect = null;
+    const ds = KM.Save.deaths().filter(d=>(d.chapter||"village")===S.chapter).map(d => ({ d, cam: graveCam(d), wx: graveX(d) })).filter(o => o.cam != null).sort((a, b) => a.cam - b.cam);
+    S.graves = []; S.respect = null; buildCompanionGraves();
     ds.forEach(({ d, cam, wx }) => {
       const g = S.graves[S.graves.length - 1];
       if (g && cam - g.cam < GR.merge) g.deaths.push(d); else S.graves.push({ cam, wx, deaths: [d], done: false });
@@ -186,6 +245,23 @@
       g.actor = mkActor({ id: g.marker, grave: true, name: g.deaths.length > 1 ? "Gravestones" : "Gravestone", label: g.deaths.length > 1 ? `${g.deaths.length} knights` : `Sir ${d.name}` });
     });
   }
+  function buildCompanionGraves(){
+    S.companionGraves=KM.Save.companionGraves().filter(d=>(d.chapter||"village")===S.chapter).map(d=>({...d,wx:graveX(d)-GR.ahead})).filter(d=>Number.isFinite(d.wx));
+  }
+  function buryCompanion(m,killer){
+    if(!m || m.id==='hero' || m.graveId)return;
+    const st=S.enc?.st||S.stops[S.stop];
+    const d={chapter:S.chapter,deathId:`${S.runId||'run'}-${m.id}-${Date.now()}-${S.stats.lost||S.stats.sacrificed||0}`,runId:S.runId,name:m.name,killer:killer||'unknown',x:S.camX,wx:S.camX,
+      progress:st&&st.src!=null?{encounter:st.src,offset:S.camX-haltCam(st)}:null,at:Date.now()};
+    Object.assign(d,KM.CompanionGraves.place(d,S.companionGraves));m.graveId=d.deathId;
+    S.companionGraves.push(d);if(!PREVIEW)KM.Save.addCompanionGrave(d);
+  }
+  function unburyCompanion(m){
+    if(inTomb())KM.Tomb.revive(S,m);
+    if(!m.graveId)return;S.companionGraves=S.companionGraves.filter(d=>d.deathId!==m.graveId);
+    if(!PREVIEW)KM.Save.removeCompanionGrave(m.graveId);delete m.graveId;
+  }
+  const drawCompanionGraves=layer=>KM.CompanionGraves.draw(ctx,S.companionGraves,S.camX,layer);
   // grave screen x: a road prop (moves with the road, speed 1) at its death spot
   const graveSX = g => W.partyScreenX + (g.wx - S.camX);
   function epitaph(g) {
@@ -207,14 +283,33 @@
   // v10: the frontGround run seed (choose-strip.js: "store/reuse the run seed") = a hash of the saved runId, also saved
   const seedOf = id => { let h = 2166136261; for (const ch of String(id)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; return h & 0x7fffffff; };
   const fgSeed = () => (S.fgSeed != null ? S.fgSeed : (S.fgSeed = seedOf(S.runId)));
-  const core = () => ({ name: S.name, hp: S.hp, gold: S.gold, stop: S.stop, dist: Math.round(S.dist), fid: S.fid, further: S.furtherDone, hunters: S.hunters, spells: S.spells, spellLeft: S.spellLeft, mead: S.mead ? 1 : 0, bottles: S.bottles, runId: S.runId, fgSeed: fgSeed(),
+  const core = () => ({ chapter:S.chapter, challengeMode:S.challengeMode, name: S.name, hp: S.hp, gold: S.gold, score: S.score, scoreLedger: KM.Score.copy(S.scoreLedger), riddleSolved:S.riddleSolved.slice(),wizardUnlocked:S.wizardUnlocked, stop: S.stop, dist: Math.round(S.dist), fid: S.fid, further: S.furtherDone, hunters: S.hunters, spells: S.spells, spellLeft: S.spellLeft, mead: S.mead ? 1 : 0, bottles: S.bottles, runId: S.runId, fgSeed: fgSeed(),
+    pendingDismissal:S.pendingDismissal?JSON.parse(JSON.stringify(S.pendingDismissal)):null,loot:S.loot.map(q=>({...q})),routeVersion:S.routeVersion,restUses:JSON.parse(JSON.stringify(S.restUses)),rolesVersion: 3, dragonSlain: !!S.dragonSlain, tavernRecruits: {...S.tavernRecruits},
     party: S.party.map(m => { const { sx, hopY, act, hopping, dying, ...rec } = m; return rec; }), stats: Object.assign({}, S.stats), usedRiddles: S.usedRiddles.slice() });
-  function save() { KM.Save.write(Object.assign(core(), { checkpoint: S.checkpoint })); }
+  function save() { if (sketch || PREVIEW) return; KM.Save.write(Object.assign(core(), { checkpoint: S.checkpoint })); }
   function setCheckpoint() { S.checkpoint = core(); save(); }
   function applyCore(c) {
-    S.name = c.name; S.hp = c.hp; S.gold = c.gold; S.stop = c.stop; S.stats = Object.assign({ correct: 0, wrong: 0, riddles: 0, sacrificed: 0 }, c.stats); S.usedRiddles = (c.usedRiddles || []).slice();
-    S.dist = c.dist || 0; S.furtherDone = !!c.further; S.hunters = c.hunters || 0; S.spells = c.spells != null ? c.spells : SPL.start; S.spellLeft = c.spellLeft || 0; S.mead = c.mead ? 1 : 0; S.bottles = c.bottles || 0; S.runId = c.runId || "run-" + Date.now(); S.fgSeed = c.fgSeed != null ? c.fgSeed : seedOf(S.runId);
-    S.party = c.party.map((m, i) => Object.assign({}, m, { sx: slotX(i), hopY: 0 }));
+    S.chapter=c.chapter==="tomb"&&KM.Tomb?.requested()?"tomb":c.chapter==="hollowwood"?"hollowwood":"village";
+    setChallengeMode(c.challengeMode || "math");
+    S.pendingDismissal=c.pendingDismissal&&c.pendingDismissal.stop===c.stop?JSON.parse(JSON.stringify(c.pendingDismissal)):null;
+    S.loot=(c.loot||[]).filter(q=>Number.isFinite(q.x)&&q.amount>0).map(q=>({...q}));
+    S.routeVersion=c.routeVersion||0;S.restUses=JSON.parse(JSON.stringify(c.restUses||{}));
+    S.riddleSolved=(c.riddleSolved||[]).slice();S.wizardUnlocked=!!c.wizardUnlocked;
+    S.enc = null; S.deathDepth = null; S.dragonSlain = !!c.dragonSlain; S.tavernRecruits = {...(c.tavernRecruits || {})};
+    S.name = c.name; S.hp = c.hp; S.gold = c.gold; S.score = Number.isFinite(c.score) ? Math.trunc(c.score) : 0; S.scoreLedger = KM.Score.copy(c.scoreLedger); S.stop = c.stop; S.stats = Object.assign({ correct: 0, wrong: 0, riddles: 0, sacrificed: 0 }, c.stats); S.usedRiddles = (c.usedRiddles || []).slice();
+    S.dist = c.dist || 0; S.furtherDone = !!c.further; S.hunters = c.hunters || 0; S.spells = c.spells != null ? c.spells : SPL.start; S.spellLeft = Math.min(SPL.problems, Math.max(0, c.spellLeft || 0)); S.mead = c.mead ? 1 : 0; S.bottles = c.bottles || 0; S.runId = c.runId || "run-" + Date.now(); S.fgSeed = c.fgSeed != null ? c.fgSeed : seedOf(S.runId);
+    S.party = c.party.map((m, i) => Object.assign({}, PA.normalizeGear(m), { role: PA.role(m), name: m.companionId==='frank' ? D.companions.frank.name : m.name, sx: slotX(i), hopY: 0 }));
+    const cap=maxHp();
+    if(c.rolesVersion===1 || c.rolesVersion===2){
+      // Versions 1 and 2 used different caps. Preserve missing red hearts, never kill
+      // a living party on load, and keep zero or fractional health as such.
+      const oldMax=S.party.reduce((sum,m)=>{
+        const cloth=(PA.villager(m)&&!m.armorTrained)||['priest','executioner','darkWizard'].includes(PA.role(m));
+        return sum+(cloth?2:3)-(c.rolesVersion===1?1:0);
+      },0);
+      S.hp=c.hp<=0?0:Math.min(cap,Math.max(Math.min(1,c.hp), cap-Math.max(0,oldMax-c.hp)));
+    }else S.hp=Math.max(0,Math.min(cap,c.hp)); // unversioned and v3 use two hearts per member
+    S.ink=null;
     S.fid = Math.max(c.fid || 0, ...S.party.map(m => +String(m.id).replace(/\D/g, "") || 0));
     S.view = null; S.dying = null; S.dice = []; S.timers = []; S.toast = null; S.entering = null;
     buildWorld(S.stop); placeCameraAt(S.stop);
@@ -224,7 +319,7 @@
   // v11 (Magnus: "absolute destruction of unnecessary small texts"): the strip only holds the big carved sum, a few
   // LARGE key options and one icon status row. Every line of dialogue is a speech bubble above its speaker.
   const panel = $("panel");
-  function showPanel(html, cls) { panel.className = "panel " + (cls || ""); panel.innerHTML = html; fitSums(); fitMoves(); fitRiddleQ(); }
+  function showPanel(html, cls) { const sky=$("sky-title"); if(sky)sky.hidden=cls!=="title"; panel.className = "panel " + (cls || ""); panel.innerHTML = KM.I18n?.html(html) ?? html; fitSums(); fitMoves(); fitRiddleQ(); }
   // v12s: the strip is 184 px, so a riddle that wraps to 2-3 lines steps its font down (KM_UI.riddleQ.minFont) until the
   // question frame + answer row fit inside the strip; every current riddle is one line at the full size.
   function fitRiddleQ() {
@@ -235,16 +330,10 @@
   // v12r (Magnus: "the buttons are outside of frame"): move rows keep every button whole (flex: none, caps padding) and
   // inside the strip: the first height of KM_UI.moves.heights whose single row fits, else two centred rows (split at .brk).
   function fitMoves() {
-    const MV = window.KM_UI && KM_UI.moves; if (!MV) return;
-    panel.querySelectorAll(".opts.moves").forEach(row => {
-      const pr = panel.getBoundingClientRect(), k = pr.width / (panel.offsetWidth || pr.width || 1), avail = (pr.width / k) - 2 * MV.margin;
-      const set = h => { row.style.setProperty("--mv-bh", h + "px"); row.style.setProperty("--mv-fs", (h * MV.font).toFixed(1) + "px"); row.style.setProperty("--mv-ic", (h * MV.icon).toFixed(1) + "px"); row.style.setProperty("--mv-sp", (h * MV.spell).toFixed(1) + "px"); };
-      const width = () => [...row.children].reduce((w, c) => w + c.getBoundingClientRect().width / k, 0) + Math.max(0, row.children.length - 1) * (parseFloat(getComputedStyle(row).columnGap) || 0);
-      row.classList.add("fit"); row.classList.remove("tworow"); panel.classList.remove("tworows");
-      for (const h of MV.heights) { set(h); if (width() <= avail) return; }
-      if (!row.querySelector(".brk")) return; // nothing to split: smallest single-row height
-      set(MV.twoRowH); row.classList.add("tworow"); panel.classList.add("tworows");
-      row.style.rowGap = MV.rowGap + "px"; panel.style.setProperty("--mv-prompt", MV.twoRowPrompt + "px");
+    panel.querySelectorAll('.opts.moves').forEach(row => {
+      const n=row.querySelectorAll('button').length, cols=Math.min(4,n);
+      row.classList.add('fit','role-moves'); row.style.setProperty('--move-cols', cols);
+      panel.classList.toggle('tworows',n>4);
     });
   }
   // v11b-4: big sums are never cut. Shrink the font until problem + answer (+ glyph height) fit inside the strip with a margin.
@@ -283,6 +372,7 @@
   const spellIcon = cls => `<img class="spellicon ${cls || ""}" src="${SPELL_SRC}" alt="">`;
   const scrollImg = new Image(); scrollImg.src = SPELL_SRC;
   const MICON = {
+    fist: `<svg viewBox="0 0 40 40"><path d="M10 33V23L6 18Q4 13 8 12L13 16V9Q13 5 17 7Q20 3 23 7Q27 5 29 9Q33 8 34 13V22L29 33Z" fill="#e2cfa6" ${INK}/><path d="M17 8V16M23 8V16M29 10V18M13 18L22 20" fill="none" ${INKW(2)}/></svg>`,
     weak: `<svg viewBox="0 0 40 40"><path d="M8 32 L28 12" ${INK}/><path d="M26 8 l6 6 -3 1 -4 -4z" fill="#efe0c0" ${INK}/><path d="M6 28 l6 6" ${INK}/></svg>`,
     hard: `<svg viewBox="0 0 40 40"><path d="M8 32 L28 12" ${INKW(5)}/><path d="M6 28 l6 6" ${INK}/><path d="M30 4 l1 6 5 -3 -3 5 6 1 -6 2 3 5 -5 -3 -1 6" fill="#d16f19" ${INKW(2)}/></svg>`,
     heal: `<svg viewBox="0 0 40 40"><path d="M20 34 C4 24 4 8 13 8 C17 8 19 11 20 14 C21 11 23 8 27 8 C36 8 36 24 20 34Z" fill="#b3321f" ${INK}/></svg>`,
@@ -291,6 +381,7 @@
     mead: `<svg viewBox="0 0 40 40"><path d="M9 11 H27 V33 Q18 36 9 33Z" fill="#c98a2b" ${INK}/><path d="M9 11 Q12 5 18 8 Q24 4 27 11" fill="#efe0c0" ${INK}/><path d="M27 15 Q35 15 35 22 Q35 29 27 29" fill="none" ${INKW(3)}/></svg>`,
     stew: `<svg viewBox="0 0 40 40"><path d="M5 19 H35 Q34 33 20 34 Q6 33 5 19Z" fill="#8a5a2b" ${INK}/><path d="M12 14 q2 -4 0 -8 M20 14 q2 -4 0 -8 M28 14 q2 -4 0 -8" fill="none" ${INKW(2)}/></svg>`,
     fire: `<img class="itemicon" src="${IT.art.dir + IT.art.icon}" alt="">`, // v12k Maggi's fire bottle stamp
+    lightning: '<span aria-hidden="true">ϟ</span>',
     sacrifice: `<svg viewBox="0 0 40 40"><path d="M10 6 H30 V22 C30 30 20 35 20 35 C20 35 10 30 10 22Z" fill="#efe0c0" ${INK}/><path d="M20 10 V30 M13 17 H27" ${INK}/></svg>`
   };
   // v12q: strip buttons wear Maggi's ornamented ink frame (CSS border-image from KM_UI.frame, src/config/ui_frames.js);
@@ -313,10 +404,17 @@
     st.setProperty("--rf-lw", (RF.slice[0] * RF_S).toFixed(1) + "px"); st.setProperty("--rf-rw", (RF.slice[1] * RF_S).toFixed(1) + "px");
     st.setProperty("--rf-vw", (Math.ceil(RF.size[1] / 2) * RF_S).toFixed(2) + "px"); st.setProperty("--rf-h", (RF.size[1] * RF_S).toFixed(1) + "px"); }
   const move = (key, label, act, icon, attrs = "", off = false) => `<button class="opt plaque" data-act="${act}" ${attrs} ${off ? "disabled" : ""}>${BANNER}${MICON[icon] || ""}<span class="nm">${label}</span></button>`;
+  // Shared square actions reuse the Knight's ink frame; these are persistent choices, not a deck.
+  const actionCard = ({label,act,icon='',meta='',detail='',note='',attrs='',off=false,price=null,title=''}) =>
+    `<button type="button" class="knight-card action-card" data-act="${act}" ${attrs} ${off?'disabled':''} ${title?`title="${esc(T(title))}"`:''}>${meta?`<small class="action-meta">${esc(T(meta))}</small>`:''}${icon?`<span class="card-symbol" aria-hidden="true">${icon}</span>`:''}<strong>${esc(T(label))}</strong>${price!==null?coin(price):''}${detail?`<span class="action-detail">${detail}</span>`:''}${note?`<small class="action-note">${esc(T(note))}</small>`:''}</button>`;
+  const actionRow = (cards,label='') => `<div class="action-deck">${label?`<div class="action-heading">${esc(T(label))}</div>`:''}<div class="action-row">${cards.join('')}</div></div>`;
+  const walkCard = (act='leaveRest') => actionCard({label:'Walk on',act,icon:'→',meta:'On the road'});
+  const recruitCard = (p,j,act='restRecruit',off=false) => actionCard({label:shortName(p.name),act,icon:MICON.sacrifice,meta:'Companion',detail:T('Recruit'),note:'Solve to recruit',attrs:`data-j="${j}"`,off});
+  const swingIcon = bare => bare?'<svg class="stick-stamp" viewBox="128 897 530 264" aria-hidden="true"><image href="assets/villager-start/v22/parts/stick.png" width="1037" height="1517"/></svg>':'<img src="assets/ui/shop/sword-cutout.png" alt="">';
   // prices (rest stops): Magnus's purse, small, + the number (no coin icon, v11b)
   const coin = n => `<span class="cost">${window.KM_ART11 && KM_ART11.purse ? `<img class="purseimg mini" src="${KM_ART11.root + KM_ART11.purse.img}" alt="">` : `<i class="coin"></i>`}${n}</span>`;
   // v11b money: Magnus's painted purse (KM_ART11.purse) + the number, at the hearts' height
-  const purse = n => `<span class="purse" title="gold">${window.KM_ART11 && KM_ART11.purse ? `<img class="purseimg" src="${KM_ART11.root + KM_ART11.purse.img}" alt="">` : `<i class="coin"></i>`}${n}</span>`;
+  const purse = n => `<span class="purse" title="coppers">${window.KM_ART11 && KM_ART11.purse ? `<img class="purseimg" src="${KM_ART11.root + KM_ART11.purse.img}" alt="">` : `<i class="coin"></i>`}${n}</span>`;
   const heartsIcons = (on, max, cls) => `<span class="hearts ${cls || ""}">${Array.from({ length: max }, (_, i) => `<i class="${i < on ? "on" : ""}">♥</i>`).join("")}</span>`;
   // ---------- v11 speech: big bubbles above the speaker, long text split into short bubbles shown in turn ----------
   const SP = L.speech, speechLog = [], speakers = new Set(), speechOverflow = [];
@@ -325,6 +423,7 @@
   const mctx = document.createElement("canvas").getContext("2d");
   function wrap(text) {
     mctx.font = `${SP.font}px Georgia, serif`;
+    if(KM.I18n?.jp())return KM.I18n.wrap(text,SP.maxW-24,s=>mctx.measureText(s).width);
     const lines = []; let cur = "";
     for (const w of String(text).replace(/\s+/g, " ").trim().split(" ")) { const t = cur ? cur + " " + w : w; if (cur && mctx.measureText(t).width > SP.maxW) { lines.push(cur); cur = w; } else cur = t; }
     if (cur) lines.push(cur); return lines;
@@ -344,7 +443,7 @@
   const chunkSecs = c => Math.max(SP.minSecs, Math.min(SP.maxSecs, SP.minSecs * 0.4 + c.join(" ").length * SP.perChar));
   // speak(o, text, {hold}) : o = any speaker object (actor, party member, candidate, voice). hold = wait for the player
   function speak(o, text, opts) {
-    if (!o || !text) return; const chunks = chunksOf(text);
+    if (!o || !text) return; text=T(text);const chunks = chunksOf(text);
     o.sp = { chunks, i: 0, t: 0, hold: !!(opts && opts.hold), keep: opts && opts.keep }; speakers.add(o); speechLog.push(String(text));
   }
   const say = (actor, text, keep) => speak(actor, text, keep && { keep });
@@ -365,15 +464,33 @@
   function voice(id, text, x, y) { let v = S.voices.find(q => q.id === id); if (!v) S.voices.push(v = { id, x, y }); v.x = x; v.y = y; speak(v, text); }
   // opaque standing height above the feet (tools/measure_feet.js KM_TALL), layout units; damage numbers start on the head
   const tallOf = id => (window.KM_TALL && KM_TALL[id]) || KM.Assets.entityHeight(id);
-  function float(text, x, y, color) { S.floats.push({ text, x, y, t: 0, color: color || "#fff" }); }
-  function hearts(n) { S.hp = Math.max(0, Math.min(maxHp(), S.hp + n)); }
+  function float(text, x, y, color) {
+    text=T(text);
+    if(inTomb()){
+      const i=S.party.findIndex((m,i)=>Math.abs(x-slotX(i))<2);
+      if(i>=0){const p=partyPose(S.party[i],i);x=p.x;y=p.y-210;}
+    }
+    if (S.enc && S.enc.depth) {
+      const i = S.party.findIndex((m, i) => Math.abs(x - slotX(i)) < 2);
+      if (i >= 0) { const p = partyPose(S.party[i], i); x = p.x; y = p.y - (W.groundY - y) * p.scale; }
+      else if (S.enc.act) { const p = dragonPose(S.enc.act); if (p) y = p.y - (W.groundY - y) * p.scale; }
+    }
+    S.floats.push({ text, x, y, t: 0, color: color || "#fff" }); }
+  function hearts(n) {
+    const before=S.hp;S.hp=Math.max(0,Math.min(maxHp(),S.hp+n));let healed=Math.max(0,S.hp-before);
+    for(const m of S.party){const recovery=Math.min(healed,m.riddleWounds||0);m.riddleWounds=Math.max(0,(m.riddleWounds||0)-recovery);healed-=recovery;}
+  }
   const screenX = wx => wx - S.camX; // world -> view x (scene px)
   // one icon status row: hearts, gold, hunters track, journey distance (no words)
   let hudCache = "";
   const SKULL = `<svg class="skull" viewBox="0 0 32 32" aria-label="hunters"><path d="M16 3c-7 0-11 4.6-11 10.4 0 3.6 1.7 6 4 7.4V25h3v-2.4h1.6V25h4.8v-2.4H20V25h3v-4.2c2.3-1.4 4-3.8 4-7.4C27 7.6 23 3 16 3z" fill="#efe0c0" stroke="#2a1d12" stroke-width="2.2" stroke-linejoin="round"/><path d="M8.6 13.6c1-2.2 4.4-2.4 5.4-.4.7 1.6-.6 3.6-2.6 3.6-2.2 0-3.4-1.6-2.8-3.2zM23.4 13.6c-1-2.2-4.4-2.4-5.4-.4-.7 1.6.6 3.6 2.6 3.6 2.2 0 3.4-1.6 2.8-3.2zM16 17.2l-1.8 3h3.6z" fill="#2a1d12"/><path d="M11 28.5h10" stroke="#2a1d12" stroke-width="2"/></svg>`;
   const HELM = `<svg class="helm" viewBox="0 0 32 32" aria-label="you"><path d="M6 29V12C6 6.5 10.5 3 16 3s10 3.5 10 9v17z" fill="#efe0c0" stroke="#2a1d12" stroke-width="2.2" stroke-linejoin="round"/><path d="M7 14.5h18" stroke="#2a1d12" stroke-width="3.2"/><path d="M16 18v9M12.5 22.5h7" stroke="#d16f19" stroke-width="2.6"/><path d="M9 20.5h2M9 24h2M21 20.5h2M21 24h2" stroke="#2a1d12" stroke-width="1.6"/></svg>`;
   function renderHUD() {
-    const ms = MU.settings(), mute = ms.muted ? `<span class="muted" title="music off (M)">♪</span>` : "";
+    const ms = MU.settings(), mute = `<button class="music-toggle" data-act="toggleMusic" aria-label="${ms.muted?'Unmute music':'Mute music'}" aria-pressed="${ms.muted}" title="${ms.muted?'Unmute music':'Mute music'} (M)"><span aria-hidden="true">${ms.muted?'♩':'♫'}</span> Music ${ms.muted?'off':'on'}</button>`;
+    if(inTomb()){
+      const h='<span class="tomb-label">'+T('The Tomb Passage')+' <small>'+Math.min(S.stop+1,S.stops.length)+' / '+S.stops.length+'</small></span>'+mute;
+      if(h!==hudCache){$("hud").innerHTML=KM.I18n?.html(h)||h;hudCache=h;}return;
+    }
     let h = mute;
     if (S.mode !== "title" && S.mode !== "intro" && S.mode !== "name") {
       const n = C.hunters.blocks, hc = Math.min(S.hunters, n);
@@ -386,40 +503,64 @@
       const ph = partyHeartsRect();
       h = `<span class="purse-at" style="top:${(ph ? ph.y + ph.h : 50) + 10}px">${purse(S.gold)}</span>${track}<span class="dist" title="leagues travelled"><i class="mile">⚐</i>${leagues()}</span>${mute}`;
     }
-    if (h !== hudCache) { $("hud").innerHTML = h; hudCache = h; }
+    if (h !== hudCache) { $("hud").innerHTML = KM.I18n?.html(h)||h; hudCache = h; }
   }
   function renderWalk() {
     if (S.mode !== "walk") return;
     showPanel(`<div class="center walkp"></div>`, "walk"); // the road: nothing in the strip but the status row
   }
   // ---------- title / intro ----------
+  function chooseLanguage(lang){KM.I18n.set(lang);hudCache="";showTitle();renderHUD();}
+  function sketchPage(state) {
+    hush();
+    S.mode=state;
+    S.enc=null;
+    const title=state==='sketchTitle'?'The Sketchbook March':state==='sketchWin'?'The road is clear.':'Here lies the pilgrim.';
+    const prompt=state==='sketchTitle'?'Enter the march':'Try the march again';
+    showPanel(`<div class="center"><div style="display:flex;align-items:center;justify-content:center;gap:20px">
+      <img src="assets/sketchbook/coif.png" alt="" style="height:90px;width:auto"><h1 style="margin:0">${T(title)}</h1></div>
+      <div class="opts big3">${big('Enter',prompt,'sketchStart')}${big('','Back to game','sketchExit')}</div></div>`, 'info');
+  }
+  function sketchStart() {
+    if(!sketch)return;
+    S.winT=0;S.camX=0;S.dist=0;S.stop=0;S.dying=null;S.deathDepth=null;S.enc=null;
+    S.name='Pilgrim';S.runId='sketchbook';S.party=[newMember('hero',slotX(0))];
+    S.hp=maxHp();S.hunters=0;S.gold=0;S.score=0;S.scoreLedger=KM.Score.empty();
+    S.stats={correct:0,wrong:0,riddles:0,sacrificed:0};S.floats=[];S.timers=[];S.loot=[];
+    S.toast=null;S.shake=0;S.stepT=0;hush();buildWorld(0);
+    S.mode='walk';renderWalk();renderHUD();
+  }
   function showTitle() {
-    S.mode = "title"; MU.setScene("title"); hush();
+    S.mode = "title"; S.enc = null; S.deathDepth = null; musicScene("title"); hush();
     const sv = KM.Save.load();
-    S.party = [newMember("hero", slotX(0))]; buildWorld(0); S.camX = 0; addNarrator();
-    showPanel(`<div class="center titlep"><h1>Medieval Math</h1>
-      <div class="opts">${sv ? big("Enter", "Continue", "continue", 'id="continueBtn"') + big("N", "New game", "newGame", 'id="newGameBtn"') : big("Enter", "New game", "newGame", 'id="newGameBtn"')}</div></div>`, "title");
+    S.party = [newMember("hero", slotX(0), true)]; S.hp = maxHp(); buildWorld(0); S.camX = 0; addNarrator();
+    const heading=`<h1>Medieval Math</h1><div class="mode-choice" role="group" aria-label="Game mode">${opt('', 'The Village Idiot','chooseMode',`data-mode="math" aria-pressed="${S.challengeMode==='math'}"`)}${opt('', 'The Knight','chooseMode',`data-mode="knight" aria-pressed="${isKnight()}"`)}${opt('', 'The Fellowship','chooseMode',`data-mode="fellowship" aria-pressed="${isFellowship()}"`)}</div><div class="mode-description">${isFellowship()?'One sum · the whole party strikes':isKnight()?'Play a card · solve to strike':'Maths · solve to strike'}</div>`;
+    if($("sky-title"))$("sky-title").innerHTML=KM.I18n?.html(heading)??heading;
+    showPanel(`<div class="center titlep">
+      <div class="opts">${sv ? big("Enter", "Continue", "continue", 'id="continueBtn"') + big("N", "New game", "newGame", 'id="newGameBtn"') : big("Enter", "New game", "newGame", 'id="newGameBtn"')}</div><button class="opt plaque scores-link" data-act="leaderboard">Leaderboard</button><div class="language-choice" aria-label="Language / 言語"><button class="opt plaque" data-act="language" data-lang="en" aria-pressed="${!KM.I18n?.jp()}">English</button><button class="opt plaque" data-act="language" data-lang="ja" aria-pressed="${!!KM.I18n?.jp()}">日本語</button></div></div>`, "title");
   }
   function startRunBookkeeping() { const b = KM.Save.best(); S.bestAtStart = b ? b.leagues : 0; S.toast = null; }
   function newGame() {
-    KM.Save.clear(); hush();
-    S.name = "Nobody"; S.hp = D.party.heartsPerMember; S.gold = 0; S.stop = 0; S.dist = 0; S.fid = 0; S.hunters = 0; S.spells = SPL.start; S.spellLeft = 0; S.mead = 0; S.bottles = IT.start; S.runId = "run-" + Date.now(); S.fgSeed = seedOf(S.runId);
-    S.stats = { correct: 0, wrong: 0, riddles: 0, sacrificed: 0 }; S.usedRiddles = [];
-    S.party = [newMember("hero", slotX(0))]; buildWorld(0); S.camX = 0; addNarrator(); S.floats = []; S.dice = []; S.enc = null; S.timers = []; S.view = null; S.dying = null; S.entering = null; S.voices = [];
+    if(KM.Tomb?.requested())return startTomb();
+    S.chapter=KM.HollowWood?.requested()?"hollowwood":"village";
+    hush(); S.deathDepth = null; S.dragonSlain = false;
+    S.name = "Nobody"; S.hp = D.party.heartsPerMember; S.gold = 5; S.loot = []; S.score = 0; S.scoreLedger = KM.Score.empty(); S.riddleSolved=[];S.wizardUnlocked=false;S.lightning=null; S.stop = 0; S.dist = 0; S.fid = 0; S.hunters = 0; S.spells = 0; S.spellLeft = 0; S.mead = 0; S.bottles = 0; S.runId = "run-" + Date.now(); S.fgSeed = seedOf(S.runId);
+    S.stats = { correct: 0, wrong: 0, riddles: 0, sacrificed: 0 }; S.usedRiddles = []; S.pendingDismissal=null; S.tavernRecruits = {}; S.restUses={}; S.routeVersion=3;
+    S.party = [newMember("hero", slotX(0), true)]; S.hp = maxHp(); buildWorld(0); S.camX = 0; addNarrator(); S.floats = []; S.dice = []; S.enc = null; S.timers = []; S.view = null; S.dying = null; S.entering = null; S.voices = [];
     S.furtherDone = false; startRunBookkeeping();
-    S.mode = "intro"; MU.setScene("intro"); S.intro = { lines: D.dialogue.intro.map(A.text), vos: D.dialogue.intro.map(A.voOf), i: 0, after: null };
-    renderIntro(); lineVO();
+    S.mode = "name"; musicScene("intro"); S.intro = null;
+    renderIntro();
   }
   function continueGame() {
     const sv = KM.Save.load(); if (!sv) return newGame();
-    hush(); S.checkpoint = sv.checkpoint; applyCore(sv); startRunBookkeeping(); S.mode = "walk"; MU.setScene("walk"); renderWalk();
+    hush(); S.checkpoint = sv.checkpoint; applyCore(sv); startRunBookkeeping(); S.mode = "walk"; musicScene("walk"); renderWalk();
   }
   const narrator = () => S.actors.find(a => a.narrator && !a.dead);
   // the intro: the narrator's (Magnus's skeleton on his rock) lines are bubbles; Space shows the next bubble / line, Esc skips
   function renderIntro() {
     if (S.mode === "name") {
       speak(narrator(), A.text(D.dialogue.namePrompt), { hold: true });
-      showPanel(`<div class="center dlg"><div class="namerow"><input id="nameInput" maxlength="16" placeholder="your name" autocomplete="off" spellcheck="false">${big("Enter", "OK", "submitName", 'id="nameOk"')}</div></div>`, "dialog");
+      showPanel(`<div class="center dlg"><div class="namerow"><input id="nameInput" aria-label="Your name" maxlength="16" placeholder="your name" autocomplete="off" spellcheck="false">${big("Enter", "Begin", "submitName", 'id="nameOk"')}</div></div>`, "dialog");
       setTimeout(() => { const i = $("nameInput"); if (i) i.focus(); }, 30);
       return;
     }
@@ -458,15 +599,16 @@
     if (want > sp.i) { sp.i = want; sp.t = 0; }
   }
   function submitName() {
+    if (S.mode !== "name") return;
     const inp = $("nameInput"); const v = (inp ? inp.value : "").trim().slice(0, 16) || "Nobody";
     S.name = v.replace(/^sir\s+/i, ""); if (inp) inp.blur();
-    S.mode = "intro"; S.intro = { lines: [A.text(D.dialogue.afterName).replace(/\{name\}/g, S.name)], vos: [A.voOf(D.dialogue.afterName)], i: 0, after: "go" };
-    renderIntro(); lineVO();
+    if (!PREVIEW) KM.Save.clear();
+    startJourney();
   }
   function startJourney() {
     S.intro = null;
     const nar = narrator(); if (nar) { nar.sp = null; nar.quiet = true; } // v12g (Magnus): he stays on his rock; the party walks past him
-    setCheckpoint(); S.mode = "walk"; MU.setScene("walk"); renderWalk();
+    setCheckpoint(); S.mode = "walk"; musicScene("walk"); renderWalk();
   }
 
   // ---------- walking ----------
@@ -474,30 +616,41 @@
     if (S.stop >= S.stops.length) { S.camX += W.walkSpeed * dt; S.dist += W.walkSpeed * dt; S.winT += dt; if (S.winT > 2.5) showWin(); return; }
     if (S.respect) { S.respect.t += dt; if (S.respect.t >= GR.respectsSecs) { S.respect.g.done = true; S.respect = null; renderWalk(); } return; }
     const st = S.stops[S.stop], act = S.actors.find(a => a.stop === S.stop && a.main);
+    // Without the priest this remains a distant landmark: no prompt, penalty or forced fight.
+    if (st.id === "frank" && !frankMember() && S.camX >= haltCam(st)) { finishEncounter(); return; }
     let halt = haltCam(st);
     // graves: halt in front of the next one we have not passed yet (ones behind us, e.g. after a load, are skipped)
     S.graves.forEach(g => { if (!g.done && S.camX > g.cam + 1) g.done = true; });
     const g = S.graves.find(g => !g.done && g.cam <= halt);
     if (g && S.camX >= g.cam) return startRespects(g);
     if (act && !act.active && S.camX >= halt - 900) {
-      act.active = true; act.state = "walkin";
-      S.actors.filter(a => a.stop === S.stop && a.extra).forEach(a => later(0.45 * a.extra, () => { a.active = true; a.state = "walkin"; })); // one after another
+      act.active = true; act.state = inTomb() ? "idle" : "walkin";
+      S.actors.filter(a => a.stop === S.stop && a.extra).forEach(a => {
+        if(inTomb()){a.active=true;a.state="idle";} // already standing in the projected world
+        else later(0.45 * a.extra, () => { a.active = true; a.state = "walkin"; });
+      });
       if (st.type === "boss" || st.type === "mega") { heroSay("Something big blocks the road!"); A.play("boss_intro"); }
     }
     const before = S.camX;
     S.camX = Math.min(S.camX + W.walkSpeed * dt, halt, g ? g.cam : Infinity);
     S.dist += S.camX - before;
     if (!S.furtherDone && S.bestAtStart > 0 && +leagues() > S.bestAtStart) furtherThanEver();
-    // footsteps synced to the hero's walk drawing: a "step" on each foot contact (frame 0 and the half-cycle frame,
-    // 0 + 4 of the 8-frame v13 walk; 0 + 6 for a 12-frame walk). Fallback without a walk atlas: every 0.35 s.
-    if (S.camX > before) { const sid = ((KM_ART.entities.hero || {}).seq || {}).walk, fr = sid && KM.Assets.seqFrame(sid, (S.walkT || 0) * (KM_ART.walkRate ? KM_ART.walkRate("hero") : 1));
-      // companions: their own contacts, quieter, thinned to one step every 0.3 s at most (no clatter)
-      S.compStepT = (S.compStepT || 0) + dt; S.stepFr = S.stepFr || {};
-      S.party.forEach(m => { if (m.id === "hero") return; const id = artId(m), cs = ((KM_ART.entities[id] || {}).seq || {}).walk; if (!cs) return;
-        const f = KM.Assets.seqFrame(cs, (S.walkT || 0) * (KM_ART.walkRate ? KM_ART.walkRate(id) : 1)); if (!f) return; const n = f.s.frames.length;
-        if (f.i !== S.stepFr[m.id] && (f.i === 0 || f.i === n / 2) && S.compStepT >= 0.3) { A.play("step_companion"); S.compStepT = 0; } S.stepFr[m.id] = f.i; });
-      if (fr) { const n = fr.s.frames.length; if (fr.i !== S.stepFrame && (fr.i === 0 || fr.i === n / 2)) A.play("step"); S.stepFrame = fr.i; }
-      else { S.stepT += dt; if (S.stepT > 0.35) { S.stepT = 0; A.play("step"); } } }
+    // One familiar knight step per visible contact. Do not stack a companion on the same beat.
+    if (S.camX > before) {
+      const heroId=artId(S.party[0]),sid=KM_ART.entities[heroId]?.seq?.walk;
+      const fr=sid&&KM.Assets.seqFrame(sid,(S.walkT||0)*(KM_ART.walkRate?.(heroId)||1));
+      S.compStepT=(S.compStepT||0)+dt;S.stepFr=S.stepFr||{};
+      let heroStep=false;
+      if(fr){const n=fr.s.frames.length;heroStep=fr.i!==S.stepFrame&&(fr.i===0||fr.i===n/2);S.stepFrame=fr.i;}
+      else {S.stepT+=dt;if(S.stepT>.35){S.stepT=0;heroStep=true;}}
+      if(heroStep){A.play('step');S.compStepT=0;}
+      S.party.forEach(m=>{if(m.id==='hero')return;const id=artId(m),cs=KM_ART.entities[id]?.seq?.walk;if(!cs)return;
+        const f=KM.Assets.seqFrame(cs,(S.walkT||0)*(KM_ART.walkRate?.(id)||1));if(!f)return;
+        if(f.i!==S.stepFr[m.id]&&(f.i===0||f.i===f.s.frames.length/2)&&S.compStepT>=.32){A.play('step_companion');S.compStepT=0;}
+        S.stepFr[m.id]=f.i;
+      });
+    }
+    if(S.camX>=halt && S.pendingDismissal?.stop===S.stop)return beginDismissalBattle();
     if (S.camX >= halt && (!act || act.state !== "walkin")) engage(st, act);
   }
   // once per run: scene toast (GAME_DESIGN) + narrator line in the strip + VO (chat request)
@@ -505,7 +658,7 @@
     S.furtherDone = true; S.toast = { text: GR.further.toast, t: 0, dur: GR.further.toastSecs }; // one big scene toast + VO
     A.voice(GR.further.vo);
   }
-  const isWalking = () => S.mode === "walk" && !S.respect && (S.stop >= S.stops.length || S.camX < haltCam(S.stops[S.stop]));
+  const isWalking = () => depthMoving() || (S.mode === "walk" && !S.respect && (S.stop >= S.stops.length || S.camX < haltCam(S.stops[S.stop])));
 
   // ---------- action hooks (attack / hurt: painted anim slot, else procedural fallback) ----------
   function act(obj, name, dur, reach, tgt) { if (obj) { obj.act = { name, t: 0, dur: dur || 0.5, reach: reach || 0, att: tgt ? obj : null, tgt }; A.play(name); } }
@@ -515,7 +668,8 @@
   // Fractions of the strike: snap 0-.12 (slight wind-up back), lunge .12-.38, impact hold .38-.60, return .60-1.
   const STRIKE = { dur: 0.55, impact: 0.21 }; // impact = .38 x .55 s: when the hit lands
   function lungeReach(att, tgt) { if (!att || !tgt) return 0; // layout units the attacker travels to touch the target
-    const isP = att.sx != null, hx = isP ? att.sx : screenX(att.x), tx = isP ? screenX(tgt.x) : tgt.sx;
+    const isP = att.sx != null, ap = isP ? partyPose(att) : dragonPose(att), tp = isP ? dragonPose(tgt) : partyPose(tgt);
+    const hx = ap ? ap.x : screenX(att.x), tx = tp ? tp.x : screenX(tgt.x);
     const aw = wideOf(isP ? artId(att) : att.id), tw = wideOf(isP ? tgt.id : artId(tgt));
     const half = w => (w[1] - w[0]) / 2; // KM_WIDE = opaque extents, layout units; stop with the drawings just overlapping
     return Math.max(160, Math.min(1100, Math.abs(tx - hx) - 0.3 * (half(aw) + half(tw)))); } // strikes INTO the target's space (Darkest Dungeon)
@@ -526,7 +680,11 @@
     if (a.name === "attack") { if (a.att && k < .38) a.reach = lungeReach(a.att, a.tgt); const R = Math.max(160, a.reach || 0), // re-aimed while closing (the target may be stepping up)
         ez = u => 1 - Math.pow(1 - u, 3), io = u => u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
       const x = k < .12 ? -14 * (k / .12) : k < .38 ? -14 + (R + 14) * ez((k - .12) / .26) : k < .6 ? R + Math.sin((k - .38) * 90) * 3 : R * (1 - io((k - .6) / .4));
-      return { action: KM.Assets.hasAnim(id, "attack") ? "attack" : "idle", t: a.t, dx: x * dir, dy: 0, hurt: false }; } // feet stay on the ground
+      const ap = a.att && (a.att.sx != null ? partyPose(a.att) : dragonPose(a.att));
+      const tp = a.tgt && (a.tgt.sx != null ? partyPose(a.tgt) : dragonPose(a.tgt));
+      const rise = S.enc && S.enc.depth && ap && tp ? (tp.y - ap.y) * Math.max(0, Math.min(1, x / R)) : 0;
+      return { action: KM.Assets.hasAnim(id, "attack") ? "attack" : "idle", t: a.t, dx: x * dir, dy: rise, hurt: false }; } // feet stay on the ground
+    if(a.name==='roar')return {action:'idle',t:a.t,dx:-dir*10*Math.sin(Math.PI*k),dy:0,rot:-dir*.018*Math.sin(Math.PI*k),hurt:false};
     if (a.name === "knock") return { action: "idle", t: a.t, dx: -dir * 26 * Math.sin(Math.PI * Math.min(1, k * 1.6)), dy: 0, hurt: false }; // knockback under a drawn hurt frame
     if (a.name === "respects") { const s = Math.sin(Math.PI * k); return { action: "idle", t: a.t, dx: 0, dy: 10 * s, rot: 0.1 * s, hurt: false }; } // bow
     if (a.name === "hurt") return { action: "idle", t: a.t, dx: Math.sin(a.t * 70) * 12 * (1 - k) - dir * 26 * Math.sin(Math.PI * Math.min(1, k * 1.6)), dy: 0, hurt: a.t < 0.16 }; // shake + knockback + a brief full-opacity red flash
@@ -535,6 +693,7 @@
   // enemy hit / death: drawn sequences when the creature has them (rabbit), else hurt blink / stepped vanish (no puppet falls)
   function enemyHit(a) { const cfg = KM_ART.entities[a.id] || {}; if (cfg.seq && cfg.seq.hurt && KM.Assets.hasAnim(a.id, "hurt")) { a.seqPlay = { id: cfg.seq.hurt, t: 0 }; A.play("hurt"); act(a, "knock", 0.35); } else act(a, "hurt", 0.5); }
   function enemyDeath(a) {
+    queueLoot(a);
     const cfg = KM_ART.entities[a.id] || {}; a.act = null;
     if (cfg.seq && cfg.seq.death && KM.Assets.hasAnim(a.id, "death")) { a.seqPlay = { id: cfg.seq.death, t: 0, hold: true }; a.state = "corpse"; }
     else { a.state = "vanish"; a.t = 0; }
@@ -544,43 +703,78 @@
   // ---------- encounters ----------
   function encounterMusic(st) {
     if (st.type === "rest") return "rest_" + st.rest;
-    if (isFight(st) || st.type === "special") return (D.music.enemyScenes || {})[st.enemy] || (st.type === "math" || st.type === "special" ? "battle" : st.type);
+    if (isFight(st) || st.type === "special" || st.type === "optional") return (D.music.enemyScenes || {})[st.enemy] || (st.type === "math" || st.type === "special" || st.type === "optional" ? "battle" : st.type);
     return st.type; // riddle, recruit
   }
   function engage(st, actr) {
     S.mode = "encounter";
-    S.enc = { st, act: actr, type: st.type, phase: null, msg: "", bonus: 0 };
+    S.enc = { st, act: actr, type: st.type, phase: null, msg: "", bonus: 0, lost: Math.max(0,maxHp()-S.hp) };
     switch (st.type) {
       case "math": case "boss": case "mega": approach(); break;   // music waits for the commit
       case "special": startFrank(); break;
-      case "riddle": MU.setScene("riddle"); startRiddle(); break;
-      case "recruit": MU.setScene("recruit"); renderRecruit(); break;
-      case "rest": MU.setScene(encounterMusic(st)); startRest(); break;
+      case "optional": optionalBoss(); break;
+      case "riddle": musicScene("riddle"); startRiddle(); break;
+      case "recruit": musicScene("recruit"); renderRecruit(); break;
+      case "rest": musicScene(encounterMusic(st)); startRest(); break;
     }
   }
+  function optionalBoss(){
+    const e=S.enc;if(!e||e.st.type!=='optional')return;
+    e.phase='optional';heroSay('Something is listening beyond the graves.',inPhase('optional'));
+    showPanel(actionRow([
+      actionCard({label:'Awaken the bell',act:'awakenBell',icon:MICON.hard,meta:'Optional boss',note:'A dangerous detour'}),
+      actionCard({label:'Leave it sleeping',act:'leaveBell',icon:'→',meta:'Safe passage'})
+    ]),'info action-panel');
+  }
+  function awakenBell(){
+    const e=S.enc;if(e?.phase!=='optional')return;e.phase='busy';e.act.sp=null;S.party.forEach(m=>m.sp=null);
+    inkTransition(()=>{if(S.enc!==e)return;e.phase='approach';commit();});
+  }
+  function leaveBell(){if(S.enc?.phase!=='optional')return;S.enc.act.hidden=true;finishEncounter();}
   // ---- hidden strength: commit or avoid
   function approach() {
     const e = S.enc; e.phase = "approach";
+    if(isFellowship())return commit();
     const can = C.avoidable[e.st.type];
     heroSay(e.st.type === "math" ? "Something lurks in the mist..." : "It blocks the whole road. No way around!", inPhase("approach"));
-    showPanel(`<div class="center"><div class="opts big3">${big("Enter", "Fight", "commit")}${can ? big("A", "Avoid", "avoid") : ""}</div></div>`, "info");
+    showPanel(actionRow([actionCard({label:'Fight',act:'commit',icon:MICON.hard}),...(can?[actionCard({label:'Avoid',act:'avoid',icon:'→',note:'Hunters advance'})]:[])]),'info action-panel');
   }
   function commit() {
     const e = S.enc; if (!e || (e.phase !== "approach" && e.phase !== "frank")) return;
-    const id = e.act.id, E = D.enemies[id] || {}, cs = C.enemies[id] || { hp: 6, atk: 1 };
-    e.phase = "busy"; e.hp = e.maxHp = cs.hp; e.atk = cs.atk; e.heals = C.healsPerFight; e.revealed = true;
+    if (e.st.id === "frank" && !e.depth) { beginDragonApproach(); return; }
+    const id = e.act.id, E = D.enemies[id] || {}, cs = e.act.combat || C.enemies[id] || { hp: 6, atk: 1 };
+    e.lost=Math.max(0,maxHp()-S.hp);
+    e.phase = "busy"; e.hp = e.maxHp = isFellowship()?KM.Fellowship.health(cs.hp):cs.hp; e.atk = cs.atk; e.heals = C.healsPerFight; e.fireUses = IT.usesPerBattle; e.fallen=[]; e.resurrected=false; e.revealed = true;
     // every foe of this stop (a group = several), each with its own hearts; e.act / e.hp mirror the FRONT one
     e.foes = S.actors.filter(a => a.stop === S.stop && a.foe && !a.dead).sort((a, b) => a.x - b.x);
-    e.foes.forEach(a => { const c2 = C.enemies[a.id] || { hp: 6, atk: 1 }; a.hp = a.maxHp = c2.hp; a.atk = c2.atk; if (a !== e.act) { a.distant = false; a.closing = { t: 0, dur: 0.7 }; } });
+    e.foes.forEach(a => { const c2 = a.combat || C.enemies[a.id] || { hp: 6, atk: 1 }; a.hp = a.maxHp = isFellowship()?KM.Fellowship.health(c2.hp):c2.hp; a.atk = c2.atk; if (a !== e.act) { a.distant = false; a.closing = { t: 0, dur: 0.7 }; } });
     e.act.hp = e.hp; e.act.maxHp = e.maxHp; e.act.atk = e.atk;
+    if(e.st.relay) planPackTurn(e);
     if (S.mead === 1) { S.mead = 2; e.mead = true; renderHUD(); } // v11b tavern mead: THIS battle's sums are all stupid
     if ((KM_ART.entities[id] || {}).onHill && S.swaps) Object.values(S.swaps).forEach(q => (q.on = false)); // v19: it comes down from its hill
     e.act.distant = false; e.act.closing = { t: 0, dur: 0.7 }; (e.foes || [e.act]).forEach(a => { if (a.state === "walkin" || a.state === "waiting") { a.state = "idle"; a.active = true; a.x = a.homeX != null ? a.homeX : e.st.stopX; } });
-    if (e.st.type === "special") e.act.x = e.st.stopX + 260;
-    MU.setScene(encounterMusic(e.st));
-    if (e.st.type === "mega") A.play("dragon_roar");
-    say(e.act, E.taunt);
-    later(0.75, () => renderChoice());
+    if (e.depth) { e.depth.mode = "battle"; e.act.closing = null; }
+    else if (e.st.type === "special") e.act.x = e.st.stopX + 260;
+    musicScene(encounterMusic(e.st));
+    const roaring=living(e).find(f=>KM.Timing.pattern(f.id).roar);
+    if(roaring)return bossEntrance(e,roaring);
+    say(e.act, e.act.taunt || E.taunt);
+    later(0.75, () => {if(S.enc===e)renderChoice();});
+  }
+  function bossEntrance(e,boss) {
+    e.phase='bossEntrance';e.pressureReady=false;
+    S.voices=[];S.party.forEach(m=>m.sp=null);boss.sp=null;
+    const name=T(D.enemies[boss.id]?.name||boss.id);
+    showPanel(`<div class="boss-entrance" role="status"><strong>${esc(name)}</strong><p>${T('A mighty roar...')}</p></div>`,'info');
+    paintTimingLegend();
+    later(.75,()=>{if(S.enc!==e||S.dying)return;
+      A.play('dragon_roar',{gain:.55});S.shake=.36;act(boss,'roar',.65);
+      later(.25,()=>{if(S.enc!==e||S.dying)return;
+        e.pressureReady=true;paintTimingLegend();
+        showPanel(`<div class="boss-entrance pressure-reveal" role="status"><strong>${esc(name)}</strong><p>${T('Its roar pushes your timing windows back.')}<br><small>${T('Red marks the time taken away.')}${KM.Timing.pattern(boss.id).deadline?' '+T('It strikes when the bar fills.'):''}</small></p></div>`,'info');
+      });
+    });
+    later(2.6,()=>{if(S.enc===e&&!S.dying)renderChoice();});
   }
   function avoid() {
     const e = S.enc; if (!e || e.phase !== "approach") return;
@@ -590,92 +784,298 @@
     heroSay("Whatever that was, we'll never know.");
     finishEncounter();
   }
+  // The Knight: the party is the deck. A committed card cannot be withdrawn or rerolled with Escape.
+  function knightCards(e){return KM.Knight.library(S.party);}
+  function knightCandidates(e,c){return living(e).filter(a=>!c?.execute||PA.executionReady(a));}
+  function cardDropTarget(px,py){
+    const e=S.enc;if(e?.phase!=='cards')return null;
+    const r=cv.getBoundingClientRect(),x=(px-r.left)/r.width*VW,y=(py-r.top)/r.height*L.artSpaceH;
+    if(x<0||x>VW||y<0||y>L.artSpaceH)return null;
+    const tag=foeHeartsRects().find(({intent:b})=>b && x*K>=b.x && x*K<=b.x+b.w && y*K>=b.y && y*K<=b.y+b.h);
+    if(tag)return tag.owner;
+    // Pick among the visible figures, using their painted bounds (including the hill dragon).
+    const hits=living(e).map(a=>{
+      const pose=dragonPose(a),s=pose?.scale||1,cx=pose?.x??a.drawX??screenX(a.x),foot=pose?.y??a.drawY??W.groundY;
+      const [lo,hi]=wideOf(a.id);return {a,left:cx+lo*s-28,right:cx+hi*s+28,top:foot-tallOf(a.id)*s-25,bottom:foot+24};
+    }).filter(h=>x>=h.left&&x<=h.right&&y>=h.top&&y<=h.bottom);
+    hits.sort((a,b)=>Math.abs(x-(a.left+a.right)/2)-Math.abs(x-(b.left+b.right)/2));return hits[0]?.a||null;
+  }
+  function cardDescription(c){
+    return [T(c.damage+' '+(c.all?'to each foe':'damage')),c.block?'+'+c.block+' '+T('block'):null,c.heal?'+'+c.heal+' ♥':null,c.execute?T('half HP or less'):null,c.revive?T('revive if able'):null].filter(Boolean).join(' · ');
+  }
+  function renderKnight(e){
+    const cards=knightCards(e),lookup=id=>cards.find(c=>c.id===id);
+    e.phase='cards';e.answerTiming=null;e.cardGuard=0;e.activeCard=null;
+    if(!e.deck)e.deck=KM.Knight.create(S.party,KM.Progression.random(S.runId+':cards:'+S.stop));
+    const refill=e.deck.pending?e.deck.hand.indexOf(null):-1;
+    KM.Knight.deal(e.deck,S.party);
+    // A hand full of locked Executes must never leave the road without a legal play.
+    if(!e.deck.hand.some(id=>knightCandidates(e,lookup(id)).length)){
+      const j=e.deck.queue.findIndex(id=>knightCandidates(e,lookup(id)).length);
+      if(j>=0)[e.deck.hand[0],e.deck.queue[j]]=[e.deck.queue[j],e.deck.hand[0]];
+    }
+    const faces=e.deck.hand.map((id,i)=>{
+      const c=lookup(id),m=S.party.find(m=>m.id===c.owners[0]);
+      const label=c.combo?T('Combo')+' · '+c.owners.map(id=>shortName(memberName(S.party.find(m=>m.id===id))).split(' ')[0]).join(' + '):m?memberName(m):T('Road trick');
+      const difficulty=c.level.startsWith('execution')?T('Multiply'):T(({easy:'Easy',normal:'Medium',hard:'Hard'})[c.level]);
+      const icon=c.risk==='fire'?'fire':c.risk==='lightning'?'lightning':c.heal||c.revive?'heal':c.block?'sacrifice':c.level==='easy'?'weak':'hard';
+      const emblem=(c.name==='Stick jab'||c.name==='Overhead stick')?'<svg class="stick-stamp" viewBox="128 897 530 264" aria-hidden="true"><image href="assets/villager-start/v22/parts/stick.png" width="1037" height="1517"/></svg>':(c.name==='Sword thrust'||c.name==='Sword cleave')?'<img src="assets/ui/shop/sword-cutout.png" alt="">':MICON[icon]||'';
+      return '<button type="button" class="knight-card '+(i===refill?'dealt':'')+'" data-act="knightPlay"  data-knight-slot="'+i+'" '+(!knightCandidates(e,c).length?'disabled':'')+'><small>'+esc(label)+' · '+difficulty+'</small><span class="card-symbol" aria-hidden="true">' +emblem+'</span><strong>'+T(c.name)+'</strong><span>'+cardDescription(c)+'</span>'+(c.risk?'<em>'+T(c.risk==='fire'?'Miss: party burns':'Miss: strikes both sides')+'</em>':'')+'</button>';
+    });
+    if(S.spells>0||S.spellLeft>0)faces.push('<button type="button" class="knight-card consumable" title="Ease one card’s maths" data-act="knightScroll" data-knight-slot="scroll" '+(S.spellLeft||meadNow()?'disabled':'')+'><small>'+T('Item')+' · '+S.spells+'</small><span class="card-symbol">'+spellIcon('btn')+'</span><strong>'+T('Stupidity scroll')+'</strong><span>'+T(S.spellLeft?'Armed for this sum':'Drag onto an attack')+'</span></button>');
+    const next=lookup(e.deck.queue[0]);
+    showPanel('<div class="knight-hand"><div class="knight-fan">'+faces.join('')+'</div><aside class="knight-guide"><small>'+T('Next draw')+'</small><strong>'+T(next.name)+'</strong><p>'+T('Drag to a foe, or click to attack the first. One card per turn.')+'</p></aside></div>','cards');
+    KM.KnightHand.bind({canPlay:()=>isKnight()&&S.enc?.phase==='cards',hitTarget:cardDropTarget,play:playKnight,arm:armKnightScroll});
+  }
+  function armKnightScroll(){
+    const e=S.enc;if(!isKnight()||e?.phase!=='cards'||!S.spells||S.spellLeft||meadNow())return false;
+    castSpell();renderKnight(e);return true;
+  }
+  function playKnight(slot,target){
+    const e=S.enc;if(!isKnight()||e?.phase!=='cards'||S.dying)return;
+    const c=knightCards(e).find(c=>c.id===e.deck.hand[slot]);if(!c)return;
+    const candidates=knightCandidates(e,c);target=target||candidates[0];
+    if(!candidates.includes(target)||!KM.Knight.commit(e.deck,slot))return;
+    e.activeCard=c;e.action='card';const caster=S.party.find(m=>m.id===c.owners[0])||S.party[0];
+    const right=()=>{
+      if(c.heal){const before=S.hp;hearts(c.heal);e.lost=Math.max(0,(e.lost||0)-(S.hp-before));}
+      if(c.revive&&canResurrect()){const m=e.fallen.pop();unburyCompanion(m);delete m.dying;delete m.eaten;delete m.act;m.sp=null;m.hopY=0;S.party.push(m);m.sx=slotX(S.party.length-1);e.resurrected=true;hearts(1);e.lost=(e.lost||0)+PA.life(m)-1;}
+      e.cardGuard=c.block||0;const targets=c.all?living(e):[target],timing=e.answerTiming;
+      act(caster,'attack',STRIKE.dur,lungeReach(caster,target),target);A.play(c.level==='easy'?'swing_weak':'swing_hard');
+      if(c.risk==='lightning')S.lightning={t:0,targets:targets.map(a=>({x:centreX(a),y:W.groundY-tallOf(a.id)*.5}))};
+      if(c.risk==='fire')KM.FireFx.start({from:{x:partyPose(caster).x,y:W.groundY-200},targets:targets.map(a=>({x:centreX(a),y:W.groundY}))});
+      later(STRIKE.impact,()=>hitFoes(e,targets,c.damage,timing));later(STRIKE.dur,()=>settleHits(e,targets));
+    };
+    const wrong=()=>{
+      if(c.risk==='lightning')return wizardLightning(true);
+      if(c.risk==='fire')return fireFizzle();
+      turnWrong('card');
+    };
+    ask(c.level,right,wrong,null,undefined,'card');
+  }
+
+  // Fellowship keeps one maths prompt, but every member retains their role.
+  function fellowshipQuestion(e) {
+    if(S.enc!==e || S.dying || e.hp<=0)return;
+    e.action='fellowship';e.answerTiming=null;e.fellowshipVolley=null;
+    const level=KM.Progression.stage(e.st,S.stops)===0?'easy':'normal';
+    ask(level,()=>fellowshipVolley(e),()=>fellowshipWrong(e),null,undefined,'fellowship');
+  }
+  function fellowshipWrong(e) {
+    if(!S.party.some(m=>PA.alive(m)&&KM.Fellowship.risky(m)))return turnWrong('fellowship');
+    showCorrected(e.problem);huntersStep(1);
+    if(S.dying)return;
+    const witness=S.party.find(m=>PA.alive(m)&&!KM.Fellowship.risky(m));
+    if(witness)speak(witness,'The OTHER side!');
+    fellowshipVolley(e,true);
+  }
+  function fellowshipVolley(e,failed=false) {
+    if(S.enc!==e || S.dying)return;
+    e.phase='busy';if(!failed)hush();
+    const foes=living(e),timing=e.answerTiming;
+    const hits=KM.Fellowship.plan(S.party,foes,timing?.multiplier??1,{failed,hp:S.hp,maxHp:maxHp(),heals:e.heals});
+    if(!hits.length)return;
+    const volley=e.fellowshipVolley={hits:hits.length,landed:0,total:0,backfire:0,failed};
+    const targets=[...new Set(hits.flatMap(h=>h.impacts.map(i=>i.target)))];
+    const half=(hits.length-1)*85;
+    const origin=Math.max(VW*.59+half,Math.min(VW-240-half,(targets.length?targets:foes).reduce((sum,a)=>sum+centreX(a),0)/(targets.length||foes.length)));
+    const valid=()=>S.enc===e && !S.dying && e.fellowshipVolley===volley;
+    // Let every bottle complete its own flight. Align the other impacts to that
+    // same volley, so damage lands with the art instead of before the flames.
+    const lead=hits.some(h=>h.kind==='fire')?KM.FireFx.hitDelay():STRIKE.impact;
+    const foePoints=h=>h.impacts.map(({target:a})=>({x:centreX(a),y:dragonPose(a)?.y||W.groundY}));
+    const partyPoints=()=>S.party.filter(PA.alive).map(m=>({x:partyPose(m).x,y:partyPose(m).y}));
+    for(const hit of hits){
+      const {member,target,kind,index,delay}=hit;
+      const impactAt=lead+delay;
+      const begin=()=>{if(!valid()||!PA.alive(member))return;
+        const p=partyPose(member);
+        if(kind==='fire'){
+          act(member,'attack',lead+.15);A.play(IT.sfx.throw);
+          KM.FireFx.start({from:{x:p.x+60*p.scale,y:p.y-tallOf(artId(member))*.6*p.scale},targets:foePoints(hit).concat(failed?partyPoints():[]),append:true});
+        }else if(kind==='lightning'){
+          act(member,'bless',.6);A.play('hit_boss',{gain:.6});
+          S.lightning={t:0,targets:hit.impacts.map(({target:a})=>({x:centreX(a),y:(dragonPose(a)?.y||W.groundY)-tallOf(a.id)*.5})).concat(failed?S.party.filter(PA.alive).map(m=>({x:partyPose(m).x,y:partyPose(m).y-tallOf(artId(m))*.5})):[])};
+        }else if(kind==='heal')act(member,'bless',.7);
+        else {act(member,'attack',STRIKE.dur,Math.min(240,lungeReach(member,target)));A.play(kind==='execute'?'swing_hard':'swing_weak',{gain:.45});}
+      };
+      const startAt=kind==='fire'?delay:Math.max(0,impactAt-STRIKE.impact);
+      if(startAt)later(startAt,begin);else begin();
+      later(impactAt,()=>{
+        if(!valid()||!PA.alive(member))return;
+        if(hit.heal){
+          const before=S.hp;hearts(hit.heal);const healed=S.hp-before;e.heals--;e.lost=Math.max(0,(e.lost||0)-healed);A.play('heal');
+          const p=partyPose(member);float('+'+healed+' ♥',p.x,p.y-tallOf(artId(member))*.5,'#ac5c24');
+        }
+        for(const {target:a,amount} of hit.impacts){enemyHit(a);a.hp=Math.max(0,a.hp-amount);}
+        syncFront(e);volley.landed++;volley.total+=hit.amount;
+        if(hit.impacts.length){
+          S.shake=.10+index*.025;A.play(hitSfx(e),{gain:.55+index*.12,rate:.94+index*.07});
+          S.floats.push({fellowship:true,text:Number(hit.amount.toFixed(2)),caption:timing?.crit?T('CRIT'):'',index,crit:!!timing?.crit,x:origin+(index-(hits.length-1)/2)*170,y:130+index*7,t:0,life:1.3});
+        }
+        if(hit.backfire){
+          // One shared damage per caster, not one per party member. Armour still
+          // absorbs first; only red-heart loss counts toward a companion's death.
+          const harm=PA.absorb(S.party,1);hearts(-harm.hearts);e.lost=(e.lost||0)+harm.hearts;volley.backfire++;
+          S.party.filter(PA.alive).forEach(m=>act(m,'hurt',.25));A.play(harm.blocked?'hit_blocked':'hit_party');
+          float(harm.hearts?'−1 ♥':'blocked!',400+index*160,160+index*18,harm.hearts?'#b3321f':'#bcc0c3');
+        }
+        renderHUD();save();
+      });
+    }
+    later(lead+hits[hits.length-1].delay+.45,()=>{
+      if(!valid())return;
+      if(hits.length>1 && volley.total){
+        S.floats=S.floats.filter(f=>!f.fellowship);
+        const x=Math.max(VW*.65,Math.min(VW-300,targets.reduce((sum,a)=>sum+centreX(a),0)/targets.length));
+        S.floats.push({fellowship:true,total:true,text:Number(volley.total.toFixed(2)),caption:T('PARTY DAMAGE'),crit:!!timing?.crit,index:0,x,y:130,t:0,life:1.1});
+      }
+      const settle=()=>{if(valid()){if(targets.length)settleHits(e,targets);else enemyTurn();}};
+      // Resolve self-inflicted casualties even when the same spell killed the last foe.
+      if(failed)afterHits(hits.some(h=>h.kind==='lightning')?'lightning':'fire',settle);else settle();
+    });
+  }
+
   // ---- turn combat
   function renderChoice() {
-    const e = S.enc; if (!e || S.dying) return; e.phase = "choose";
-    const mega = e.st.type === "mega", need = needRoll();
-    const sac = knights().length ? move("S", "Sacrifice", "sacrifice", "sacrifice") : "";
-    const rollOpt = mega ? move("R", need <= 1 ? "Roll any" : need > 20 ? "Roll –" : `Roll ${need}+`, "roll", "roll", "", need > 20) : "";
-    // v11b layout (Magnus's mockup): a big centred prompt, then the moves in one row; Heal greys out when unavailable;
-    // the Stupidity spell sits after an ink divider and only exists while you hold a scroll (no count, no caption)
-    const spellBtn = S.spells > 0 && !S.spellLeft && !meadNow() ? `<i class="vdiv"></i>${move(SPL.key, "Stupidity", "castSpell", "spell")}` : "";
-    const fireBtn = S.bottles > 0 ? move(IT.key, IT.name, "pickFire", "fire") : ""; // v12k: only while you carry one
-    showPanel(`<div class="center fightp"><div class="prompt">Choose your move.</div>
-      <div class="opts big3 turn moves">
-        ${move(C.actions.weak.key, "Weak swing", "pickWeak", "weak")}${move(C.actions.hard.key, "Hard swing", "pickHard", "hard")}${move(C.actions.heal.key, "Heal", "pickHeal", "heal", "", e.heals <= 0 || S.hp >= maxHp())}${fireBtn || rollOpt || sac || spellBtn ? '<i class="brk"></i>' : ""}${fireBtn}${rollOpt}${sac}${spellBtn}
-      </div></div>`, "fight");
+    const e=S.enc;if(!e || S.dying)return;e.deadlineStruck=new Set();e.deadlineBusy=false;if(isKnight())return renderKnight(e);if(isFellowship())return fellowshipQuestion(e);e.phase='choose';e.answerTiming=null;
+    const bare=PA.unarmed(S.party[0]),easier=S.spellLeft>0||meadNow();
+    const difficulty=level=>T(easier?'Easier maths':level);
+    const amount=n=>Number(n.toFixed(2));
+    const damage=n=>`<b>${amount(n)}</b> ${T('damage')}`;
+    const owner=(m,level)=>memberName(m)+' · '+difficulty(level);
+    const hint='Normal damage per enemy. First band blocks; second band crits; late answers deal half.';
+    const moves=[
+      actionCard({label:bare?'Light stick swing':'Weak swing',act:'pickWeak',icon:swingIcon(bare),meta:owner(S.party[0],'Easy'),detail:damage(weakDmg()),title:hint}),
+      actionCard({label:bare?'Hard stick swing':'Hard swing',act:'pickHard',icon:swingIcon(bare),meta:owner(S.party[0],'Hard'),detail:damage(hardDmg()),title:hint})
+    ];
+    if(canHeal())moves.push(actionCard({label:'Heal',act:'pickHeal',icon:MICON.heal,meta:owner(priests()[0],PA.priestLevel(S.party,'heal')?'Easy':'Random maths'),detail:`+${PA.heal(S.party)} ♥`,note:T(e.heals+' uses left'),off:e.heals<=0||S.hp>=maxHp()}));
+    if(firestarter())moves.push(actionCard({label:'Fire bottle',act:'pickFire',icon:MICON.fire,meta:memberName(firestarter())+' · '+T('Word typing'),detail:damage(PA.fire(S.party)),note:'Hits every foe',off:e.fireUses<=0,title:hint}));
+    if(KM.DarkWizard?.present(S.party).length)moves.push(actionCard({label:'Dark lightning',act:'pickLightning',icon:MICON.lightning,meta:owner(KM.DarkWizard.present(S.party)[0],'Hard'),detail:damage(KM.DarkWizard.damage(S.party)),note:'Miss: hurts everyone',title:'Hits every foe. A wrong answer hits everyone; faster mistakes hurt more.'}));
+    if(executioner())moves.push(actionCard({label:'Execute',act:'pickExecute',icon:MICON.hard,meta:owner(executioner(),'Multiply'),detail:damage(PA.execute(S.party,{hp:1,maxHp:2})),note:'half HP or less',off:!canExecute()}));
+    if(priests().length>=2)moves.push(actionCard({label:'Resurrect',act:'pickResurrect',icon:MICON.heal,meta:T('Priests')+' · '+difficulty(PA.priestLevel(S.party,'resurrect')==='normal'?'Medium':'Hard'),detail:T('Revive one ally'),note:'Returns with 1 heart',off:!canResurrect()}));
+    if(priests().length)moves.push(actionCard({label:'Sacrifice',act:'sacrifice',icon:MICON.sacrifice,meta:'Priest',detail:T(e.st.type==='mega'?'Boost the D20':'Escape this encounter'),note:'Lose one priest'}));
+    if(e.st.type==='mega'){const need=needRoll();moves.push(actionCard({label:'Roll for it',act:'roll',icon:MICON.roll,meta:'D20',detail:T(need<=1?'Roll any':need>20?'Roll –':`Roll ${need}+`),note:'Test your luck',off:need>20}));}
+    if(S.spells>0||S.spellLeft>0)moves.push(actionCard({label:'Stupidity scroll',act:'castSpell',icon:spellIcon('btn'),meta:T('Item')+' · '+S.spells,detail:T(S.spellLeft?'Armed for this sum':'Easier next sum'),note:'Score −2',off:!!S.spellLeft||meadNow()}));
+    showPanel(actionRow(moves),'fight action-panel');
   }
+
   function pickAction(kind) {
     const e = S.enc; if (!e || e.phase !== "choose") return;
-    if (kind === "heal" && (e.heals <= 0 || S.hp >= maxHp())) return;
-    const a = C.actions[kind]; let level = kind === "heal" ? pickOne(a.levels) : a.level;
+    if (kind === "heal" && (!canHeal() || e.heals <= 0 || S.hp >= maxHp())) return;
+    if (kind === 'execute' && !canExecute()) return;
+    if(kind==='resurrect' && !canResurrect())return;
+    if(kind==='lightning'&&!KM.DarkWizard?.present(S.party).length)return;
+    const a = C.actions[kind]; if(!a)return; let level = kind === "heal" ? (PA.priestLevel(S.party,kind)||pickOne(a.levels)) : kind==='resurrect' ? PA.priestLevel(S.party,kind) : a.level;
     { const si = S.stops.indexOf(e.st), nth = S.stops.slice(0, si < 0 ? 0 : si).filter(q => q.type === "math").length; // v12h: first fights simpler
-      if (e.st && e.st.type === "math" && nth < (C.starterFights || 0) && D.mathLevels["starter_" + level]) level = "starter_" + level; }
+      if (!["heal","resurrect","execute"].includes(kind) && e.st && e.st.type === "math" && nth < (C.starterFights || 0) && D.mathLevels["starter_" + level]) level = "starter_" + level; }
     e.action = kind; e.msg = "";
-    ask(level, () => turnRight(kind), () => turnWrong(kind), () => renderChoice(), C.answerSecs); // v12c: battle sums only (not riddles, recruits, Frank)
+    ask(level, () => turnRight(kind), () => turnWrong(kind), () => renderChoice(), undefined, kind);
   }
-  // ---- v12c answer timer (Magnus: "This bar down here, lets try turning that into a timer for the answers. If you don't
-  // answer before it is full, the enemies will strike and not wait. Then it resets. If you answer it will reset for the
-  // next math problem. Give the player 20 sec to think."). Runs only while a battle sum waits for input; paused during
-  // strikes, deaths, the scene toast, a sacrifice prompt, enemies walking up. Full = exactly a wrong answer.
-  const NOTIMER = /[?&]notimer\b/.test(location.search);
+  // Timing measures answer quality. Filling the bar never submits or fails the question.
+  function combatWindows(kind=S.enc?.action) {
+    const e=S.enc;
+    const role={fire:'firestarter',execute:'executioner',lightning:'darkWizard',heal:'priest',resurrect:'priest'}[kind]||'knight';
+    const owners=isFellowship()?S.party.filter(PA.alive):isKnight()&&e?.activeCard ? S.party.filter(m=>e.activeCard.owners.includes(m.id)) : PA.members(S.party,role);
+    const pressure=e?.revealed&&e.pressureReady!==false?KM.Timing.pressure(living(e)):{};
+    return KM.Timing.windows({weapon:Math.max(0,...owners.filter(PA.alive).map(m=>m.weapon||0)),armour:PA.armour(S.party.filter(PA.alive)),
+      companions:S.party.filter(m=>m.id!=='hero'&&PA.alive(m)).length,pressure});
+  }
+  function paintTimingLegend() {
+    const e=S.enc,w=e?.tmr?.windows||e?.answerTiming?.windows||combatWindows();
+    const foes=e?.revealed?living(e):[];
+    KM.TimingBar?.update(w,{visible:S.mode==='encounter'&&!!e?.revealed,timed:S.mode==='encounter'&&!!(e?.tmr||e?.answerTiming),jp:!!KM.I18n?.jp(),forgiving:foes.length>0&&foes.every(f=>KM.Timing.pattern(f.id).forgiving),deadline:foes.some(f=>KM.Timing.pattern(f.id).deadline),hit:e?.answerTiming?.fraction??null});
+  }
+  const NOTIMER = /[?&]debug\b/.test(location.search) && /[?&]notimer\b/.test(location.search);
   let tmrHold = 0;
-  // v12r (Magnus: "Very often the math timer does not start"): the ONE place a timer starts; every timed sum / word
-  // (ask() for battle sums, the fire bottle's word) comes through here, bound to the question now on screen.
   function startAnswerTimer(secs) {
-    const e = S.enc; if (!e || !(secs > 0) || NOTIMER || !e.q) return null;
-    return (e.tmr = { t: 0, q: e.q, secs, held: 0 });
+    const e = S.enc; if (!e) return null;
+    e.tmr = null; e.answerTiming = null; tmrHold = 0; dividerFill(0);
+    if (!(secs > 0) || NOTIMER || !e.q) return null;
+    return (e.tmr = { t: 0, q: e.q, secs, held: 0,windows:e.revealed?combatWindows():KM.Timing.windows() });
   }
   function tickAnswerTimer(dt) {
+    paintTimingLegend();
+    if(document.hidden)return;
     const e = S.enc, T = e && e.tmr;
-    if (!T || !["math", "spell"].includes(e.phase) || e.q !== T.q || S.mode !== "encounter") { if (e && T && e.q !== T.q) e.tmr = null; tmrHold = Math.max(0, tmrHold - dt); return dividerFill(tmrHold > 0 ? 1 : 0); }
+    if(e?.deadlineBusy)return dividerFill(1);
+    if (!T || !["math", "spell", "riddle"].includes(e.phase) || e.q !== T.q || S.mode !== "encounter") { if (e && T && e.q !== T.q) e.tmr = null; tmrHold = Math.max(0, tmrHold - dt); return dividerFill(e?.answerTiming?.fraction??(tmrHold > 0 ? 1 : 0)); }
     // a hold (strike, toast, a foe stepping up) is short; a stale one (an act on a dead / inactive foe, a stuck walk-in)
     // must never freeze the bar, so after C.answerPauseMax s of continuous hold it runs anyway
     const paused = timerPause(e); T.held = paused ? (T.held || 0) + dt : 0;
-    if (!paused || T.held > (C.answerPauseMax || 3)) T.t += dt;
+    if (!paused || T.held > (C.answerPauseMax || 3)) T.t = Math.min(T.secs,T.t+dt);
     const secs = T.secs || C.answerSecs, left = secs - T.t; // v12k: the fire bottle's word has its own (shorter) time
     if (left > 0 && left <= (C.answerTickLast || 0) && Math.ceil(left) !== T.tick) { T.tick = Math.ceil(left); A.play(C.answerTickSfx || "type_blip"); } // subtle tick, existing SFX hook
     dividerFill(Math.min(1, T.t / secs));
-    if (T.t >= secs) { // time's up: the same path as a wrong answer (wrong SFX, hunters +1, corrected sum, every living foe strikes)
-      const q = e.q; e.q = null; e.tmr = null; e.phase = "busy"; e.timedOut = (e.timedOut || 0) + 1; tmrHold = 1.2;
-      S.stats.wrong++; S.stats.timeouts = (S.stats.timeouts || 0) + 1; A.play(q.sfx || "wrong"); q.onWrong();
-    }
+    if(T.t>=secs)deadlineCounter(e,T);
+  }
+  function deadlineCounter(e,clock) {
+    if(S.enc!==e||S.dying||!e.revealed||!e.q||clock.deadlineFired||e.deadlineBusy)return;
+    clock.deadlineFired=true;
+    const struck=e.deadlineStruck||(e.deadlineStruck=new Set());
+    const foes=living(e).filter(f=>KM.Timing.pattern(f.id).deadline&&intentDamage(e,f)>0&&!struck.has(f));
+    if(!foes.length)return;
+    const phase=e.phase;e.phase='deadline';e.deadlineBusy=true;
+    foes.forEach(f=>struck.add(f));
+    const resume=()=>{if(S.enc!==e||S.dying)return;e.deadlineBusy=false;
+      // A dead card owner cannot cast from the grave. The committed card stays spent.
+      if(e.activeCard?.owners.some(id=>!S.party.some(m=>m.id===id&&PA.alive(m)))){
+        if(e.problem?.scrollAssisted)spellTick();
+        e.q=null;e.tmr=null;return returnToHand(e);
+      }
+      e.phase=phase;
+    };
+    foes.forEach((f,i)=>later(i*.6,()=>{if(S.enc===e&&!S.dying)foeStrike(e,f,false,{deadline:true});}));
+    later((foes.length-1)*.6+.6,()=>{if(S.enc===e&&!S.dying)afterHits(foes[foes.length-1].id,resume);});
   }
   // why the answer timer is holding right now (null = running); also exposed as __km.timerWhy for the tests
   function timerPause(e) {
     const foes = e.foes || [e.act];
-    if (S.dying) return "dying"; if (S.toast) return "toast"; if (S.view) return "view"; if (e.sub) return "sub";
+    if (S.dying) return "dying"; if (S.toast) return "toast"; if (S.view && S.view.a < 1) return "view transition"; if (e.sub) return "sub";
     const m = S.party.find(m => m.act || m.dying); if (m) return "party:" + (m.dying ? "dying" : m.act.name);
     const a = foes.find(a => a && a.active && !a.dead && !a.gone && (a.act || a.state === "walkin")); if (a) return "foe:" + a.id + ":" + (a.act ? a.act.name : a.state) + (a.dead ? ":dead" : "") + (a.active ? "" : ":inactive") + (a.gone ? ":gone" : "");
     return null;
   }
-  // the warm fill: an orange-tinted copy of Magnus's divider ink, revealed from the centre ornament out to both ends
+  // A flat orange ink strip advances on its own thin rail above the decorative divider.
   let dvFillFrac = -1;
   function dividerFill(f) {
-    const c = document.getElementById("dvfill"); if (!c) return; f = Math.max(0, Math.min(1, f)); if (Math.abs(f - dvFillFrac) < 0.0005) return; dvFillFrac = f;
-    const DV = KM_ART11.divider, ox = DV.ornament[0] / DV.size[0], h = DVORN / DV.size[0];
-    if (f <= 0) { c.style.opacity = "0"; return; }
-    const l = (ox - h) * (1 - f), r = (1 - ox - h) * (1 - f);
-    c.style.opacity = "1"; c.style.clipPath = `inset(0 ${(r * 100).toFixed(3)}% 0 ${(l * 100).toFixed(3)}%)`;
+    const fill=document.getElementById('dvfill');if(!fill)return;
+    f = Math.max(0, Math.min(1, f)); if (Math.abs(f - dvFillFrac) < 0.0005) return; dvFillFrac = f;
+    fill.style.width=(f*100)+'%';fill.style.opacity=f>0?'1':'0';
   }
-  const DVORN = 26, DVORANGE = "#c0682a"; // ornament half-width (source px, measured: ink gap at +-24) / the ornament's own orange
   // hit sound: the boss hit in boss / mega fights, else by the monster's material (enemies.js): flesh or armour
   const hitSfx = e => (["boss", "mega"].includes(e.st.type) ? "hit_boss" : (D.enemies[e.act.id] || {}).material === "armour" ? "hit_armour" : "hit_flesh");
   function turnRight(kind) {
     const e = S.enc;
-    if (kind === "heal") { e.heals--; const hb = S.hp; hearts(C.healHearts); e.lost = Math.max(0, (e.lost || 0) - (S.hp - hb)); /* healed hearts are not "lost" */ A.play("heal"); float(`+${C.healHearts} ♥`, slotX(0), W.groundY - tallOf("hero") + 70, "#9be28a"); return later(0.6, enemyTurn); }
-    const dmg = kind === "hard" ? hardDmg() : weakDmg();
+    if(kind==='lightning')return wizardLightning(false);
+    if(kind==='resurrect'){
+      if(!canResurrect())return renderChoice();
+      const m=e.fallen.pop();unburyCompanion(m);delete m.dying;delete m.eaten;delete m.act;m.sp=null;m.hopY=0;
+      S.party.push(m);m.sx=slotX(S.party.length-1);e.resurrected=true;hearts(1);e.lost=(e.lost||0)+PA.life(m)-1;A.play('heal');
+      act(priests()[0],'bless',.7);speak(priests()[0],'You are not excused yet. Get up.');save();return later(.6,enemyTurn);
+    }
+    if (kind === "heal") { if (!canHeal()) return renderChoice(); act(priests()[0],"bless",.7); speak(priests()[0], "Hold still. This is probably a blessing."); e.heals--; const hb = S.hp; hearts(PA.heal(S.party)); e.lost = Math.max(0, (e.lost || 0) - (S.hp - hb)); /* healed hearts are not "lost" */ A.play("heal"); float(`+${S.hp-hb} ♥`, slotX(0), W.groundY - tallOf("hero") + 70, "#9be28a"); return later(0.6, enemyTurn); }
+    if(kind==='execute' && !canExecute())return renderChoice();
+    const dmg = kind==='execute' ? a=>PA.execute(S.party,a) : kind === "hard" ? hardDmg() : weakDmg();
     // sound hooks: the swing at the wind-up, the hit on the impact pose (0.18 s), per attack kind
-    partyAct("attack", STRIKE.dur); A.play("swing_" + kind); A.play("hit");
+    if(kind==='execute')act(executioner(),'attack',STRIKE.dur,lungeReach(executioner(),e.act),e.act);else partyAct("attack",STRIKE.dur);
+    if(kind==='execute' || !PA.unarmed(S.party[0])) A.play('swing_'+(kind==='execute'?'hard':kind)); A.play('hit');
     // the sword hits the 2 front-most living foes (combat.groups.swordHits), each takes the full damage
-    const tg = living(e).slice(0, GRP().swordHits || 2);
-    later(STRIKE.impact, () => hitFoes(e, tg, dmg));
+    const tg = living(e).slice(0, kind==='execute'?1:(GRP().swordHits || 2)), timing = e.answerTiming;
+    later(STRIKE.impact, () => hitFoes(e, tg, dmg, timing));
     later(STRIKE.dur, () => settleHits(e, tg));
   }
   // a party hit lands on the foes tg (sword or fire): hit flash, damage, the damage number over each
-  function hitFoes(e, tg, dmg) {
+  function hitFoes(e, tg, dmg, timing) {
+    if (S.enc !== e || S.dying) return;
     S.shake = 0.18; A.play(hitSfx(e));
-    tg.forEach(a => { enemyHit(a); a.hp = Math.max(0, a.hp - dmg); float(`−${dmg}`, centreX(a), W.groundY - tallOf(a.id) + 70, "#ffe680"); }); syncFront(e);
+    tg.forEach(a => {
+      const amount = (typeof dmg === 'function' ? dmg(a) : dmg) * (timing?.multiplier ?? 1);
+      enemyHit(a); a.hp = Math.max(0, a.hp - amount);
+      const p = dragonPose(a), label = `${timing?.crit ? 'crit ' : ''}−${amount}`;
+      float(label, centreX(a), (p ? p.y : W.groundY) - tallOf(a.id) * (p ? p.scale : 1) + 70, timing?.crit ? '#ef9139' : '#ffe680');
+    });
+    syncFront(e);
   }
   // after a party hit: the dead fall (all dead = the fight is won), the rest close up, then the enemies' turn
   function settleHits(e, tg) {
@@ -683,37 +1083,45 @@
     tg.filter(a => a.hp <= 0 && !a.gone).forEach(a => { a.gone = true; say(a, (D.enemies[a.id] || {}).defeat); enemyDeath(a); });
     stepUp(e); syncFront(e); later(tg.some(a => a.hp <= 0) ? 1.0 : 0.5, enemyTurn);
   }
-  const centreX = a => screenX(a.x) + ((window.KM_WIDE && KM_WIDE[a.id]) ? (KM_WIDE[a.id][0] + KM_WIDE[a.id][1]) / 2 : 0); // a foe's body centre on screen
+  const centreX = a => (dragonPose(a) ? dragonPose(a).x : screenX(a.x)) + ((window.KM_WIDE && KM_WIDE[a.id]) ? (KM_WIDE[a.id][0] + KM_WIDE[a.id][1]) / 2 : 0); // a foe's body centre on screen
 
-  // ---- v12k fire bottle (Magnus): a move while you carry one. Spell the word before the divider fills: fire on EVERY
-  // living foe (one weak-swing hit each). Too slow: it fizzles (used up, no damage) and the foes strike as usual.
+  // ---- Timmy: type a word to ignite every living foe; the final letter determines timing quality.
+  // His role gates the move; no inventory charge. Failure deals no damage, then enemies take their turn.
   // The word challenge is KM.Spelling (src/modes/spelling.js), the drawings KM.FireFx (src/engine/firefx.js), numbers in
   // KM_DATA.items.fireBottle / KM_DATA.words.
   function pickFire() {
-    const e = S.enc; if (!e || e.phase !== "choose" || S.bottles <= 0) return;
-    S.bottles--; save(); e.action = "fire"; e.msg = ""; e.phase = "spell";
-    e.spell = KM.Spelling.start(KM.Spelling.pickWord(D.words[IT.words]));
-    e.q = { onWrong: fireFizzle, sfx: IT.sfx.fizzle }; // the timer's "too slow" path
+    const e = S.enc; if (!e || e.phase !== "choose" || !firestarter() || e.fireUses <= 0) return;
+    if(Number.isFinite(e.fireUses))e.fireUses--; e.action = "fire"; e.msg = ""; e.phase = "spell";
+    const words=Array.from({length:IT.wordsPerAttack||1},()=>KM.Spelling.pickWord(KM.I18n?.words()||D.words[IT.words]));
+    e.spell = KM.Spelling.start(words.join(' '));
+    e.q = { onWrong: fireFizzle, sfx: IT.sfx.fizzle };
     startAnswerTimer(IT.spellSecs);
-    heroSay(pickOne(IT.lines.light)); renderSpell();
+    speak(firestarter(),pickOne(IT.lines.light)); renderSpell();
   }
-  const renderSpell = cls => showPanel(`<div class="center spellp">${KM.Spelling.drawWord(S.enc.spell, cls)}</div>`, "math");
+  const renderSpell = cls => showPanel(`<div class="center spellp">${KM.I18n?.jp()?`<div class="kana-prompt">${KM.I18n.kana(S.enc.spell.word)}<small class="romaji-hint">${T('Type the letters shown (romaji).')}</small></div>`:""}${KM.Spelling.drawWord(S.enc.spell, cls)}</div>`, "math");
   function spellKey(k) {
-    const e = S.enc; if (!e || e.phase !== "spell" || e.sub) return;
+    const e = S.enc; if (!e || e.phase !== "spell" || e.sub || !e.q) return;
     const r = KM.Spelling.key(e.spell, k); if (!r) return;
     A.play(r === "bad" ? IT.sfx.letterBad : IT.sfx.letterOk); renderSpell();
-    if (r === "done") { e.q = null; e.tmr = null; e.phase = "busy"; S.stats.correct++; fireThrow(); }
+    if (r === "done") { e.answerTiming = KM.Timing.grade(e.tmr, e.q); e.q = null; e.tmr = null; e.phase = "busy"; S.stats.correct++; awardScore(e.answerTiming, "word"); fireThrow(); }
   }
   function fireThrow() {
-    const e = S.enc, tg = living(e), dmg = IT.damage === "hard" ? hardDmg() : weakDmg();
-    heroSay(pickOne(IT.lines.throw)); A.play(IT.sfx.throw);
-    const hitAt = KM.FireFx.start({ from: { x: slotX(0) + 80, y: W.groundY - tallOf("hero") * 0.6 }, targets: tg.map(a => ({ x: centreX(a), y: W.groundY })) });
-    later(hitAt, () => hitFoes(e, tg, dmg));
+    const e = S.enc, tg = living(e), m=firestarter(); if(!m)return renderChoice(); const dmg=PA.fire(S.party), p=partyPose(m), timing=e.answerTiming;
+    speak(m,pickOne(IT.lines.throw)); act(m,"attack",.5); A.play(IT.sfx.throw);
+    const hitAt = KM.FireFx.start({ from: { x:p.x+60*p.scale,y:p.y-tallOf(artId(m))*.6*p.scale }, targets: tg.map(a => ({ x:centreX(a),y:dragonPose(a)?dragonPose(a).y:W.groundY })) });
+    later(hitAt, () => hitFoes(e, tg, dmg, timing));
     later(hitAt + 0.6, () => settleHits(e, tg));
   }
   function fireFizzle() {
-    renderSpell("fizzled"); heroSay(pickOne(IT.lines.fizzle));
-    if (IT.hunters) huntersStep(IT.hunters);
+    if(isKnight())showCorrected(S.enc.problem);else renderSpell("fizzled"); speak(firestarter(),pickOne(IT.lines.fizzle));
+    if(isKnight())huntersStep(1);else if (IT.hunters) huntersStep(IT.hunters);
+    if(isKnight()&&!S.dying){
+      const e=S.enc;let hurt=0;const members=S.party.filter(PA.alive);
+      KM.FireFx.start({from:{x:partyPose(firestarter()).x,y:W.groundY-200},targets:members.map(m=>({x:partyPose(m).x,y:W.groundY}))});
+      for(const m of members){const hit=PA.absorb([m],1);hurt+=hit.hearts;act(m,'hurt',.4);float(hit.hearts?'−1 ♥':'blocked!',partyPose(m).x,W.groundY-tallOf(artId(m))+70,'#b3321f');}
+      hearts(-hurt);e.lost=(e.lost||0)+hurt;const witness=members.find(m=>m!==firestarter());if(witness)speak(witness,'Timmy! The OTHER side!');renderHUD();save();
+      return later(.6,()=>afterHits('fire',enemyTurn));
+    }
     if (!S.dying) later(0.6, enemyTurn);
   }
   function buyBottle() {
@@ -729,36 +1137,95 @@
     const xs = rowSlots(e.st, L1.map(a => a.id)); L1.forEach((a, k) => { if (Math.abs(a.x - xs[k]) > 1) { a.homeX = xs[k]; a.state = "walkin"; } }); }
   function turnWrong(kind) {
     const e = S.enc;
+    if(kind==='lightning')return wizardLightning(true);
     say(e.act, `${pickOne(D.dialogue.wrong)} It's ${e.problem.answer}!`);
     showCorrected(e.problem);   // the sum stays the focus: shown again, carved, with the right answer
     huntersStep(1);
     if (!S.dying) later(0.6, enemyTurn);
   }
+  function wizardLightning(failed) {
+    const e=S.enc,m=KM.DarkWizard.present(S.party)[0];if(!e||!m)return;
+    e.phase='busy';const foes=living(e).slice();
+    const amount=failed?KM.DarkWizard.backfire(e.failedFraction):KM.DarkWizard.damage(S.party);
+    const targets=foes.map(a=>({x:centreX(a),y:(dragonPose(a)?.y||W.groundY)-tallOf(a.id)*.5}));
+    if(failed)targets.push(...S.party.filter(PA.alive).map(m=>({x:partyPose(m).x,y:partyPose(m).y-tallOf(artId(m))*.5})));
+    S.lightning={t:0,targets};act(m,'bless',.6);A.play('hit_boss');
+    if(failed){speak(m,'That was the wrong answer. Everybody duck!');showCorrected(e.problem);huntersStep(1);}
+    later(.15,()=>{
+      if(S.enc!==e||S.dying)return;
+      hitFoes(e,foes,amount,failed?null:e.answerTiming);
+      if(failed){let hurt=0;for(const member of S.party.filter(PA.alive)){const hit=PA.absorb([member],amount);hurt+=hit.hearts;act(member,'hurt',.4);float(hit.hearts?'−'+hit.hearts+' ♥':'blocked!',partyPose(member).x,W.groundY-tallOf(artId(member))+70,'#b3321f');}
+        hearts(-hurt);e.lost=(e.lost||0)+hurt;renderHUD();save();}
+    });
+    later(.65,()=>{if(S.enc!==e||S.dying)return;const settle=()=>{if(S.enc===e&&!S.dying)settleHits(e,foes);};if(failed)afterHits('lightning',settle);else settle();});
+  }
   const showCorrected = pr => showPanel(`<div class="center mathp"><div class="sum corr"><span class="problem">${G(pr.text + " =")}<span class="answer">${G(String(pr.answer))}</span></span></div></div>`, "math");
   // v11b (Magnus: "the important part is that the question is centered"): the question (e.g. "7 + 5 =") is centred on
   // the screen; the answer hangs off its right edge (absolutely placed), so typing never shifts the question
   // a surviving enemy acts after the player's action (never a duplicate penalty for the wrong answer itself)
+  // Choose once before the player's action. Killing the attacker forfeits the bite;
+  // nobody fills its place until the enemy turn is over. Slots stay stable after a death.
+  function planPackTurn(e) {
+    if(!e.packOrder)e.packOrder=e.foes.slice().sort((a,b)=>(a.homeX??a.x)-(b.homeX??b.x));
+    const slots=e.packOrder,n=slots.length;
+    const start=e.packAttacker ? (slots.indexOf(e.packAttacker)+1)%n : n-1;
+    e.packAttacker=null;
+    for(let i=0;i<n;i++){const f=slots[(start+i)%n];if(f.hp>0&&!f.gone){e.packAttacker=f;break;}}
+  }
+  function intentDamage(e,f){return (e.st.relay && e.packAttacker!==f)||f.stunned ? 0 : (f.atk??e.atk);}
+  function intentLabel(e,f){
+    if(f.stunned)return T('Stunned');
+    const dmg=intentDamage(e,f);if(!dmg)return T('Circling');
+    const p=KM.Timing.pattern(f.id);
+    const label=p.forgiving?'Correct = block':p.deadline?'Full bar':(p.crit||p.block)?'Pressure':'Attack';
+    return T(label)+' · '+dmg;
+  }
+  function returnToHand(e){
+    if(S.enc!==e||S.dying)return;
+    e.resolvingEnemyTurn=false;
+    if(e.st.relay)planPackTurn(e);
+    renderChoice();
+  }
   function enemyTurn() {
     const e = S.enc; if (!e || S.dying || e.hp <= 0) return;
-    const foes = living(e); // every living foe takes its turn (front first), one after another
-    foes.forEach((f, k) => later(0.55 * k, () => { if (!S.enc || S.dying) return; foeStrike(e, f, k === foes.length - 1); }));
-  }
-  function foeStrike(e, f, last) {
-    act(f, "attack", STRIKE.dur, lungeReach(f, S.party[0]), S.party[0]); A.play("swing_enemy");
-    let atk = f.atk != null ? f.atk : e.atk; // TEMP_BALANCE: each armour level gives a small chance to turn a hit aside (armour no longer adds hearts)
-    if (Math.random() < Math.min(C.armourBlockMax, C.armourBlockPer * S.party.reduce((s, m) => s + m.armor, 0))) atk = 0;
-    later(STRIKE.impact, () => { S.shake = 0.25;
-      A.play(!atk ? "hit_blocked" : ["boss", "mega"].includes(e.st.type) ? "hit_boss" : "hit_party");
-      if (!atk) { partyAct("hurt", 0.2); float("blocked!", slotX(0), W.groundY - tallOf("hero") + 70, "#fff"); return; }
-      partyAct("hurt", 0.5); hearts(-atk); e.lost = (e.lost || 0) + atk; float(`−${atk} ♥`, slotX(0), W.groundY - tallOf("hero") + 70, "#ff6b6b");
+    e.resolvingEnemyTurn=true;
+    // A fast correct answer guards the entire immediate response, including untouched foes.
+    // It consumes no silver armour and expires before the next hand/action.
+    e.timingBlock=!!e.answerTiming?.block;
+    const foes = living(e).filter(f => {
+      if(e.deadlineStruck?.has(f))return false;
+      if (!f.stunned) return intentDamage(e,f)>0;
+      delete f.stunned;
+      const p=dragonPose(f);
+      float('stunned',centreX(f),(p?p.y:W.groundY)-tallOf(f.id)*(p?p.scale:1)+120,'#ef9139');
+      return false;
     });
-    if (last) later(0.5, () => afterHits(f.id, () => renderChoice()));
+    // Stun consumes exactly this enemy turn. Untouched foes still attack.
+    if (!foes.length) return later(.5, () => returnToHand(e));
+    foes.forEach((f, k) => later(0.55 * k, () => { if (S.enc !== e || S.dying) return; foeStrike(e, f, k === foes.length - 1); }));
   }
-  // every HPM hearts lost in this battle = one member dies (last companion first); no hearts left = everyone, hero last
+  function foeStrike(e, f, last, {deadline=false}={}) {
+    if(S.enc!==e||S.dying||f.hp<=0)return;
+    act(f, "attack", STRIKE.dur, lungeReach(f, S.party[0]), S.party[0]); A.play("swing_enemy");
+    const atk=intentDamage(e,f);
+    later(STRIKE.impact,()=>{
+      if(S.enc!==e||S.dying)return;
+      const protectedHit=!deadline&&(e.timingBlock||(e.answerTiming&&KM.Timing.pattern(f.id).forgiving));
+      S.shake=.25;const guard=protectedHit?atk:Math.min(e.cardGuard||0,atk);
+      if(!protectedHit)e.cardGuard=(e.cardGuard||0)-guard;
+      const hit=PA.absorb(S.party,atk-guard);hit.blocked+=guard;
+      A.play(hit.blocked?'hit_blocked':['boss','mega'].includes(e.st.type)?'hit_boss':'hit_party');
+      partyAct('hurt',hit.hearts?.5:.2);
+      if(hit.blocked)float('blocked!',slotX(0),W.groundY-tallOf('hero')+70,'#bcc0c3');
+      if(hit.hearts){hearts(-hit.hearts);e.lost=(e.lost||0)+hit.hearts;float(`−${hit.hearts} ♥`,slotX(0),W.groundY-tallOf('hero')+(hit.blocked?130:70),'#b3321f');}
+      renderHUD();save();
+    });
+    if (last) later(0.5, () => afterHits(f.id, () => returnToHand(e)));
+  }
+  // Only unhealed red-heart damage counts toward a casualty: two red hearts per party member; hero last.
   function afterHits(killer, then) {
     const e = S.enc; if (!e) return then();
-    let deaths = 0; while (e.lost >= HPM()) { e.lost -= HPM(); deaths++; }
-    if (S.hp <= 0) deaths = S.party.length;
+    const casualties=PA.casualties(S.party,e.lost||0,S.hp),deaths=casualties.count;e.lost=casualties.lost;
     if (!deaths) return then();
     e.phase = "busy"; dieInTurn(deaths, killer, then);
   }
@@ -774,45 +1241,85 @@
   // have none yet, so the hero's approved death stays their stand-in, MISSING_ART #7). Killed by a creature with a brutal
   // death (KM_ART.brutal: dragon / toad / ogre eat, rabbits tear apart, hunters' arrows) that sequence plays instead.
   function brutalDeath(m, killer) {
+    if (PA.villager(m) && artId(m) !== "hero") return null; // Never change the victim into a different outfit.
     const B = (KM_ART.brutal || {})[killer], ka = S.enc && S.enc.act;
     if (!B || !(KM_ART7 && KM_ART7.sequences[B.seq])) return null;
     if (B.at === "killer") { if (!ka || ka.id !== killer || ka.dead) return null; ka.act = null; ka.seqPlay = { id: B.seq, t: 0 }; m.eaten = true; A.play("bite"); later(KM.Assets.seqDur(B.seq) - 0.4, () => A.play("crunch")); }
     else m.dying.seq = B.seq;
     return KM.Assets.seqDur(B.seq);
   }
-  function deathDur(m, killer) { const id = artId(m), seq = (KM_ART.entities[id] || {}).deathSeq || (KM_ART.entities.hero || {}).deathSeq; return brutalDeath(m, killer) || (seq ? KM.Assets.seqDur(seq) : 1); }
+  function deathDur(m, killer) { if(inTomb())return KM.Tomb.beginFall(S,m); const id = artId(m), cfg = KM_ART.entities[id] || {}, seq = cfg.deathSeq || (!cfg.noFallbackDeath && (KM_ART.entities.hero || {}).deathSeq); return brutalDeath(m, killer) || (seq ? KM.Assets.seqDur(seq) : 1); }
   function memberDies(m, done, killer) {
+    if(!m || m.id==="hero" || m.dying)return;
     A.play("member_death"); A.voice("vo_member_dies"); S.stats.lost = (S.stats.lost || 0) + 1;
     m.act = null; m.dying = { t: 0 };
     heroSay(pickOne([`${shortName(m.name)}! Oh no. Right. Onwards.`, `Not ${shortName(m.name)}! He owed me money.`, `${shortName(m.name)} has stopped being alive.`]));
     const dur = deathDur(m, killer);
     later(dur + 0.7, () => {
-      const i = S.party.indexOf(m); if (i > 0) S.party.splice(i, 1);
+      const i = S.party.indexOf(m); if (i > 0) { buryCompanion(m,killer);S.party.splice(i, 1); if(S.enc){S.enc.fallen=S.enc.fallen||[];S.enc.fallen.push({...m});} }
       S.hp = Math.min(S.hp, maxHp()); save(); done();
     });
   }
   function defeatEnemy() {
     const e = S.enc, st = e.st, E = D.enemies[e.act.id] || {};
-    e.phase = "busy"; say(e.act, E.defeat); enemyDeath(e.act);
-    const g = Math.floor((st.gold || 0) * (1 + (GRP().goldPerExtra || 0) * ((e.foes || []).length - 1 > 0 ? e.foes.length - 1 : 0)) * (e.stupidUsed ? SPL.goldMul : 1)); /* TEMP_BALANCE: stupid sums pay less */ if (g) { S.gold += g; A.play("coin"); float(`+${g} gold`, screenX(e.act.x), W.groundY - tallOf(e.act.id) + 70, "#ffd84a"); }
-    // v11b TEMP_BALANCE (heart rule): hearts count per battle, so the survivors patch up after a won fight
-    S.hp = maxHp();
+    if(e.won)return;e.won=true;
+    e.phase = "busy"; say(e.act, e.act.defeat || E.defeat); enemyDeath(e.act);
+
+    // Wounds persist. Recovery comes from priests, food and choosing to camp.
+    if (S.enc && S.enc.st.id === "frank") S.dragonSlain = true;
     later(0.9, finishEncounter);
   }
-  function finishEncounter() { if (S.dying) return; meadEnds(); S.enc = null; S.dice = []; S.voices = []; S.stop++; save(); S.mode = "walk"; MU.setScene("walk"); renderWalk(); }
+  function queueLoot(a) {
+    const e=S.enc;if(!e || e.dismissal || !(e.foes||[e.act]).includes(a) || a.lootQueued)return;
+    a.lootQueued=true;
+    const eligible=(e.foes||[e.act]).filter(q=>D.enemies[q.id]?.dropsCoins!==false);
+    const index=eligible.indexOf(a);if(index<0)return;
+    const base=C.economy.purses[e.st.enemy]??Math.floor((e.st.gold||0)*C.economy.fallbackMultiplier);
+    const total=Math.floor(base*(1+(GRP().goldPerExtra||0)*Math.max(0,eligible.length-1))*(e.stupidUsed?SPL.goldMul:1));
+    const amount=Math.floor(total/eligible.length)+(index<total%eligible.length?1:0);
+    if(amount<=0)return;
+    const id=`${e.st.idx}:${a.extra||0}`;
+    if(!S.loot.some(q=>q.id===id))S.loot.push({id,x:e.depth?e.st.stopX:a.x,amount});
+  }
+  function collectLoot() {
+    const hero=S.party[0];if(S.mode!=='walk'||!hero||S.view?.to||S.dying)return;
+    const reached=S.camX+hero.sx,found=S.loot.filter(q=>q.x<=reached);
+    if(!found.length)return;
+    const amount=found.reduce((n,q)=>n+q.amount,0);
+    S.loot=S.loot.filter(q=>q.x>reached);S.gold+=amount;
+    A.play('coin');float(`+${amount} ${amount===1?'copper':'coppers'}`,hero.sx,W.groundY-tallOf(artId(hero))*.55,'#cf8c4e');save();
+  }
+  function drawLoot() {
+    const cfg=window.KM_ART11?.purse;if(!cfg)return;
+    const im=KM.Assets.loadImg(KM_ART11.root+cfg.img);if(!im._ok)return;
+    for(const q of S.loot){const x=screenX(q.x);if(x < -80 || x > VW+80)continue;
+      const h=45,w=h*im.naturalWidth/im.naturalHeight;ctx.drawImage(im,x-w/2,W.groundY-h,w,h);
+    }
+  }
+  function finishEncounter() { if (S.dying) return;
+    if(S.enc?.dismissal)return finishDismissalBattle();
+    if(S.enc && S.enc.depth) { const e=S.enc;if(e.depth.mode==='out')return;
+      e.depth.mode='out';e.phase='leaveDragon';showPanel('','info');S.voices=[];S.party.forEach(m=>m.sp=null);
+      inkTransition(()=>{delete e.depth;finishEncounter();});return;
+    }
+    meadEnds(); S.enc = null; S.dice = []; S.voices = []; S.stop++; save(); S.mode = "walk"; musicScene("walk"); renderWalk(); }
 
   // ---- generic maths question (combat actions, recruits, Frank)
-  function ask(level, onRight, onWrong, back, secs) {
+  function ask(level, onRight, onWrong, back, secs, kind="recruit") {
     const e = S.enc; e.phase = "math"; e.input = ""; e.tmr = null;
-    const mead = meadNow(), stupid = mead || S.spellLeft > 0; // v11 Spell of Stupidity: the next N sums drop to the easiest level; v11b mead: all of this battle's sums
-    e.problem = KM.MathGen.make(stupid ? SPL.level : level); e.problem.stupid = stupid; e.problem.level = stupid ? SPL.level : level;
+    if(isFellowship() && S.spells>0 && !S.spellLeft && !meadNow()){S.spells--;S.spellLeft=SPL.problems;A.play(SPL.sfx.cast);renderHUD();}
+    const mead = meadNow(), stupid = mead || S.spellLeft > 0; // Scroll: the next maths problem only. Mead: all sums in this battle.
+    const grade=KM.Progression.level(level,e.st,S.stops),stage=KM.Progression.stage(e.st,S.stops);
+    e.problem = level==='execution_easy'?KM.MathGen.multiply(false,stupid?[2,3]:[2,4]):level==='execution' ? KM.MathGen.multiply(stupid,stage===0?[2,5]:stage===1?[2,9]:[3,12]) : KM.MathGen.make(stupid ? SPL.level : grade);
+    e.problem.stupid = stupid; e.problem.scrollAssisted = stupid && !mead; e.problem.level = stupid ? SPL.level : grade;
     if (stupid) e.stupidUsed = true;
     const after = f => () => { if (e.problem.stupid && !mead) spellTick(); f(); }; // mead sums never use up a scroll
-    e.q = { onRight: after(onRight), onWrong: after(onWrong), back, level }; renderMath();
-    startAnswerTimer(secs);
+    e.q = { onRight: after(onRight), onWrong: after(onWrong), back: back ? after(back) : null, level }; renderMath();
+    startAnswerTimer(secs ?? Math.max(stupid?16:0,KM.Progression.seconds(e.problem)));
   }
-  // ---- v11 Spell of Stupidity: consumable, cast with Z (road / your turn / mid-sum), lasts SPL.problems sums
+  // ---- Scroll: one maths problem, consumed on answer or backing out. A full bar alone does not consume it.
   function castSpell() {
+    if(S.enc?.deadlineBusy)return;
     if (S.spellLeft > 0) return heroSay(SPL.already);
     if (meadNow()) return heroSay(SPL.meadAlready); // v11b: the mead already makes every sum of this battle stupid; no scroll used
     if (S.spells <= 0) return heroSay(SPL.none);
@@ -821,9 +1328,9 @@
     float("✶", slotX(0), W.groundY - tallOf("hero") + 70, "#c9a4ff");
     const e = S.enc;
     if (e && e.phase === "math" && e.q && !e.input && !e.problem.stupid) { // mid-sum: the current sum turns stupid too
-      e.problem = KM.MathGen.make(SPL.level); e.problem.stupid = true; e.problem.level = SPL.level; e.stupidUsed = true; renderMath(); if (e.tmr) e.tmr.t = 0; // v12c: a new sum, a fresh timer
+      e.problem = e.q.level==='execution_easy'?KM.MathGen.multiply(false,[2,3]):e.q.level.startsWith('execution') ? KM.MathGen.multiply(true) : KM.MathGen.make(SPL.level); e.problem.stupid = true; e.problem.scrollAssisted = true; e.problem.level = SPL.level; e.stupidUsed = true; renderMath(); startAnswerTimer(Math.max(16,e.tmr ? e.tmr.secs : KM.Progression.seconds(e.problem))); // v12c: a new sum, a fresh timer
     }
-    save(); renderHUD();
+    save(); renderHUD(); if(e?.phase==='choose')renderChoice();
   }
   // v11b tavern mead: S.mead 1 = bought, waiting for the next battle; 2 = this battle (every sum stupid); ends with the battle
   const meadNow = () => S.mead === 2 && !!(S.enc && S.enc.mead);
@@ -839,7 +1346,7 @@
     if (fareLeft("mead") <= 0) later(1.8, () => keeperSay(restT().limits.lot));
   }
   function spellTick() {
-    if (S.spellLeft <= 0) return; S.spellLeft--;
+    if (S.spellLeft <= 0) return; S.spellLeft = 0; save();
     if (!S.spellLeft) { const l = pickOne(SPL.wearOff); A.play(SPL.sfx.wearOff); later(0.9, () => { heroSay(A.text(l)); A.voice(A.voOf(l)); }); }
     renderHUD();
   }
@@ -855,6 +1362,7 @@
     const pad = L.touchPad ? `<div class="digits">${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button class="key" data-key="${n}">${G(String(n))}</button>`).join("")}<button class="key wide" data-key="back">⌫</button><button class="key wide ok" data-key="enter">✓</button></div>
       <div class="ops">${OPS.map(([ch]) => `<span class="op ${used.includes(ch) ? "on" : ""}">${G(ch)}</span>`).join("")}</div>` : "";
     showPanel(`<div class="center mathp ${L.touchPad ? "touch" : ""}">
+        ${isKnight()&&e.activeCard?'<small class="committed-card">'+T(e.activeCard.name)+'</small>':''}
         <div class="sum"><span class="problem">${G(used)}<span class="answer" id="answer">${G(e.input) || "&nbsp;"}</span></span></div>
         ${pad}
       </div>`, "math"); // v11: only the carved sum (no title, hint or key captions; Esc still goes back)
@@ -868,10 +1376,20 @@
     const el = $("answer"); if (el) el.innerHTML = G(e.input) || "&nbsp;";
   }
   function submitAnswer() {
-    const e = S.enc; if (!e.input) return;
-    const q = e.q; e.q = null; e.phase = "busy";
-    if (parseInt(e.input, 10) === e.problem.answer) { S.stats.correct++; A.play("correct"); q.onRight(); }
+    const e = S.enc; if (!e || e.phase !== 'math' || !e.q || !e.input) return;
+    const q = e.q, right = parseInt(e.input, 10) === e.problem.answer;
+    e.failedFraction=e.tmr?Math.min(1,e.tmr.t/e.tmr.secs):1;
+    e.answerTiming = right ? KM.Timing.grade(e.tmr, q) : null;
+    e.q = null; e.tmr = null; e.phase = "busy";
+    if (right) { S.stats.correct++; awardScore(e.answerTiming, "math", e.problem.scrollAssisted); A.play("correct"); q.onRight(); }
     else { S.stats.wrong++; A.play("wrong"); q.onWrong(); }
+  }
+  // Points are awarded only by the guarded correct-answer entry points, once per solution.
+  function awardScore(timing, kind, scrollAssisted = false) {
+    const points = kind === 'riddle' ? (timing?.riddlePoints ?? 1) : (timing?.points ?? 1);
+    S.score += points - (scrollAssisted ? SPL.scorePenalty : 0);
+    KM.Score.record(S.scoreLedger, points, kind, scrollAssisted ? SPL.scorePenalty : 0);
+    save();
   }
   // every failed problem advances the hunters ONE block; at the end of the track they catch you
   function huntersStep(n) {
@@ -888,11 +1406,13 @@
 
   // ---- riddles: wrong = hunters +1 and ONE more go (choice struck); wrong again = hunters +1 more, pass with nothing
   function startRiddle() {
-    const e = S.enc, pool = D.riddles.map((r, i) => i).filter(i => !S.usedRiddles.includes(i));
-    const idx = pool.length ? pickOne(pool) : Math.floor(Math.random() * D.riddles.length);
-    S.usedRiddles.push(idx); e.phase = "riddle"; e.riddle = D.riddles[idx];
+    const e = S.enc, riddles=KM.I18n?.riddles()||D.riddles, pool = riddles.map((r, i) => i).filter(i => !S.usedRiddles.includes(i));
+    const idx = pool.length ? pickOne(pool) : Math.floor(Math.random() * riddles.length);
+    S.usedRiddles.push(idx); e.phase = "riddle"; e.riddle = riddles[idx]; e.q = null;
     // v11b (Magnus): the riddle sits in his frame in the strip; the riddler only gets a short taunt bubble
-    { const rt = (D.enemies[e.act.id] || {}).riddleTaunt; say(e.act, Array.isArray(rt) ? pickOne(rt) : rt || "A riddle for you.", inPhase("riddle")); } A.play("riddle"); renderRiddle();
+    { const rt = (D.enemies[e.act.id] || {}).riddleTaunt; say(e.act, Array.isArray(rt) ? pickOne(rt) : rt || "A riddle for you.", inPhase("riddle")); }
+    if(KM.DarkWizard?.present(S.party).length)say(e.act,"You! And my EYE!",inPhase("riddle"));
+    A.play("riddle"); renderRiddle();
   }
   // v18 (Magnus, riddles-v18): answers in his answer-frame (2 columns), keyed A B C (+ S Sacrifice in the 4th slot);
   // live text, no words in the art. 1-3 still work as silent aliases.
@@ -902,54 +1422,123 @@
   const ansBtn = (key, label, act, attrs, off) => `<button class="opt plaque ansf" data-act="${act}" ${attrs} ${off ? "disabled" : ""}><span class="nm">${label}</span></button>`;
   function renderRiddle() {
     const e = S.enc, r = e.riddle, wrong = e.wrong || []; e.phase = "riddle";
+    if (!e.q) { e.q = { onWrong: () => riddleWrong(null) }; startAnswerTimer(C.timing.riddleSecs); }
     // v11b (Magnus): the riddle where the big numbers usually are, inside his riddle frame; the answers under it as the
     // battle's plaque buttons (seal key + answer, nothing else); a struck answer greys out like Heal
     showPanel(`<div class="center riddlep"><div class="riddleframe qf"><div class="rq">${esc(r.q)}</div></div>
-      <div class="ansgrid">${r.choices.map((c, i) => ansBtn(RKEYS[i], esc(c), "answer", `data-i="${i}"`, wrong.includes(i))).join("")}${knights().length ? ansBtn("S", "Sacrifice", "sacrifice", "", false) : ""}</div></div>`, "riddle");
+      <div class="ansgrid">${r.choices.map((c, i) => ansBtn(RKEYS[i], esc(c), "answer", `data-i="${i}"`, wrong.includes(i))).join("")}${priests().length ? ansBtn("S", "Sacrifice", "sacrifice", "", false) : ""}</div></div>`, "riddle");
   }
   function answerRiddle(i) {
-    const e = S.enc; if (!e || e.phase !== "riddle" || e.done || e.sub || (e.wrong || []).includes(i)) return;
+    const e = S.enc;
+    if (!e || e.phase !== "riddle" || !e.q || e.done || e.sub || !Number.isInteger(i) || i < 0 || i >= e.riddle.choices.length || (e.wrong || []).includes(i)) return;
+    const timing = KM.Timing.grade(e.tmr, e.q);
+    e.q = null; e.tmr = null;
     if (i === e.riddle.answer) {
-      e.done = true; S.stats.riddles++; A.play("correct");
-      if (!e.tries) { S.gold += e.st.gold || 0; A.play("coin"); float(`+${e.st.gold} gold`, screenX(e.act.x), W.groundY - tallOf(e.act.id) + 70, "#ffd84a"); say(e.act, "Right! Off you go then."); }
-      else say(e.act, "Hmph. Right on the second go. No gold for you.");
-      e.act.state = "stay"; return finishEncounter();
+      return riddleSuccess(timing);
     }
-    A.play("wrong"); S.stats.wrong++;
-    e.tries = (e.tries || 0) + 1; e.wrong = (e.wrong || []).concat(i);
+    A.play("wrong"); S.stats.wrong++; riddleWrong(i);
+  }
+  function riddleSuccess(timing){
+    const e=S.enc;
+      if(KM.DarkWizard?.record(S,e.st.idx,!PREVIEW)){wizardReward();}
+      e.done = true; S.stats.riddles++; awardScore(timing, "riddle"); A.play("correct");
+      if (!e.tries) {
+        const gold = (e.st.gold || 0) * (timing.coinBonus ? C.timing.riddleGoldMultiplier : 1);
+        S.gold += gold; A.play("coin");
+        float(`${timing.coinBonus ? 'crit ' : ''}+${gold} ${gold===1?'copper':'coppers'}`, screenX(e.act.x), W.groundY - tallOf(e.act.id) + 70, "#ef9139");
+        say(e.act, "Right! Off you go then.");
+      } else say(e.act, "Hmph. Right on the second go. No coppers for you.");
+      e.act.state = "stay"; return finishEncounter();
+  }
+  function riddleWrong(i) {
+    const e = S.enc; if (!e || e.done) return;
+    e.q = null; e.tmr = null; e.sub = null;
+    e.tries = (e.tries || 0) + 1;
+    if (i !== null) e.wrong = (e.wrong || []).concat(i);
     huntersStep(1); if (S.dying) return;
-    if (e.tries === 1) { say(e.act, "WRONG! One more go.", inPhase("riddle")); return renderRiddle(); }
-    e.done = true; say(e.act, `WRONG AGAIN! It was "${e.riddle.choices[e.riddle.answer]}". Now limp off.`);
+    if(riddleRevenge(e))return;
+    if (e.tries === 1) { say(e.act, i === null ? "Too slow! One more go." : "WRONG! One more go.", inPhase("riddle")); return renderRiddle(); }
+    e.done = true; say(e.act, `It was "${e.riddle.choices[e.riddle.answer]}". Now limp off.`);
     e.act.state = "stay"; finishEncounter();
   }
 
+  function wizardReward(){
+    const st=S.stops.find(st=>st.idx>S.stop&&st.rest==='tavern'&&!S.tavernRecruits[st.idx]);
+    if(st){st.cands[0]={...D.companions.darkWizard};st.candSkins[0]=1;}
+    const road=S.stops.find(st=>st.idx>S.stop&&st.id==='wizard_road');
+    if(!st&&road&&!S.party.some(m=>m.companionId==='darkWizard')){
+      road.cands=[{...D.companions.darkWizard}];road.candSkins=[1];road.wizardRock=true;
+      if(!S.actors.some(a=>a.stop===road.idx&&a.main))S.actors.push(mkActor({stop:road.idx,id:'dark_wizard',main:true,x:road.stopX,active:true,wizardRock:true,candIdx:0,name:D.companions.darkWizard.name}));
+    }
+    S.toast={text:'Dark Wizard unlocked — find him at a tavern.',t:0,dur:4};save();
+  }
+  function riddleRevenge(e){
+    const wizard=KM.DarkWizard?.present(S.party)[0];if(!wizard)return false;
+    e.done=true;e.phase='busy';e.act.sp=null;act(wizard,'hurt',.5);A.play('hit_party');
+    wizard.riddleWounds=(wizard.riddleWounds||0)+1;hearts(-1);float('−1 ♥',partyPose(wizard).x,W.groundY-tallOf(artId(wizard))+60,'#b3321f');
+    const leave=()=>{if(S.hp<=0)return heroDies('bridgekeeper');e.act.state='vanish';e.act.t=0;save();later(.7,()=>{if(S.enc===e)finishEncounter();});};
+    if(wizard.riddleWounds>=PA.life(wizard))memberDies(wizard,leave,'bridgekeeper');else leave();return true;
+  }
   // ---- recruiting: by maths; a failed sum (hunters +1) offers a D20 contest
   function renderRecruit() {
     const e = S.enc, k = e.st.cands[0]; e.phase = "recruit";
     if (!k) return finishEncounter();
-    if (partyFull()) {
-      say(e.act, "Full party? Bah. I'll stay in me ditch.", inPhase("recruit"));
-      return showPanel(`<div class="center"><div class="opts big3">${big("Enter", "Walk on", "noRecruit")}</div></div>`, "info");
-    }
-    say(e.act, k.join + " Prove you can count. Then I'm yours.", inPhase("recruit"));
-    showPanel(`<div class="center"><div class="opts big3">${big("Enter", "Recruit", "recruitSum")}${big("N", "No", "noRecruit")}</div></div>`, "info");
+    say(e.act, k.challenge || k.join + " Prove you can count. Then I'm yours.", inPhase("recruit"));
+    showPanel(actionRow([recruitCard(k,0,'recruitSum'),walkCard('noRecruit')]),'info action-panel');
   }
   // who speaks for candidate j: its actor on the road, else the candidate itself (drawn in the camp / tavern view)
   const candSpeaker = (st, j) => S.actors.find(x => x.stop === S.stop && x.candIdx === j && !x.dead) || st.cands[j];
+  const isTavern = st => st && st.type === 'rest' && RS.types[st.rest]?.view === 'tavern';
+  const limitedRecruit = st => isTavern(st) || st?.rest==='campsite';
+  const tavernRecruit = st => limitedRecruit(st) && S.tavernRecruits[st.idx];
+  const canRecruit = st => !S.pendingDismissal && !tavernRecruit(st) && !(st?.rest==='campsite' && S.restUses[st.idx]?.recruitLeft);
   // shared recruit flow (roadside ditch, tavern table, camp wanderer, shop sellsword). done(joined, cancelled)
   function recruitFlow(st, j, done) {
-    const p = st.cands[j]; if (!p || partyFull()) return;
+    const p = st.cands[j]; if (!p || !canRecruit(st)) return;
     ask(C.recruitLevel,
-      () => { const m = recruitCand(st, j); if (m) speak(m, p.join); done(true); },
+      () => completeRecruit(st,j,done,p.join),
       () => {
         huntersStep(1); if (S.dying) return;
+        if (st.rest === 'campsite') { campRecruitLeaves(st, j); done(false); return; }
+        if (isTavern(st)) { tavernRecruitLeaves(st,j);done(false);return; }
+        if(isFellowship()){say(candSpeaker(st,j),`It's ${S.enc.problem.answer}. Maybe another time.`);campRecruitLeaves(st,j);done(false);return;}
         say(candSpeaker(st, j), `It's ${S.enc.problem.answer}! Can't count? Roll me for it, then.`, inPhase("contestOffer"));
         S.enc.phase = "contestOffer"; S.enc.contest = { st, j, done };
         contestPanel();
       }, () => done(false, true));
   }
+  function campRecruitLeaves(st, j) {
+    const p = st.cands[j], a = candSpeaker(st, j);
+    if (!p) return;
+    (S.restUses[st.idx] ||= {}).recruitLeft = true;
+    if (a && S.actors.includes(a)) {
+      a.departure = { t: 0, member: { art: p.art || a.id, skin: st.candSkins[j] } };
+      a.state = "campLeave"; a.active = true; a.sp = null;
+    }
+    st.cands[j] = null;
+    S.enc.contest = null;
+    save();
+  }
+  function tavernRecruitLeaves(st,j) {
+    const e=S.enc,p=st.cands[j];if(!p||!e)return;
+    const seat=KM.TavernPOV.seats?.(st.cands).find(q=>q.j===j);
+    (e.tavernDepartures||=[]).push({p,j,r:seat?.r,id:candArt(j,st),at:S.t});
+    p.sp=null;S.party.forEach(m=>m.sp=null);
+    const used=S.restUses[st.idx]||={};used.departedSeats||=[];
+    if(!used.departedSeats.includes(j))used.departedSeats.push(j);
+    st.cands[j]=null;e.contest=null;if(e.tv)e.tv.sel=-1;save();
+  }
+  // Rear-facing steps recede into the world, then hold as a distant figure until we leave.
+  function campDeparturePose(a) {
+    const u = Math.min(1, a.departure.t / 4.5), h = u * u * (3 - 2 * u);
+    return { x: screenX(a.x) + 180 * h, y: W.groundY - 240 * h, scale: 1 - .84 * h };
+  }
+  function drawCampDeparture(a) {
+    const pose = campDeparturePose(a), clock = a.departure.t < 4.5 ? a.departure.t : 0;
+    KM.DragonApproach.drawRear(ctx, { walkT: clock }, a.departure.member, 0, pose, tallOf(a.id));
+  }
   function contest() {
-    const e = S.enc, c = e.contest; if (!c || e.phase !== "contestOffer") return;
+    const e = S.enc, c = e.contest; if (!c || e.phase !== "contestOffer" || !c.st.cands[c.j] || !canRecruit(c.st)) return;
     let mine = 1 + Math.floor(Math.random() * 20), theirs = 1 + Math.floor(Math.random() * 20);
     if (window.__km && __km.forceContest) [mine, theirs] = __km.forceContest;
     while (mine === theirs) theirs = 1 + Math.floor(Math.random() * 20); // PROVISIONAL: ties are re-rolled before showing
@@ -960,47 +1549,121 @@
     S.diceDone = () => {
       A.play("dice_land");
       const sp = candSpeaker(c.st, c.j), win = mine > theirs;
-      const m = win ? recruitCand(c.st, c.j) : null;
-      speak(m || sp, win ? `${mine} beats ${theirs}. Fine, I'll come.` : `${theirs} beats ${mine}. I'm staying put.`);
-      later(1.2, () => { S.dice = []; e.contest = null; c.done(win); });
+      S.dice=[];e.contest=null;
+      if(win)return completeRecruit(c.st,c.j,c.done,`${mine} beats ${theirs}. Fine, I'll come.`);
+      speak(sp,"I'm staying put.");later(1.2,()=>c.done(false));
     };
   }
   function recruitCand(st, j) {
-    const p = st.cands[j]; if (!p || partyFull()) return false;
+    const p = st.cands[j]; if (!p || partyFull() || !canRecruit(st) || (p.companionId && S.party.some(m => m.companionId === p.companionId))) return false;
     const a = S.actors.find(x => x.stop === S.stop && x.candIdx === j);
     S.party.push(followerFrom(p, a && !S.view ? screenX(a.x) : slotX(S.party.length), st.candSkins && st.candSkins[j]));
-    if (a) a.dead = true; st.cands[j] = null; A.play("recruit"); hearts(HPM()); // each member brings 2 hearts
+    if (limitedRecruit(st)) { S.tavernRecruits[st.idx] = p.name; if (S.enc?.tv) S.enc.tv.sel = -1; }
+    const used=S.restUses[st.idx]||={};used.recruitedSeats||=[];if(!used.recruitedSeats.includes(j))used.recruitedSeats.push(j);
+    if (a) a.dead = true; st.cands[j] = null; A.play("recruit"); hearts(PA.life(S.party[S.party.length-1])); // each member brings their role's hearts
     float(`${shortName(p.name)} joins!`, slotX(S.party.length - 1), W.groundY - tallOf("hero") + 70, "#d8f3ff");
     return S.party[S.party.length - 1];
   }
 
+  // A full party may recruit, but nobody leaves until the challenge is won and a replacement chosen.
+  function completeRecruit(st,j,done,line){
+    const e=S.enc,p=st.cands[j];if(!e||!p||!canRecruit(st))return;
+    if(!partyFull()){const m=recruitCand(st,j);if(m)speak(m,line);done(!!m);return;}
+    if(p.companionId&&S.party.some(m=>m.companionId===p.companionId)){done(false,true);return;}
+    e.q=null;e.tmr=null;e.phase='replace';e.replacement={st,j,done,line};hush();
+    const cards=S.party.filter(m=>m.id!=='hero').map(m=>actionCard({label:shortName(memberName(m)),act:'replaceMember',attrs:`data-id="${esc(m.id)}"`,icon:roleIcon(PA.role(m)),meta:'Dismiss companion',detail:`${T('Weapon')} +${m.weapon||0} · ${T('Armour')} ${m.armor||0}`}));
+    cards.push(actionCard({label:'Keep my party',act:'keepParty',icon:'↩',meta:'Cancel replacement'}));
+    showPanel(`<div class="replacement-title"><strong>${esc(T(p.name))} · ${T('Who will make room?')}</strong><small>${T('Their gear leaves with them. One in three dismissals starts a fight.')}</small></div>`+actionRow(cards),'info action-panel replacement-panel');
+  }
+  function roleIcon(role){return role==='priest'?MICON.heal:role==='darkWizard'?MICON.spell:role==='firestarter'?MICON.fire:MICON.weak;}
+  function keepParty(){const e=S.enc,r=e?.replacement;if(e?.phase!=='replace'||!r)return;delete e.replacement;r.done(false,true);}
+  function replaceMember(id){
+    const e=S.enc,r=e?.replacement,i=S.party.findIndex(m=>m.id===id);
+    if(e?.phase!=='replace'||!r||i<=0||!partyFull()||!canRecruit(r.st)||!r.st.cands[r.j])return;
+    const old=S.party[i],beforeHp=S.hp,departed=KM.Recruitment.snapshot(old,artId(old));
+    e.phase='busy';delete e.replacement;
+    S.party.splice(i,1);const m=recruitCand(r.st,r.j);
+    if(!m){S.party.splice(i,0,old);S.hp=beforeHp;r.done(false,true);return;}
+    // Keep the slot and shared wounds: swapping is not a free heal or a way to duplicate gear.
+    S.party.pop();S.party.splice(i,0,m);S.hp=beforeHp;S.party.forEach((q,k)=>q.sx=slotX(k));
+    const angry=KM.Recruitment.hostile(S.runId,S.chapter,r.st.idx,departed);
+    if(angry){
+      S.pendingDismissal={stop:S.stop,member:departed};save();
+      hush();heroSay('This has become awkward.');
+      showPanel(`<div class="center"><h2>${esc(T(departed.name))}</h2><p>${T('You are replacing ME? Outside. Now.')}</p></div>`,'info');
+      later(1.2,()=>{if(S.enc!==e)return;if(S.view)inkTransition(beginDismissalBattle);else beginDismissalBattle();});
+    }else{
+      const a=mkActor({id:departed.art,name:departed.name,x:S.camX+old.sx,stop:S.stop,departure:{t:0,member:departed},state:'campLeave'});S.actors.push(a);
+      speak(m,r.line);save();r.done(true);heroSay('Off you go, then. Mind the squirrels.');
+    }
+    renderHUD();
+  }
+  function beginDismissalBattle(){
+    const p=S.pendingDismissal,st=S.stops[S.stop];if(!p||p.stop!==S.stop||!st)return;
+    hush();S.view=null;S.entering=null;S.dice=[];S.voices=[];S.mode='encounter';
+    let a=S.actors.find(a=>a.dismissed&&a.stop===S.stop);
+    if(!a){const m=p.member,x=rowSlots(st,[m.art])[0];a=mkActor({id:m.art,name:m.name,label:shortName(m.name),x,homeX:x,stop:S.stop,foe:true,dismissed:true,combat:KM.Recruitment.combat(m),taunt:'You are replacing ME? Outside. Now.',defeat:'Fine. I shall find a better party.'});S.actors.push(a);}
+    const battle={...st,id:'dismissal-'+st.idx,type:'math',enemy:a.id,gold:0,group:null};
+    S.enc={st:battle,act:a,type:'math',phase:'approach',dismissal:true,msg:'',bonus:0,lost:Math.max(0,maxHp()-S.hp)};
+    commit();
+  }
+  function finishDismissalBattle(){
+    const e=S.enc;if(!e?.dismissal)return;
+    meadEnds();hush();S.pendingDismissal=null;S.enc=null;S.dice=[];S.voices=[];save();
+    const st=S.stops[S.stop];
+    if(st?.type==='rest'){const a=S.actors.find(a=>a.stop===S.stop&&a.main);engage(st,a);}
+    else finishEncounter();
+  }
+
   // ---- Frank the priest: agree = fight the turd dragon; disagree = restraint maths
   function startFrank() {
-    const e = S.enc; e.phase = "frank"; e.frank = e.act; e.act = S.actors.find(a => a.stop === S.stop && a.foe) || e.act;
-    say(e.frank, D.enemies.frank.taunt, inPhase("frank")); MU.setScene("riddle");
+    const e = S.enc, frank = frankMember(); if (!e) return;
+    if (!frank) { finishEncounter(); return; }
+    e.phase = "frank"; e.frank = frank; e.act = S.actors.find(a => a.stop === S.stop && a.foe) || e.act;
+    say(e.frank, D.enemies.frank.taunt, inPhase("frank")); musicScene("riddle");
     showPanel(`<div class="center"><div class="opts big3">${big("1", "Fight it (risky)", "frankAgree")}${big("2", "Talk him down (safe)", "frankNo")}</div></div>`, "info");
   }
   function frankNo() {
     const e = S.enc; if (!e || e.phase !== "frank") return;
     ask("normal",
-      () => { heroSay("No, Frank. No turd dragons today."); e.frank.state = "stay"; e.act.state = "stay"; later(0.4, finishEncounter); },
+      () => { heroSay("No, Frank. No turd dragons today."); e.act.state = "stay"; later(0.4, finishEncounter); },
       () => { // PROVISIONAL: Frank runs at it and the party has to follow (forced fight)
         huntersStep(1); if (S.dying) return;
         say(e.frank, "Nonsense! FOR SCIENCE!"); e.phase = "frank"; later(0.8, commit);
-      }, () => startFrank());
+      }, () => startFrank(), undefined, "restraint");
+  }
+
+  // Move along a depth path without advancing road distance or revealing strength early.
+  function beginDragonApproach() {
+    const e = S.enc; if (!e || e.depth || e.phase !== "frank") return;
+    e.phase = "enterDragon"; e.depth = { p: 0, mode: "in", scene:"road" }; e.frank.sp = null;
+    showPanel("", "info"); KM.DragonApproach.preload();
+  }
+  function inkTransition(onCovered){S.ink={mode:'cover',t:0,onCovered};}
+  function updateDragonApproach(dt) {
+    if(S.ink){const ink=S.ink;ink.t+=dt;
+      if(ink.mode==='cover' && ink.t>=.48){ink.t=0;ink.mode='reveal';const cb=ink.onCovered;delete ink.onCovered;cb();}
+      else if(ink.mode==='reveal' && ink.t>=.7)S.ink=null;
+    }
+    const e=S.enc,d=e&&e.depth;if(!d || d.mode!=='in')return;
+    const before=d.p;d.p=Math.min(1,d.p+dt/5.8);
+    if(Math.floor(before*22)!==Math.floor(d.p*22))A.play('step');
+    if(d.p===1){d.mode='cover';inkTransition(()=>{d.scene='arena';d.mode='battle';e.phase='frank';commit();});}
   }
 
   // ---- sacrifice (menu captures digit keys while open). Casualties are removed exactly once.
   function renderSacrifice() {
-    const e = S.enc; if (!e || !["choose", "riddle"].includes(e.phase)) return;
+    const e = S.enc; if (!e || !["choose", "riddle"].includes(e.phase) || !priests().length) return;
     e.prevPhase = e.phase; e.sub = "sacrifice";
-    heroSay("Who takes one for the team?", () => !!(S.enc && S.enc.sub === "sacrifice"));
-    showPanel(`<div class="center"><div class="opts big3">${knights().map((m, i) => `<button class="opt plaque" data-act="doSacrifice" data-id="${m.id}">${BANNER}<span class="nm">${esc(shortName(m.name))}</span></button>`).join("")}${big("Esc", "Cancel", "cancelSacrifice")}</div></div>`, "riddle");
+    heroSay("A priest will take one for the team.", () => !!(S.enc && S.enc.sub === "sacrifice"));
+    if(e.prevPhase==='choose')return showPanel(actionRow([...priests().map(m=>actionCard({label:shortName(m.name),act:'doSacrifice',icon:MICON.sacrifice,meta:'Sacrifice',note:'This companion dies',attrs:`data-id="${m.id}"`})),actionCard({label:'Cancel',act:'cancelSacrifice',icon:'←'})]),'info action-panel');
+    showPanel(`<div class="center"><div class="opts big3">${priests().map((m, i) => `<button class="opt plaque" data-act="doSacrifice" data-id="${m.id}">${BANNER}<span class="nm">${esc(shortName(m.name))}</span></button>`).join("")}${big("Esc", "Cancel", "cancelSacrifice")}</div></div>`, "riddle");
   }
   function cancelSacrifice() { const e = S.enc; e.sub = null; e.prevPhase === "riddle" ? renderRiddle() : renderChoice(); }
   function doSacrifice(id) {
-    const e = S.enc, i = S.party.findIndex(m => m.id === id); if (i < 0 || e.sub !== "sacrifice") return; e.sub = null;
-    const m = S.party.splice(i, 1)[0]; S.stats.sacrificed++; A.play("sacrifice");
+    const e = S.enc, i = S.party.findIndex(m => m.id === id); if (!e || i <= 0 || e.sub !== "sacrifice" || !priests().includes(S.party[i])) return; e.sub = null;
+    const m = S.party.splice(i, 1)[0]; S.stats.sacrificed++; buryCompanion(m,e.act?.id); A.play("sacrifice");
+    if(inTomb())KM.Tomb.beginFall(S,m);
     S.hp = Math.min(S.hp, maxHp());
     const a = mkActor({ id: artId(m), x: S.camX + m.sx, state: "holdoff", name: m.name, label: shortName(m.name) });
     S.actors.push(a); say(a, m.sacrifice || "Farewell!");
@@ -1038,12 +1701,13 @@
   // ---- rest stops: tavern (facade -> layered interior), campsite (layered camp view), shop (boxes)
   // keys: heals H/J, recruits 1-2 (by maths), swords Q W E R and armour A S D F for party members 1-4, Enter walks on
   const WKEYS = ["Q", "W", "E", "R"], AKEYS = ["A", "S", "D", "F"];
-  const restT = () => RS.types[S.enc.st.rest];
+  const restT = () => KM.Progression.shop(RS.types[S.enc.st.rest],S.enc.st.shopTier);
   // the keeper's voice: the shop keeper stands on the road; the tavern bartender / Old Wally have no art yet (MISSING_ART
   // #20 / #22): their bubbles point at the bar / the fire in the painted scene
   function keeperSay(text) {
     const T = restT(), v = S.view && S.view.id;
-    if (v === "tavern-interior" || v === "camp") {
+    if(v === "tavern-interior")return heroSay(text);
+    if (v === "camp") {
       const m = KM.RestView.mapper(v), sc = KM.RestView.scene(v);
       if (sc.full && v === "tavern-interior") return voice("keeper", text, D.tavernRoom.keeperAt[0], D.tavernRoom.keeperAt[1]); // v12o: behind the bar (layout units)
       const at = v === "camp" ? [sc.canvas[0] * 0.5, sc.canvas[1] * 0.62] : (sc.barStaffAnchor || [1200, 550]);
@@ -1053,91 +1717,127 @@
     keeper ? say(keeper, text) : heroSay(text);
   }
   function startRest() {
-    const e = S.enc, T = restT(); e.used = {}; A.play("rest_" + e.st.rest); setCheckpoint();
-    if (ART7 && T.view === "camp") { S.view = { id: "camp", a: 0, to: 1 }; keeperSay(T.greet); return renderRest(); }
-    if (ART7 && T.view === "tavern") { if (KM.RestView.scene("tavern-arrival")) S.view = { id: "tavern-arrival", a: 0, to: 1 }; return renderTavernOut(); } // v11b: Magnus's full-screen exterior
+    const e = S.enc, T = restT(); e.used = S.restUses[e.st.idx] || (S.restUses[e.st.idx]={}); A.play("rest_" + e.st.rest); setCheckpoint();
+    if (ART7 && T.view === "camp") { S.view = null; keeperSay(T.greet); return renderRest(); }
+    if (ART7 && T.view === "tavern") { S.view = null; return renderTavernOut(); } // v11b: Magnus's full-screen exterior
     keeperSay(T.greet); renderRest();
   }
   function renderTavernOut() {
     S.enc.phase = "tavernOut";
     showPanel(`<div class="center"><div class="opts big3 moves${S.view && S.view.id === "tavern-arrival" && S.view.a < 1 ? " arrive" : ""}">${big("I", "Go in", "goInside")}${big("Enter", "Walk on", "leaveRest")}</div></div>`, "info");
   }
+  let roomChanging = false;
+  async function changeRoom(change) {
+    if (roomChanging) return;
+    roomChanging = true; S.voices = []; S.enc.phase = "busy";
+    const veil = document.createElement("div"); veil.className = "room-veil";
+    document.getElementById("stage").appendChild(veil);
+    const block = ev => { ev.preventDefault(); ev.stopImmediatePropagation(); };
+    window.addEventListener("keydown", block, true);
+    const ms = matchMedia("(prefers-reduced-motion: reduce)").matches ? 100 : 320;
+    try {
+      await veil.animate([{opacity:0},{opacity:1}],{duration:ms,fill:"forwards"}).finished;
+      change();
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await veil.animate([{opacity:1},{opacity:0}],{duration:ms,fill:"forwards"}).finished;
+    } finally { veil.remove(); window.removeEventListener("keydown",block,true); roomChanging=false; }
+  }
   function goInside() {
-    const e = S.enc; if (!e || e.phase !== "tavernOut") return;
-    e.phase = "busy"; A.play("door"); const fromArrival = S.view && S.view.id === "tavern-arrival";
-    if (!fromArrival) S.entering = { t: 0 };
-    later(fromArrival ? 0.4 : 0.8, () => { S.entering = null; S.view = { id: "tavern-interior", a: fromArrival ? 1 : 0, to: 1 }; e.tv = { sel: 0, open: null }; keeperSay(restT().greet); renderRest(); });
+    const e = S.enc; if (!e || e.phase !== "tavernOut" || roomChanging) return;
+    A.play("door");
+    changeRoom(() => { S.entering = null; S.view = { id:"tavern-interior", a:1, to:1 };
+      e.tv = {sel:-1,open:null}; keeperSay(restT().greet); renderRest(); });
   }
-  function leaveInside() { if (S.view && S.view.id === "tavern-interior") { S.voices = []; if (KM.RestView.scene("tavern-arrival")) S.view = { id: "tavern-arrival", a: 1, to: 1 }; else S.view.to = 0; renderTavernOut(); } }
-  const pips = (n, max) => `<span class="pips">${Array.from({ length: max }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</span>`;
-  // v12r (Magnus: "I have no idea what the menu means"): words on everything (KM_DATA.restStops.menuWords). Gear rows are
-  // labelled "Weapon +1 · 9" / "Armour +1 · 7" (+ purse); one button per knight with HIS NAME on it and filled / empty ink
-  // pips (has / can still get here), "Max" once full (plain frame); greyed _disabled frame when he can't afford it.
-  const MW = () => D.restStops.menuWords || {};
-  const inkPips = (n, max) => `<span class="ipips" aria-label="${n} of ${max}">${Array.from({ length: max }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</span>`; // filled / empty ink rings
-  const gearBtn = (act, i, name, have, max, cost) => { const full = have >= max;
-    return `<button class="opt plaque mini${full ? " max" : ""}" data-act="${act}" data-i="${i}" ${full || S.gold < cost ? "disabled" : ""}><span class="nm">${esc(name)}</span>${full ? `<span class="mx">${esc(MW().max || "Max")}</span>` : inkPips(Math.min(have, max), max)}</button>`; };
-  function renderRest() {
-    if (S.view && S.view.id === "tavern-interior" && KM.RestView.scene("tavern-interior").full) return renderTavernInside();
-    const e = S.enc, st = e.st, T = restT(), g = T.gear; e.phase = "rest";
-    const heals = T.heals.map(h => `<button class="opt plaque" data-act="restHeal" data-k="${h.key}" ${S.gold < h.cost || S.hp >= maxHp() || (h.once && e.used[h.key]) ? "disabled" : ""}>${BANNER}<span class="nm">${esc(h.short || h.label)}: +${h.hearts} ${esc(h.hearts === 1 ? MW().heart || "heart" : MW().hearts || "hearts")}</span>${h.cost ? coin(h.cost) : ""}</button>`).join(""); // v12r: in words
-    const scroll = SPL.sellAt.includes(st.rest) ? `<button class="opt plaque" data-act="buySpell" ${S.gold < SPL.price || S.spells >= SPL.max ? "disabled" : ""}>${BANNER}${spellIcon("shop")}<span class="nm">${esc(MW().scroll || "Scroll of Stupidity")}</span>${coin(SPL.price)}</button>` : "";
-    const cands = st.cands.map((p, j) => p ? big(String(j + 1), esc(shortName(p.name).split(/[\s-]/)[0]), "restRecruit", `data-j="${j}"`, partyFull()) : "").join("");
-    // gear: one column per party member (name, weapon pips, armour pips); the row labels are the icon + price
-    const first = m => (m.id === "hero" ? S.name : shortName(m.name)).split(/[\s-]/)[0];
-    const row = (word, cost, act, key, max) => `<span class="gh" style="grid-column:1 / -1">${esc(word)} · ${coin(cost)}</span>` + S.party.map((m, i) => gearBtn(act, i, first(m), m[key], max, cost)).join(""); // row label above its buttons
-    const gear = g && (g.maxWeapon || g.maxArmor) ? `<div class="gear" style="grid-template-columns:repeat(${S.party.length},auto)">${g.maxWeapon ? row(MW().weapon || "Weapon +1", g.weaponCost, "restBuyW", "weapon", g.maxWeapon) : ""}${g.maxArmor ? row(MW().armor || "Armour +1", g.armorCost, "restBuyA", "armor", g.maxArmor) : ""}</div>` : "";
-    const inside = S.view && S.view.id === "tavern-interior", camp = S.view && S.view.id === "camp";
-    // v11b: two rows (heal / scroll / recruits, then talk / leave) beside the gear table: fits the shorter strip
-    // v12r: with a gear table the left column stacks heal / scroll / recruit + Walk on (smaller frames) so a full party's gear rows fit
-    showPanel(`<div class="center restp"><div class="restgrid"><div class="col"><div class="opts big3">${heals}${gear ? "" : scroll + cands}</div>${gear && scroll ? `<div class="opts big3">${scroll}</div>` : ""}
-      <div class="opts big3">${gear ? cands : ""}${inside ? big("T", "Table", "talkTable") + big("B", "Bar", "talkBar") + big("X", "Leave", "leaveInside") : ""}${big("Enter", camp ? "Break camp" : "Walk on", "leaveRest")}</div></div>${gear}</div></div>`, "rest");
+  function leaveInside() {
+    if (S.view && S.view.id === "tavern-interior" && !roomChanging) {
+      A.play("door"); changeRoom(() => { S.view=null; renderTavernOut(); });
+    }
   }
+  function shopItem(label,icon,price,act,attrs='',off=false,detail=''){
+    return actionCard({label,icon,price,act,attrs,off,meta:'For sale',detail});
+  }
+  function renderRest(){
+    if(S.view && S.view.id==='tavern-interior')return renderTavernInside();
+    const e=S.enc,st=e.st,stop=restT(),g=stop.gear;e.phase='rest';
+    if(stop.view==='camp'){
+      const cards=[actionCard({label:e.used.H?'Rested':'Make camp',act:'restHeal',icon:MICON.heal,meta:'Rest',detail:T('Full health'),note:'Once per camp',attrs:'data-k="H"',off:!!e.used.H})];
+      st.cands.forEach((p,j)=>{if(p)cards.push(recruitCard(p,j,'restRecruit',!canRecruit(st)));});
+      cards.push(walkCard());return showPanel(actionRow(cards),'rest action-panel');
+    }
+    const cards=[];
+    stop.heals.forEach(h=>cards.push(shopItem(h.short||h.label,MICON.heal,h.cost,'restHeal',`data-k="${h.key}"`,S.gold<h.cost||(!h.full&&S.hp>=maxHp())||(h.once&&e.used[h.key]),h.full?T('Full health'):`+${h.hearts} ♥`)));
+    if(SPL.sellAt.includes(st.rest))cards.push(shopItem('Stupidity scroll',spellIcon('shop'),SPL.price,'buySpell','',S.gold<SPL.price||S.spells>=SPL.max,T(isFellowship()?'Automatic next sum · −2 score':'Easier next sum')));
+    if(g&&g.maxWeapon)cards.push(shopItem('Sword +1','<img src="assets/ui/shop/sword-cutout.png" alt="">',g.weaponCost,'chooseGear','data-kind="weapon"',S.gold<g.weaponCost||S.party.every(m=>m.weapon>=PA.gearCap("weapon",g.maxWeapon)),T('Upgrade one ally')));
+    if(g&&g.maxArmor)cards.push(shopItem('Armour +1','<img src="assets/ui/shop/armour-cutout.png" alt="">',g.armorCost,'chooseGear','data-kind="armor"',S.gold<g.armorCost||S.party.every(m=>m.armor>=PA.gearCap("armor",g.maxArmor)),T('+1 silver heart')));
+    st.cands.forEach((p,j)=>{if(p)cards.push(recruitCard(p,j,'restRecruit',!canRecruit(st)));});cards.push(walkCard());
+    showPanel(e.gearChoice?gearDialog(e.gearChoice):actionRow(cards),'rest action-panel');
+    if(e.gearChoice)panel.querySelector('[role="dialog"] button:not([disabled])')?.focus();
+  }
+  function gearDialog(kind){
+    const g=restT().gear,key=kind==='weapon'?'maxWeapon':'maxArmor',cost=kind==='weapon'?g.weaponCost:g.armorCost;
+    const icon=`<img src="assets/ui/shop/${kind==='weapon'?'sword':'armour'}-cutout.png" alt="">`;
+    const cards=S.party.map((m,i)=>actionCard({label:shortName(memberName(m)),act:'assignGear',icon,meta:'Give to',price:cost,detail:m[kind]>=PA.gearCap(kind,g[key])?`${m[kind]} / ${PA.gearCap(kind,g[key])}`:isFellowship()&&kind==='weapon'?`${KM.Fellowship.damage(m)} → ${KM.Fellowship.damage({...m,weapon:(m.weapon||0)+1})} ${T('damage')}`:`${m[kind]} → ${m[kind]+1}`,attrs:`data-i="${i}"`,off:m[kind]>=PA.gearCap(kind,g[key])||S.gold<cost,note:m[kind]>=PA.gearCap(kind,g[key])?'Max':''}));
+    cards.push(actionCard({label:'Cancel',act:'cancelGear',icon:'←',meta:'Back'}));
+    return `<div class="gear-shade"><div class="gear-dialog action-gear" role="dialog" aria-modal="true" aria-labelledby="gear-title"><div id="gear-title">${T(kind==='weapon'?'Who gets the sword?':'Who gets the armour?')}</div><div class="action-row">${cards.join('')}</div></div></div>`;
+  }
+  function chooseGear(kind){if(!S.enc||S.enc.phase!=='rest'||!['weapon','armor'].includes(kind))return;const g=restT().gear;if(!g||!(kind==='weapon'?g.maxWeapon:g.maxArmor))return;S.enc.gearChoice=kind;renderRest();}
+  function cancelGear(){if(S.enc)S.enc.gearChoice=null;renderRest();}
+  function assignGear(i){const kind=S.enc&&S.enc.gearChoice;if(kind)restBuy(kind,i);}
   function restHeal(key) {
     const e = S.enc, T = restT(), h = T.heals.find(x => x.key === key);
     if (h && T.limits && fareLeft("stew") <= 0) return keeperSay(T.limits.lot);
-    if (!h || S.gold < h.cost || S.hp >= maxHp() || (h.once && e.used[key])) return;
-    S.gold -= h.cost; hearts(h.hearts); e.used[key] = true; if (T.limits) fareUse("stew"); A.play("heal"); save();
+    if (!h || S.gold < h.cost || (!h.full && S.hp >= maxHp()) || (h.once && e.used[key])) return;
+    const gained=h.full?maxHp()-S.hp:Math.min(h.hearts,maxHp()-S.hp);
+    S.gold -= h.cost; hearts(gained); e.used[key] = true; if (T.limits) fareUse("stew"); A.play("heal"); save();
     if (T.limits && fareLeft("stew") <= 0) later(1.2, () => keeperSay(T.limits.lot));
-    float(`+${h.hearts} ♥`, slotX(0), W.groundY - tallOf("hero") + 70, "#9be28a"); renderRest();
+    float(`+${gained} ♥`, slotX(0), W.groundY - tallOf("hero") + 70, "#9be28a"); renderRest();
   }
   // v11b tavern recruit talk: hero "Join my party?" -> NPC challenge bubble -> the carved sum (like a battle sum) ->
-  // solved: NPC "Fine, I'm in." and joins (+2 hearts, stands up into the party line); failed: refusal + the D20 offer
+  // Solved: joins. Failed/timeout: stands up and leaves this tavern; no dice retry.
   function tvJoin(j) {
-    const e = S.enc, st = e.st, p = st.cands[j], RT = D.recruitTalk; if (!p || partyFull() || e.phase !== "rest") return;
+    const e = S.enc, st = e.st, p = st.cands[j], RT = D.recruitTalk; if (!p || !canRecruit(st) || e.phase !== "rest") return;
     const skin = SKIN_OF[candArt(j)], sp = candSpeaker(st, j);
     e.phase = "talk"; showPanel(`<div class="center tavernp"></div>`, "rest");
     heroSay(RT.ask);
-    later(1.3, () => { say(sp, pickOne(RT.challenge[skin] || RT.challenge.scarf), inPhase("math"));
-      later(0.9, () => { e.phase = "rest"; recruitFlowTalk(st, j); }); });
+    later(1.3, () => { if(S.enc!==e)return;S.party[0].sp=null;say(sp, pickOne(RT.challenge[skin] || RT.challenge.scarf), inPhase("math"));
+      later(0.9, () => { if(S.enc!==e)return;e.phase = "rest"; recruitFlowTalk(st, j); }); });
   }
   function recruitFlowTalk(st, j) {
+    if (!st.cands[j] || !canRecruit(st)) return;
     const p = st.cands[j], RT = D.recruitTalk, sp = candSpeaker(st, j), back = () => { save(); renderRest(); };
     ask(C.recruitLevel,
-      () => { const m = recruitCand(st, j); speak(m || sp, pickOne(RT.yes)); back(); },
+      () => completeRecruit(st,j,back,pickOne(RT.yes)),
       () => { huntersStep(1); if (S.dying) return;
-        say(sp, `${pickOne(RT.no)} ${RT.offer}`, inPhase("contestOffer"));
-        S.enc.phase = "contestOffer"; S.enc.contest = { st, j, done: back }; contestPanel(); },
+        tavernRecruitLeaves(st,j);back(); },
       back);
   }
   const contestPanel = () => showPanel(`<div class="center"><div class="opts big3 turn moves">${move("D", "Roll for it", "contest", "roll")}${move("N", "No", "noContest", "")}</div></div>`, "info");
   function restRecruit(j) {
-    const e = S.enc, p = e.st.cands[j]; if (!p || partyFull()) return;
+    const e = S.enc, p = e.st.cands[j]; if (!p || !canRecruit(e.st)) return;
     recruitFlow(e.st, j, () => { save(); renderRest(); });
   }
   function restBuy(kind, i) {
     const g = restT().gear, m = S.party[i]; if (!m || !g) return;
-    if (kind === "weapon" && m.weapon < g.maxWeapon && S.gold >= g.weaponCost) { S.gold -= g.weaponCost; m.weapon++; }
-    else if (kind === "armor" && m.armor < g.maxArmor && S.gold >= g.armorCost) { S.gold -= g.armorCost; m.armor++; }
+    if (kind === "weapon" && m.weapon < PA.gearCap("weapon",g.maxWeapon) && S.gold >= g.weaponCost) { S.gold -= g.weaponCost; m.weapon++; }
+    else if (kind === "armor" && m.armor < PA.gearCap("armor",g.maxArmor) && S.gold >= g.armorCost) { S.gold -= g.armorCost; m.armor=Math.min(PA.gearCap("armor",g.maxArmor),m.armor+1);
+      if(PA.villager(m))m.armorTrained=true; // outfit progression only
+    }
     else return;
-    A.play("buy"); save(); keeperSay(`${m.id === "hero" ? "Sir " + S.name : shortName(m.name)}! Marginally less scruffy.`); renderRest();
+    S.enc.gearChoice=null; A.play("buy_gear"); save();
+    if(isFellowship()&&kind==="weapon")keeperSay(`${shortName(memberName(m))} · ${KM.Fellowship.damage(m)} ${T('damage')}`);
+    if(isKnight()&&kind==="weapon"){const c=KM.Knight.library(S.party).find(c=>c.id===m.id+":0");keeperSay(T(c.name)+" · "+c.damage+" "+T("damage"));}
+    else keeperSay(`${memberName(m)}! Marginally less scruffy.`); renderRest();
   }
   function talkPoint(which) {
     const T = restT();
     if (which === "bar") return keeperSay(T.greet);
     const j = S.enc.st.cands.findIndex(Boolean); j >= 0 ? speak(candSpeaker(S.enc.st, j), S.enc.st.cands[j].join) : heroSay("The table is empty. Someone left half a pie.");
   }
-  function leaveRest() { A.play("footstep"); if (S.view) S.view.to = 0; finishEncounter(); }
+  function leaveRest() {
+    if (roomChanging || S.enc?.gearChoice) return;
+    if (S.view && S.view.id === "tavern-interior") return leaveInside();
+    A.play("footstep"); if (S.view) S.view.to=0; finishEncounter();
+  }
 
   // ---------- death / game over / win ----------
   // hero death: the approved drawn knight death plays once (per-frame holds, last frame held), then the strip game-over
@@ -1147,28 +1847,86 @@
     S.dying = { t: 0, killer, st };
     const hero = S.party[0]; if (hero) { hero.act = null; hero.dying = { t: 0 }; }
     const dur = hero ? deathDur(hero, killer) : 0; // v19: brutal death by the killer (eaten / torn / arrows) or the approved knight death
-    S.mode = "dying"; S.enc = null; S.dice = []; S.diceDone = null; A.play("death"); MU.setScene("gameover");
+    S.deathDepth = S.enc && S.enc.depth ? Object.assign({}, S.enc.depth, { mode: "battle" }) : null;
+    S.mode = "dying"; S.enc = null; S.dice = []; S.diceDone = null; A.play("death"); musicScene("gameover");
     showPanel(`<div class="center"></div>`, "info"); // the drawn death says it
     later(Math.max(1.2, dur + 0.9), () => gameOver(killer, st));
   }
   function gameOver(killer, st) {
-    S.mode = "gameover"; S.enc = null; A.play("gameover"); MU.setScene("gameover");
-    if (S.checkpoint) KM.Save.write(Object.assign({}, S.checkpoint, { checkpoint: S.checkpoint }));
-    const isBest = KM.Save.recordBest(+leagues(), S.name);
+    if(inTomb())return tombEnd(false);
+    if(sketch)return sketchPage("sketchLoss");
+    S.mode = "gameover"; S.enc = null; A.play("gameover"); musicScene("gameover");
+    if(!PREVIEW && S.routeVersion) KM.Save.clear();
+    if (!PREVIEW && !S.routeVersion && S.checkpoint) KM.Save.write(Object.assign({}, S.checkpoint, { checkpoint: S.checkpoint }));
+    const isBest = !PREVIEW && KM.Save.recordBest(+leagues(), S.name);
     killer = killer || "unknown";
-    KM.Save.addDeath({ deathId: S.runId + "-" + Date.now(), runId: S.runId, route: "road-v7",
+    S.party.filter(m=>m.id!=="hero").forEach(m=>buryCompanion(m,killer)); // hunters / party wipe also leave companion crosses
+    if (!PREVIEW) KM.Save.addDeath({ chapter:S.chapter,deathId: S.runId + "-" + Date.now(), runId: S.runId, route: "road-v7",
       progress: st && st.src != null ? { encounter: st.src, offset: Math.round(S.camX - haltCam(st)) } : null,
       killer, marker: markerOf({ killer }), name: S.name, x: Math.round(S.camX), leagues: +leagues(), at: Date.now() }); // a grave in later runs
     const line = pickOne(D.dialogue.gameOver); endNarrator(`Killed by ${GR.killedBy[killer] || killer}. ${A.text(line)}`); paceVO(A.voOf(line), narrator);
-    showPanel(`<div class="center endp"><h1>Game over</h1><div class="endrow">${journeyHTML(isBest)}
-      <div class="opts big3">${big("Enter", "Retry", "retry")}${big("N", "New game", "newGame")}</div></div></div>`, "end");
+    showPanel(`<div class="center endp"><h1>Game over</h1><div class="endrow">${scoreHTML()}${journeyHTML(isBest)}<button class="opt plaque scores-link" data-act="leaderboard">Leaderboard</button>
+      <div class="opts big3">${S.routeVersion?big("Enter", "New run", "retry"):big("Enter", "Retry", "retry")+big("N", "New game", "newGame")}</div></div></div>`, "end");
+    showRunScore();
   }
-  function showWin() {
-    S.mode = "win"; A.play("victory"); MU.setScene("win"); KM.Save.clear();
-    const isBest = KM.Save.recordBest(+leagues(), S.name);
+  function showWin(finalize=false) {
+    if(inTomb())return tombEnd(true);
+    if(!finalize && !sketch && S.chapter!=="hollowwood" && S.routeVersion && PREVIEW!=="score-win")return chapterGate();
+    if(sketch)return sketchPage("sketchWin");
+    S.mode = "win"; A.play("victory"); musicScene("win"); if (!PREVIEW) KM.Save.clear();
+    const isBest = !PREVIEW && KM.Save.recordBest(+leagues(), S.name);
     endNarrator(A.text(D.dialogue.victory)); paceVO(A.voOf(D.dialogue.victory), narrator);
-    showPanel(`<div class="center endp"><h1>Victory!</h1><div class="endrow">${journeyHTML(isBest)}
+    showPanel(`<div class="center endp"><h1>Victory!</h1><div class="endrow">${scoreHTML()}${journeyHTML(isBest)}<button class="opt plaque scores-link" data-act="leaderboard">Leaderboard</button>
       <div class="opts big3">${big("Enter", "Play again", "newGame")}</div></div></div>`, "end");
+    showRunScore();
+  }
+  function startTomb(){
+    if(!KM.Tomb?.requested())return;
+    hush();KM.FireFx.stop();S.chapter='tomb';S.mode='walk';S.runId='tomb-test-'+Date.now()+'-'+Math.random().toString(36).slice(2,8);S.name='Magnus';S.stop=0;S.camX=0;S.dist=0;S.winT=0;S.fid=0;
+    S.enc=null;S.dying=null;S.deathDepth=null;S.ink=null;S.lightning=null;S.view=null;S.intro=null;S.entering=null;S.respect=null;
+    S.timers=[];S.floats=[];S.dice=[];S.voices=[];S.loot=[];S.tavernRecruits={};S.restUses={};S.usedRiddles=[];
+    S.hunters=0;S.gold=5;S.score=0;S.scoreLedger=KM.Score.empty();S.stats={correct:0,wrong:0,riddles:0,sacrificed:0};
+    S.pendingDismissal=null;S.speedMul=1;S.furtherDone=true;S.stepT=0;S.stepFr={};S.stepFrame=null;S.compStepT=0;
+    S.spells=0;S.spellLeft=0;S.mead=0;S.routeVersion=3;S.bestAtStart=0;S.toast=null;S.shake=0;S.walkT=0;
+    S.party=[newMember('hero',600)];
+    for(const id of ['frank','darkWizard','timmy'])S.party.push(followerFrom(D.companions[id],slotX(S.party.length)));
+    S.party[0].weapon=1;S.party[0].armor=1;S.party.forEach((m,i)=>m.sx=slotX(i));S.hp=maxHp();S.tombRoster=S.party.slice();S.tombBodies=[];
+    buildWorld(0);S.camX=haltCam(S.stops[0])-2000;KM.TombMemorials.reset(S);musicScene("walk");
+    $("stage").dataset.tomb='true';$("sky-title").hidden=true;hudCache='';renderWalk();renderHUD();
+  }
+  function tombEnd(won){
+    hush();S.enc=null;S.mode=won?'win':'gameover';S.timers=[];KM.FireFx.stop();musicScene(won?'win':'gameover');
+    showPanel('<div class="chapter-gate"><h2>'+T(won?'The passage is clear.':'The tomb keeps its guests.')+'</h2><div class="opts">'+big('Enter','Try the passage again','tombRestart')+'<a class="tomb-return" href="./?mode='+S.challengeMode+'&v=chapter-music-44">'+T('Return to the road')+'</a></div></div>','info');
+  }
+  function chapterGate(){
+    if(S.mode==='chapter')return;
+    S.mode='chapter';S.enc=null;hush();musicScene('walk');if(!PREVIEW)KM.HollowWood.unlock();save();
+    showPanel('<div class="chapter-gate"><h2>'+T('The Hollow Wood')+'</h2><p>'+T('Beyond the village, the graves have begun to stir.')+'</p><div class="opts">'+big('Enter','Enter the wood','enterWood')+big('','Finish this run','finishRun')+'</div></div>','info');
+  }
+  function enterWood(){
+    if(S.mode!=='chapter')return;S.mode='chapterLoading';showPanel('','info');
+    inkTransition(()=>{
+      hush();S.chapter='hollowwood';S.stop=0;S.camX=0;S.winT=0;S.enc=null;S.view=null;
+      S.loot=[];S.restUses={};S.tavernRecruits={};S.timers=[];S.floats=[];S.dice=[];S.respect=null;
+      S.party.forEach((m,i)=>{m.act=null;m.sp=null;m.hopY=0;m.sx=slotX(i);});
+      buildWorld(0);setCheckpoint();S.mode='walk';musicScene('walk');renderWalk();
+    });
+  }
+  function showRunScore(){
+    const summary=scoreSummary(),entry={mode:S.challengeMode,id:S.runId||('legacy-'+S.name+'-'+S.dist),name:S.name,score:summary.total,earned:summary.earned,survivors:summary.survivors,leagues:+leagues(),victory:S.mode==='win',at:Date.now()};
+    const eligible=!PREVIEW&&!/[?&](debug|notimer)(?:[=&]|$)/.test(location.search);
+    if(eligible)KM.Leaderboard?.record(entry);
+    KM.ScoreBanner?.show(summary,S.scoreLedger,{entry,mode:S.challengeMode,preview:!eligible});
+  }
+  // A terminal survival bonus, never added to the running score or counted twice on redraw.
+  function scoreSummary() {
+    const survivors = S.mode === 'win' ? S.party.filter(PA.alive).length : 0;
+    const bonus = survivors * 2;
+    return { earned: S.score, survivors, bonus, total: S.score + bonus };
+  }
+  function scoreHTML() {
+    const score = scoreSummary();
+    return `<div class="final-score" role="group" aria-label="Final score ${score.total}"><div class="score-label">Final score</div><div class="score-value" data-final-score="${score.total}">${G(String(score.total).replace('-', '−'))}</div>${score.bonus ? `<div class="survivor-bonus">+${score.bonus} · ${score.survivors} survivor${score.survivors === 1 ? '' : 's'}</div>` : ''}</div>`;
   }
   // one large element: the distance travelled (+ a star when it is a new best)
   const journeyHTML = isBest => `<div class="journeyline"><i class="mile">⚐</i>${leagues()} <span class="unit">leagues</span>${isBest ? ` <span class="best">★ best</span>` : ""}</div>`;
@@ -1178,20 +1936,30 @@
     n.x = S.camX + 1320; n.state = "idle"; n.active = true; n.dead = false; const md = S.mode; speak(n, text, { keep: () => S.mode === md });
   }
   function retry() {
+    if(inTomb())return startTomb();
+    if(S.routeVersion){const name=S.name;newGame();hush();S.name=name;S.intro=null;S.actors=S.actors.filter(a=>!a.narrator);S.mode='walk';musicScene('walk');setCheckpoint();renderWalk();return;}
     const c = S.checkpoint; if (!c) return newGame();
-    hush(); applyCore(c); startRunBookkeeping(); S.hp = maxHp(); S.mode = "walk"; MU.setScene("walk"); S.floats = []; save(); renderWalk();
+    hush(); applyCore(c); startRunBookkeeping(); S.hp = maxHp(); S.mode = "walk"; musicScene("walk"); S.floats = []; save(); renderWalk();
   }
 
   // ---------- input ----------
   const actions = {
+    replaceMember:b=>replaceMember(b.dataset.id), keepParty:keepParty,
+    tombRestart:startTomb, enterWood, finishRun:()=>{if(S.mode==="chapter")showWin(true);}, awakenBell, leaveBell,
+    sketchStart, sketchExit:()=>location.assign('./?mode='+S.challengeMode),
+    leaderboard:()=>KM.ScoreBanner?.showBoard({mode:S.challengeMode}),
+    knightPlay:b=>playKnight(+b.dataset.knightSlot,null),knightScroll:()=>armKnightScroll(),
+    chooseMode:b=>chooseMode(b.dataset.mode),
+    language:b=>chooseLanguage(b.dataset.lang),
     newGame: () => newGame(), continue: () => continueGame(), skipIntro: () => skipIntro(), submitName: () => submitName(), nextLine: () => advanceIntro(),
+    pickLightning:()=>pickAction("lightning"),
     commit: () => commit(), avoid: () => avoid(),
-    pickWeak: () => pickAction("weak"), pickHard: () => pickAction("hard"), pickHeal: () => pickAction("heal"),
-    mathBack: () => { const e = S.enc; if (e && e.q && e.q.back) { const b = e.q.back; e.q = null; e.msg = ""; b(); } },
+    pickWeak: () => pickAction("weak"), pickHard: () => pickAction("hard"), pickHeal: () => pickAction("heal"), pickExecute: () => pickAction("execute"), pickResurrect: () => pickAction("resurrect"),
+    mathBack: () => { const e = S.enc; if (e && !e.deadlineBusy && e.q && e.q.back) { const b = e.q.back; e.q = null; e.msg = ""; b(); } },
     sacrifice: () => renderSacrifice(), doSacrifice: b => doSacrifice(b.dataset.id), cancelSacrifice: () => cancelSacrifice(),
     answer: b => answerRiddle(+b.dataset.i),
     recruitSum: () => {
-      const e = S.enc; if (partyFull()) return actions.noRecruit();
+      const e = S.enc; if (!e || e.phase!=="recruit") return;
       recruitFlow(e.st, 0, (ok, cancelled) => { if (cancelled) return renderRecruit(); if (!ok) e.act.state = "stay"; finishEncounter(); });
     },
     noRecruit: () => { S.enc.act.state = "stay"; finishEncounter(); },
@@ -1201,7 +1969,10 @@
     frankAgree: () => { if (S.enc.phase === "frank") { say(S.enc.frank, "Splendid! For God and science!"); commit(); } }, frankNo: () => frankNo(),
     tvBack: () => tvBack(), tvJoin: b => tvJoin(+b.dataset.j), tvTalk: b => { const j = +b.dataset.j, p = S.enc.st.cands[j]; if (p) speak(candSpeaker(S.enc.st, j), p.join); },
     talkTable: () => talkPoint("table"), talkBar: () => talkPoint("bar"), castSpell: () => castSpell(), buySpell: () => buySpell(), pickFire: () => pickFire(), buyBottle: () => buyBottle(),
+    selectTavern:b=>{if(S.enc?.tv){S.enc.tv.sel=+b.dataset.i;renderTavernInside();}},
+    buyFare:b=>buyFare(b.dataset.item),
     restHeal: b => restHeal(b.dataset.k), buyMead: () => buyMead(), restRecruit: b => restRecruit(+b.dataset.j),
+    chooseGear:b=>chooseGear(b.dataset.kind), assignGear:b=>assignGear(+b.dataset.i), cancelGear:()=>cancelGear(),
     restBuyW: b => restBuy("weapon", +b.dataset.i), restBuyA: b => restBuy("armor", +b.dataset.i),
     goInside: () => goInside(), leaveInside: () => leaveInside(),
     leaveRest: () => leaveRest(),
@@ -1211,16 +1982,18 @@
   // v11b (Magnus): scene hotspots work with the mouse too: pointer cursor + the ink highlight on hover, click = use
   // (exterior doorway = go in; inside: sign = swing it / its plaques, recruit = "Join my party?", door = go outside).
   function hotspotAt(ev) {
-    if (!S.view || !S.enc) return null; const r = cv.getBoundingClientRect(), sx = (ev.clientX - r.left) / r.width * VW, sy = (ev.clientY - r.top) / r.height * L.artSpaceH;
+    if (!S.enc || roomChanging) return null; const r = cv.getBoundingClientRect(), sx = (ev.clientX - r.left) / r.width * VW, sy = (ev.clientY - r.top) / r.height * L.artSpaceH;
     const inR = q => sx >= q.x && sx <= q.x + q.w && sy >= q.y && sy <= q.y + q.h;
+    if (!S.view && S.enc.phase === "tavernOut") { const door = roadDoor(); return door && inR(door) ? {id:"arrivalDoor",use:goInside} : null; }
+    if (!S.view) return null;
     if (S.view.id === "tavern-arrival" && S.enc.phase === "tavernOut" && S.view.a >= 1 && inR(arrivalDoor())) return { id: "arrivalDoor", use: () => goInside() };
     if (S.view.id === "tavern-interior" && S.enc.tv && S.enc.phase === "rest") { const i = tvSpots().findIndex(q => inR(q.r));
-      if (i >= 0) return { id: "tv" + i, i, use: () => { S.enc.tv.sel = i; tvOpen(); } }; }
+      if (i >= 0) return { id: "tv" + i, i, use: () => { S.enc.tv.sel = i; renderTavernInside(); } }; }
     return null;
   }
   cv.addEventListener("mousemove", ev => { const h = hotspotAt(ev); cv.style.cursor = h ? "pointer" : "";
     const id = h ? h.id : null; if (id === S.hoverSpot) return; S.hoverSpot = id;
-    if (h && h.i != null && S.enc.tv.sel !== h.i) { S.enc.tv.sel = h.i; renderTavernInside(); } });
+     });
   cv.addEventListener("mouseleave", () => { S.hoverSpot = null; cv.style.cursor = ""; });
   document.addEventListener("click", ev => {
     const b = ev.target.closest("button");
@@ -1234,49 +2007,64 @@
       return;
     }
     if (b.disabled) return;
+    if(S.enc?.gearChoice && !["assignGear","cancelGear","toggleMusic"].includes(b.dataset.act))return;
     if (b.dataset.key) return typeKey(b.dataset.key);
     if (b.dataset.act && actions[b.dataset.act]) { A.play("ui_click"); actions[b.dataset.act](b); }
   });
   // Keyboard is THE input. Every prompt shows its key; clicking the option lines also works.
   document.addEventListener("keydown", ev => {
     const k = ev.key, K1 = k.length === 1 ? k.toUpperCase() : k;
-    if (S.mode === "name") { if (k === "Enter") submitName(); return; }
+    if(S.enc?.gearChoice){
+      if(k==='Escape'){ev.preventDefault();cancelGear();}
+      else if(/^[1-4]$/.test(k)){ev.preventDefault();assignGear(+k-1);}
+      else if(k==='Tab'){const buttons=[...panel.querySelectorAll('[role="dialog"] button:not([disabled])')];const i=buttons.indexOf(document.activeElement);ev.preventDefault();buttons[(i+(ev.shiftKey?-1:1)+buttons.length)%buttons.length]?.focus();}
+      return;
+    }
+    if (S.mode === "name") { if (k === "Enter" && !ev.isComposing) { ev.preventDefault(); submitName(); } return; }
     if (S.mode === "encounter" && S.enc && S.enc.phase === "spell") { // v12k fire bottle word: letters only (M, Z... are letters here); v12m: Backspace does nothing
       if (k === "Backspace") ev.preventDefault(); else if (/^[a-z]$/i.test(k)) spellKey(k.toUpperCase()); return; }
     if (K1 === "M") { MU.toggleMute(); renderHUD(); return; }
     if (k === "[" || k === "]") { MU.setVolume(MU.settings().volume + (k === "]" ? 1 : -1) * D.music.volumeStep); renderHUD(); return; }
     if ([" ", "Enter", "Backspace"].includes(k)) ev.preventDefault();
+    if (sketch && ['sketchTitle','sketchWin','sketchLoss'].includes(S.mode)) {
+      if(k==='Enter')sketchStart();return;
+    }
     if (S.mode === "title") { const sv = KM.Save.load(); if (k === "Enter") return sv ? continueGame() : newGame(); if (K1 === "N") return newGame(); if (K1 === "C" && sv) return continueGame(); return; }
     if (S.mode === "intro") { if (k === " " || k === "Enter") advanceIntro(); if (k === "Escape") skipIntro(); return; }
     if (S.mode === "gameover") { if (k === "Enter") retry(); else if (K1 === "N") newGame(); return; }
     if (S.mode === "win") { if (k === "Enter") newGame(); return; }
-    if (K1 === SPL.key && !S.dying) { // Spell of Stupidity: on the road, on your turn, or mid-sum (buy it at a tavern / shop)
+    if (S.mode === "chapter") { if(k === "Enter")enterWood();return; }
+    if (K1 === SPL.key && !S.dying && !isFellowship()) { // Spell of Stupidity: on the road, on your turn, or mid-sum (buy it at a tavern / shop)
       const ph = S.enc && S.enc.phase;
+      if (S.mode === "encounter" && ph === "cards") return armKnightScroll();
       if (S.mode === "walk" || (S.mode === "encounter" && (ph === "choose" || ph === "math") && !S.enc.sub)) return castSpell();
       if (S.mode === "encounter" && ph === "rest") return buySpell();
     }
     const e = S.enc; if (S.mode !== "encounter" || !e || S.dying) return;
     const press = (a, el) => { A.play("ui_click"); actions[a](el || {}); };
+    if(e.phase==='optional'){if(k==='Enter')awakenBell();else if(k==='Escape')leaveBell();return;}
     if (e.sub === "sacrifice") {
-      const ks = knights();
+      const ks = priests();
       if (/^[1-9]$/.test(k) && ks[+k - 1]) { A.play("ui_click"); doSacrifice(ks[+k - 1].id); }
       else if (k === "Escape") press("cancelSacrifice");
       return;
     }
-    const canSac = knights().length > 0;
+    const canSac = priests().length > 0;
     switch (e.phase) {
+      case 'replace': if(k==='Escape')keepParty();else if(/^[1-3]$/.test(k)){const m=knights()[+k-1];if(m)replaceMember(m.id);}return;
       case "math":
         if (/^\d$/.test(k)) typeKey(k); else if (k === "Backspace") typeKey("back"); else if (k === "Enter") typeKey("enter");
         else if (k === "Escape" && e.q && e.q.back) press("mathBack");
         return;
       case "approach": if (k === "Enter") press("commit"); else if (K1 === "A" && C.avoidable[e.st.type]) press("avoid"); return;
+      case "cards": if(!ev.repeat && /^[123]$/.test(k))playKnight(+k-1,null);return;
       case "choose":
         if (k === C.actions.weak.key) press("pickWeak"); else if (k === C.actions.hard.key) press("pickHard"); else if (k === C.actions.heal.key) press("pickHeal");
-        else if (K1 === "S" && canSac) press("sacrifice"); else if ((K1 === "R" || k === " ") && e.st.type === "mega") roll();
-        else if (K1 === IT.key && S.bottles > 0) press("pickFire");
+        else if(k==='6')press('pickLightning'); else if(k===C.actions.execute.key)press("pickExecute"); else if(k===C.actions.resurrect.key)press("pickResurrect"); else if (K1 === "S" && canSac) press("sacrifice"); else if ((K1 === "R" || k === " ") && e.st.type === "mega") roll();
+        else if (K1 === IT.key && firestarter() && S.enc.fireUses > 0) press("pickFire");
         return;
       case "riddle": { const ri = RKEYS.indexOf(K1); if (ri >= 0 && ri < e.riddle.choices.length) answerRiddle(ri); else if (/^[123]$/.test(k)) answerRiddle(+k - 1); else if (K1 === "S" && canSac) press("sacrifice"); return; }
-      case "recruit": if (k === "Enter") press(partyFull() ? "noRecruit" : "recruitSum"); else if (K1 === "N") press("noRecruit"); return;
+      case "recruit": if (k === "Enter") press("recruitSum"); else if (K1 === "N") press("noRecruit"); return;
       case "contestOffer": if (K1 === "D" || k === "Enter") press("contest"); else if (K1 === "N" || k === "Escape") press("noContest"); return;
       case "frank": if (k === "1") press("frankAgree"); else if (k === "2") press("frankNo"); return;
       case "tavernOut": if (K1 === "I") press("goInside"); else if (k === "Enter") press("leaveRest"); return;
@@ -1291,11 +2079,12 @@
           else if (k === "Enter") tvOpen(); else if (k === "Escape") tvBack();
           return;
         }
-        const T = restT(), wi = WKEYS.indexOf(K1), ai = AKEYS.indexOf(K1), inside = S.view && S.view.id === "tavern-interior";
+        if(S.enc.gearChoice){if(k==='Escape')cancelGear();else if(/^[1-4]$/.test(k))assignGear(+k-1);return;}
+        const T = restT(), inside = S.view && S.view.id === "tavern-interior";
         if (T.heals.some(h => h.key === K1)) restHeal(K1); else if (T.mead && K1 === T.mead.key) buyMead();
         else if (/^[1-3]$/.test(k)) restRecruit(+k - 1);
-        else if (wi >= 0 && T.gear && T.gear.maxWeapon) restBuy("weapon", wi);
-        else if (ai >= 0 && T.gear && T.gear.maxArmor) restBuy("armor", ai);
+        else if (K1 === "Q" && T.gear && T.gear.maxWeapon) chooseGear("weapon");
+        else if (K1 === "A" && T.gear && T.gear.maxArmor) chooseGear("armor");
         else if (inside && (K1 === "X" || k === "Escape")) press("leaveInside");
         else if (inside && K1 === "T") talkPoint("table"); else if (inside && K1 === "B") talkPoint("bar");
         else if (k === "Enter") press("leaveRest");
@@ -1305,12 +2094,15 @@
 
   // ---------- update ----------
   function update(dt) {
+    if(S.lightning){S.lightning.t+=dt;if(S.lightning.t>.6)S.lightning=null;}
     S.t += dt;
+    KM.ScoreBanner?.update(dt);
     if (isWalking()) S.walkT = (S.walkT || 0) + dt; // v13 walk cycle clock: runs only while the party walks
     if (S.timers.length) { const due = S.timers.filter(x => x.at <= S.t); S.timers = S.timers.filter(x => x.at > S.t); due.forEach(x => x.fn()); }
     tickSpeech(dt); introPace(); tickAnswerTimer(dt); KM.FireFx.update(dt);
     if (S.mode !== "encounter" && KM.FireFx.active()) KM.FireFx.stop(); // v12n: the battle is over / the scene changed: no fire (or crackle) left behind
-    if (S.mode === "walk") updateWalk(dt);
+    if (S.mode === "walk") { const before=S.camX;updateWalk(dt);if(S.camX>before)collectLoot(); }
+    updateDragonApproach(dt);
     if (S.toast) { S.toast.t += dt; if (S.toast.t > S.toast.dur) S.toast = null; }
     MU.setPlace(S.view && S.view.to ? S.view.id : null); // v12r: tagged music (vocal tavern songs) only plays in its place (src/data/music.js)
     if (S.view) { S.view.a += (S.view.to ? 1 : -1) * dt / 0.5; S.view.a = Math.max(0, Math.min(1, S.view.a)); if (!S.view.to && S.view.a <= 0) S.view = null; }
@@ -1327,10 +2119,11 @@
     });
     for (const a of S.actors) {
       if (!a.active || a.dead) continue;
+      if (a.departure) a.departure.t = Math.min(4.5, a.departure.t + dt);
       a.t += dt; if (a.flash > 0) a.flash -= dt; if (a.act) { a.act.t += dt; if (a.act.t >= a.act.dur) a.act = null; }
       if (a.seqPlay) { a.seqPlay.t += dt; if (!a.seqPlay.hold && a.seqPlay.t >= KM.Assets.seqDur(a.seqPlay.id)) a.seqPlay = null; }
       if (a.closing) { a.closing.t += dt; if (a.closing.t >= a.closing.dur) a.closing = null; }
-      if (a.state === "walkin") { const st = S.stops[a.stop], hx = a.homeX != null ? a.homeX : st.stopX; a.x -= W.enemyWalkSpeed * dt; if (a.x <= hx) { a.x = hx; a.state = "idle"; } }
+      if (a.state === "walkin") { const st=S.stops[a.stop],hx=a.homeX!=null?a.homeX:st.stopX,dx=hx-a.x,step=W.enemyWalkSpeed*dt; a.x+=Math.sign(dx)*Math.min(Math.abs(dx),step); if(Math.abs(dx)<=step){a.x=hx;a.state="idle";} }
       // stepped vanish for creatures without approved drawn deaths: hold, then 3 hard alpha steps (no tweened fall)
       if (a.state === "vanish") { a.alpha = a.t < 0.35 ? 1 : a.t < 0.5 ? 0.66 : a.t < 0.65 ? 0.33 : 0; if (a.t >= 0.65) a.dead = true; }
       if (a.state === "flyoff") { a.x += dt * 600; a.dy -= dt * 380; if (a.dy < -1100) a.dead = true; }
@@ -1338,7 +2131,7 @@
       if (a.state === "hunt") { a.x += dt * 520; if (screenX(a.x) > W.partyScreenX - 260) a.state = "idle"; }
       if (screenX(a.x) < -900 && a.state !== "waiting" && !a.hunter) a.dead = true;
     }
-    S.floats.forEach(f => (f.t += dt)); S.floats = S.floats.filter(f => f.t < 1.8);
+    S.floats.forEach(f => (f.t += dt)); S.floats = S.floats.filter(f => f.t < (f.life || 1.8));
     if (S.shake > 0) S.shake -= dt;
     if (W.boxScenery !== false || !ART7) {
       S.nextSky -= dt;
@@ -1353,14 +2146,13 @@
   const toScr = r => ({ x: r.x * K, y: r.y * K, w: r.w * K, h: r.h * K });
   function occupy(owner, id, x, y, scale) { const [w, h] = KM.Assets.entitySize(id, scale); occ.push({ owner, x: x - w / 2, y: y - h, w, h }); return h; }
   const overlapArea = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
-  // v11b speech bubbles = Magnus's painted bubbles (handoff UI sheet ui-0 "Speech left" / ui-1 "Speech right", KM_ART11),
-  // drawn at exactly source px x artScale (never stretched); the text (30 px, <= 2 lines) sits in the measured interior.
-  // The tail is on the left (ui-0) or right (ui-1): the side whose tail tip lands closest to the speaker's head is used.
-  // Never over another bubble, the dice, the toast, the spell badge or anyone's head (top of every drawn figure).
+  // Squarer woodcut bubbles extend inward from the speaker; the painted tail follows their mouth.
   const heads = () => occ.map(o => { if (o.head) return Object.assign({ owner: o.owner }, toScr(o.head)); const r = toScr(o); return { owner: o.owner, x: r.x + r.w * 0.15, y: r.y, w: r.w * 0.7, h: Math.min(r.h * 0.3, 150) }; });
   const BUB = () => { const A11 = window.KM_ART11; if (!A11) return null; const s = L.artScale, out = {};
     for (const side of ["left", "right"]) { const B = A11.bubbles[side], im = KM.Assets.loadImg(A11.root + B.img);
-      out[side] = { im, w: B.size[0] * s, h: B.size[1] * s, tip: [B.tip[0] * s, B.tip[1] * s], text: B.text.map(v => v * s) }; }
+      out[side] = { im, w: B.size[0] * s, h: B.size[1] * s, flip: !!B.flip,
+        tip: B.tip.map(v=>v*s), root:B.root.map(v=>v*s), body:B.body.map(v=>v*s),
+        canonicalRoot:B.canonicalRoot.map(v=>v*s), canonicalTip:B.canonicalTip.map(v=>v*s), text:B.text.map(v=>v*s) }; }
     return out; };
   let bubArt = null;
   function layoutBubbles() {
@@ -1371,38 +2163,31 @@
     if (S.toast) avoid.push(toScr({ x: VW / 2 - 800, y: 30, w: 1600, h: 120 }));
     if (spellBadgeRect()) avoid.push(spellBadgeRect());
     if (S.view && S.view.id === "tavern-interior" && S.view.a >= 1) { const sg = signGeom(KM.RestView.mapper("tavern-interior")); if (sg) avoid.push(toScr(sg.r)); } // v12o: keep the TAVERN FARE sign readable
-    if (partyHeartsRect()) avoid.push(partyHeartsRect()); avoid.push(...statusRects()); const hardAvoid = foeHeartsRects().map(r => ({ x: r.x - 8, y: r.y - 8, w: r.w + 16, h: r.h + 16 })); // monster hearts: never under a bubble
+    if (partyHeartsRect()) avoid.push(partyHeartsRect()); avoid.push(...statusRects()); const hardAvoid = foeHeartsRects().flatMap(r=>r.intent?[r,r.intent]:[r]).map(r => ({ x: r.x - 8, y: r.y - 8, w: r.w + 16, h: r.h + 16 })); // monster hearts: never under a bubble
     const occS = occ.map(o => Object.assign(toScr(o), { owner: o.owner }));
     for (const b of bubbleQ) {
       b.lines = b.lines || [b.text];
-      const hx = b.x * K, hy = b.y * K, others = occS.filter(o => o.owner !== b.owner), tx = hx, ty = hy - 6; // tail target: just above the head
-      let best = null, bestCost = Infinity;
-      const sides = bubArt ? ["left", "right"] : [null];
-      for (const side of sides) {
-        const A = side && bubArt[side];
-        const w = A ? A.w : Math.ceil(Math.max(...b.lines.map(l => ctx.measureText(l).width))) + SP.padX * 2, h = A ? A.h : b.lines.length * SP.lineH + SP.padY * 2;
-        const tip = A ? A.tip : [w / 2, h + 16];
-        for (const lift of [0, 30, 60, 100, 150, 210, -60, -120, -180, -240]) for (const dx of [0, -60, 60, -130, 130, -220, 220, -320, 320]) {
-          const r = { x: Math.max(6, Math.min(SW - 6 - w, tx - tip[0] + dx)), y: ty - tip[1] - lift, w, h, side };
-          if (r.y < 6) r.y = 6; if (r.y + r.h > SH - 6) r.y = SH - 6 - r.h;
-          const px = r.x + tip[0], py = r.y + tip[1]; // where the tail tip really ends
-          let cost = Math.abs(px - tx) * 0.5 + Math.abs(py - ty) * 0.6 + (py > ty + 40 ? 120 : 0);
-          for (const o of avoid.concat(placed)) cost += overlapArea(r, o) * 50;
-          for (const o of hardAvoid) cost += overlapArea(r, o) * 1e5;
-          for (const o of HD) cost += overlapArea(r, o) * 40;
-          for (const o of others) cost += overlapArea(r, o) * 2;
-          if (cost < bestCost) { bestCost = cost; best = r; }
-        }
-      }
-      placed.push(best); b.rect = best; b.hx = hx; b.hy = hy;
+      const hx=b.x*K, hy=b.y*K, own=occS.find(o=>o.owner===b.owner);
+      const side=KM.SpeechBubbles.sideFor(hx,SW), direction=side==='left'?1:-1;
+      // Explicit face anchors for off-centre heads; otherwise aim just below the brow.
+      const mouth=b.mouth ? {x:b.mouth.x*K,y:b.mouth.y*K} : {
+        x:hx+direction*(own?own.w*.10:0), y:hy+(own?Math.min(own.h*.17,75):0)
+      };
+      const ownFace=HD.find(face=>face.owner===b.owner);
+      // End just outside the face silhouette, never lay the tail across eyes or lips.
+      if(ownFace && mouth.y>=ownFace.y && mouth.y<=ownFace.y+ownFace.h && mouth.x>=ownFace.x-3 && mouth.x<=ownFace.x+ownFace.w+3)
+        mouth.x=side==='left' ? ownFace.x+ownFace.w+5 : ownFace.x-5;
+      const best=KM.SpeechBubbles.place({mouth,speakerX:hx,width:SW,height:SH,art:bubArt,
+        avoid:avoid.concat(placed,hardAvoid),heads:HD,bodies:occS.filter(o=>o.owner!==b.owner),count:bubbleQ.length});
+      if(best)placed.push(best.body); b.rect=best; b.hx=hx; b.hy=hy;
     }
-    for (const b of bubbleQ) drawBubble(b);
+    for (const b of bubbleQ) if(b.rect)drawBubble(b);
   }
   function drawBubble(b) {
     const r = b.rect, ink = "#2a1d12", A = r.side && bubArt && bubArt[r.side];
     ctx.save();
     if (A && A.im._ok) {
-      ctx.drawImage(A.im, r.x, r.y, A.w, A.h); // Magnus's painted bubble, exact size
+      KM.SpeechBubbles.drawFrame(ctx, A, r);
       const [tx0, ty0, tw, th] = A.text, n = b.lines.length;
       ctx.fillStyle = ink; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = `${SP.font}px Georgia, serif`;
       b.lines.forEach((l, i) => ctx.fillText(l, r.x + tx0 + tw / 2, r.y + ty0 + th / 2 + (i - (n - 1) / 2) * SP.lineH + 1));
@@ -1423,7 +2208,8 @@
   // above the monster. Ink hearts: red = full, outline = lost (stand-ins, MISSING_ART #33)
   const HS = 34, HG = 6, PG = 14; // party heart size, gap, extra gap between members (stage px)
   const showHearts = () => !["title", "intro", "name"].includes(S.mode);
-  const partyHeartsRect = () => { if (!showHearts()) return null; const n = maxHp(), pairs = Math.ceil(n / HPM()); return { x: 18, y: 16, w: n * (HS + HG) + (pairs - 1) * PG, h: HS }; };
+  const armourOverhang = () => Math.max(0, Math.ceil(PA.armour(S.party) / Math.max(1,maxHp())) - 1) * 7;
+  const partyHeartsRect = () => { if (inTomb() || !showHearts()) return null; return { x:18, y:16, w:maxHp()*(HS+HG)+armourOverhang()+Math.max(0,S.party.length-1)*PG, h:HS }; };
   function heartPath(x, y, s) { // top-left x,y, size s
     ctx.beginPath(); ctx.moveTo(x + s / 2, y + s * 0.95);
     ctx.bezierCurveTo(x - s * 0.05, y + s * 0.55, x - s * 0.02, y + s * 0.05, x + s * 0.27, y + s * 0.06);
@@ -1435,23 +2221,39 @@
   function drawHearts() {
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.lineJoin = "round";
     const r = partyHeartsRect();
-    if (r) { let x = r.x; for (let i = 0; i < maxHp(); i++) { if (i && i % HPM() === 0) x += PG; heart(x, r.y, HS, i < S.hp, "#b3321f"); x += HS + HG; } }
+    if(r){let x=r.x,i=0;const slots=[];
+      S.party.forEach((m,j)=>{if(j)x+=PG;
+        for(let h=0;h<PA.life(m);h++){slots.push(x);heart(x,r.y,HS,i++<S.hp,'#b3321f');x+=HS+HG;}
+      });
+      // Armour is one shared visual pool: cover hearts from the far left, regardless of who owns the gear.
+      if(slots.length)for(let h=PA.armour(S.party)-1;h>=0;h--)
+        heart(slots[h%slots.length]+Math.floor(h/slots.length)*7,r.y,HS,true,'#b8b9b4');
+    }
     // every living foe: its own small hearts above its head
-    foeHeartsRects().forEach(fr => { for (let i = 0; i < fr.shown; i++) heart(fr.x + i * (FS + 3), fr.y, FS, i < fr.full, "#7a1f14"); });
+    foeHeartsRects().forEach(fr => {
+      for (let i=0;i<fr.shown;i++)heart(fr.x+i*(FS+3),fr.y,FS,i<fr.full,"#7a1f14");
+      const box=fr.intent;if(!box)return;
+      ctx.fillStyle='#efe1c7';ctx.strokeStyle=box.attacking?'#884821':'#776958';ctx.lineWidth=1.6;
+      ctx.fillRect(box.x,box.y,box.w,box.h);ctx.strokeRect(box.x,box.y,box.w,box.h);
+      ctx.font=(box.attacking?'bold ':'')+'21px Georgia, serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillStyle=box.attacking?'#792f12':'#524738';ctx.fillText(box.label,box.x+box.w/2,box.y+box.h/2+1);
+    });
     ctx.restore();
   }
   const FS = 20, FROW = 10; // the monster's small hearts (rows of 10) (stage px), centred just above its head
   function foeHeartsRect() { const e = S.enc; return e && e.act ? foeHeartsRects().find(r => r.owner === e.act) || null : null; }
   function foeHeartsRects() {
-    const e = S.enc; if (!e || !e.revealed || !e.act || e.hp <= 0 || !["choose", "math", "spell", "busy"].includes(e.phase)) return [];
+    const e = S.enc; if (!e || !e.revealed || !e.act || e.hp <= 0 || !["cards","choose","math","spell","busy","deadline"].includes(e.phase)) return [];
     return (e.foes && e.foes.length ? living(e) : [e.act]).map(a => { const o = occ.find(q => q.owner === a); if (!o || a.dead) return null;
       const mx = a.maxHp != null ? a.maxHp : e.maxHp, hp = a.hp != null ? a.hp : e.hp;
       // ONE row at most (Magnus: the mega boss's ~24 hearts were clutter): up to FROW hearts, each worth mx / shown HP;
       // filled = hp rounded UP so a foe with any HP left keeps one filled heart
       // centred on the drawing's opaque middle (KM_WIDE) where it is drawn THIS frame, just above its head (KM_TALL)
       const shown = Math.min(FROW, mx), full = Math.ceil(Math.max(0, hp) / mx * shown - 1e-9), w = shown * (FS + 3) - 3, h = FS;
-      const wd = wideOf(a.id), cx = ((a.drawX != null ? a.drawX : screenX(a.x)) + (wd[0] + wd[1]) / 2) * K, top = ((a.drawY != null ? a.drawY : W.groundY) - tallOf(a.id)) * K;
-      return { owner: a, id: a.id, hp, max: mx, shown, full, cx, headY: top, x: Math.max(8, Math.min(L.scene.w - 8 - w, cx - w / 2)), y: Math.max(8, top - h - 12), w, h, per: shown }; }).filter(Boolean);
+      const wd = wideOf(a.id), dp = dragonPose(a), ds = dp ? dp.scale : 1, cx = ((a.drawX != null ? a.drawX : screenX(a.x)) + (wd[0] + wd[1]) / 2 * ds) * K, top = ((a.drawY != null ? a.drawY : W.groundY) - tallOf(a.id) * ds) * K;
+      const y=Math.max(43,top-h-12),label=intentLabel(e,a),bw=Math.min(230,Math.max(108,label.length*(KM.I18n?.jp()?19:10)+20));
+      const intent=e.resolvingEnemyTurn?null:{label,attacking:intentDamage(e,a)>0,x:Math.max(8,Math.min(L.scene.w-8-bw,cx-bw/2)),y:y-32,w:bw,h:27};
+      return {owner:a,id:a.id,hp,max:mx,shown,full,cx,headY:top,x:Math.max(8,Math.min(L.scene.w-8-w,cx-w/2)),y,w,h,per:shown,intent}; }).filter(Boolean);
   }
   // v11b: the badge also shows (icon only, no count) while a tavern mead is waiting for / lasting through a battle
   const spellBadgeRect = () => { if (!((S.spellLeft > 0 || S.mead) && S.mode !== "title")) return null; const h = partyHeartsRect(); return { x: h ? Math.max(h.x + h.w, 150) + 26 : 18, y: 6, w: 132, h: 84 }; };
@@ -1466,15 +2268,32 @@
     if (S.spellLeft > 0) ctx.fillText(String(S.spellLeft), r.x + iw + 8, r.y + r.h / 2 + 4);
     ctx.restore();
   }
-  const pushSay = (o, x, headY) => { const c = speechNow(o); if (c) bubbleQ.push({ text: c.join(" "), lines: c, x, y: headY, owner: o }); };
-  // distant (pre-commit) creatures: grey, on the hill lane behind the front mist, same native size; closing = stepping forward
+  // Mouth/visor anchors measured on the standing atlas cells, relative to each cell pivot.
+  // Attachment metadata only: no character artwork or animation changes.
+  const speechOffsets = {villager:[170,-470],villager_sword:[170,-470],villager_armour:[230,-444],hero:[230,-444],follower_1:[170,-398],follower_2:[184,-400],
+    follower_3:[180,-408],follower_4:[184,-395],frank:[50,-390],timmy:[80,-339],executioner:[55,-345],dark_wizard:[48,-365]};
+  const speechFaces={villager:[60,-590,130,155],villager_sword:[60,-590,130,155],villager_armour:[46,-592,175,185],hero:[46,-592,175,185],follower_1:[-24,-530,190,160],
+    follower_2:[6,-570,170,205],follower_3:[6,-570,170,205],follower_4:[6,-570,170,205],
+    frank:[-71,-464,110,109],timmy:[-26,-437,92,145],executioner:[-61,-449,105,135],dark_wizard:[-5,-415,90,90]};
+  function faceOf(id,x,y,flip=false,scale=1) {
+    const r=speechFaces[id];if(!r)return null;
+    const s=L.art*((KM_ART.entities[id]||{}).artMul||1)*scale;
+    return {x:x+(flip?-r[0]-r[2]:r[0])*s,y:y+r[1]*s,w:r[2]*s,h:r[3]*s};
+  }
+  function mouthOf(id,x,y,flip=false,scale=1) {
+    const p=speechOffsets[id];if(!p)return null;
+    const s=L.art*((KM_ART.entities[id]||{}).artMul||1)*scale;
+    return {x:x+p[0]*s*(flip?-1:1),y:y+p[1]*s};
+  }
+  const pushSay = (o, x, headY, mouth) => { const c=speechNow(o);if(!c)return;
+    const bubble={text:c.join(" "),lines:c,x,y:headY,mouth,owner:o},i=bubbleQ.findIndex(b=>b.owner===o);
+    if(i>=0)bubbleQ[i]=bubble;else bubbleQ.push(bubble);
+  };
+  // Only the hill landmark changes depth; ordinary enemies keep their full-colour, opaque art.
   const ML = () => D.scenery.midLane;
   function laneOf(a) {
-    // Magnus: enemies never float. Ordinary foes stand ON the ground line from the moment they slide in (grey + misty
-    // until the commit = hidden strength); only the optional special creature (Frank's dragon) sits on its hill lane.
-    if (a.distant && a.hill) return { y: ML().y, filter: "grayscale(1)", alpha: 1 }; // grey, NOT shrunk (v8); v12g: solid (no mist / see-through)
-    if (a.distant) return { y: W.groundY, filter: "grayscale(1) contrast(.7) brightness(1.15)", alpha: 0.85 };
-    if (a.closing) { const k = Math.min(1, a.closing.t / a.closing.dur), y0 = a.hill ? ML().y : W.groundY; return { y: y0 + (W.groundY - y0) * k, filter: k < 0.5 ? "grayscale(.6)" : "", alpha: 1 }; }
+    if (a.distant && a.hill) return { y:ML().y, filter:'grayscale(1)', alpha:1 };
+    if (a.closing && a.hill) { const k=Math.min(1,a.closing.t/a.closing.dur); return {y:ML().y+(W.groundY-ML().y)*k,filter:'',alpha:1}; }
     return null;
   }
   // v11b roadside scroll stall: Magnus's seller BEHIND the counter (his lower body hidden), the stall drawn in front.
@@ -1490,12 +2309,27 @@
     occ.push({ owner: a, x: r.x, y: r.y, w: r.w, h: r.h });
     pushSay(a, sx + sw * 0.62, sy + 10);
   }
+  // Alternate authored peeks, kept behind their opaque rock. The third visit is further away.
+  function drawRiddleVariant(a){
+    if(a.hidden||a.eaten)return;
+    const far=a.riddleVariant===2,st=S.stops[a.stop],im=KM.Assets.loadImg('assets/wizard-riddles/'+(far?'riddler-over.png':'riddler-left.png'));
+    if(!im._ok)return;
+    const sx=far?W.engageScreenX+(haltCam(st)-S.camX)*.55:screenX(a.x);
+    const h=far?350:510,w=h*im.naturalWidth/im.naturalHeight,y=W.groundY-(far?155:0),x=sx-w/2;
+    if(x>VW+100||x+w< -100)return;
+    ctx.save();ctx.globalAlpha=a.alpha;ctx.drawImage(im,x,y-h,w,h);ctx.restore();
+    const mouth={x:x+w*(far?.48:.20),y:y-h+h*(far?.28:.27)};
+    occ.push({owner:a,x,y:y-h,w,h,head:{x:mouth.x-50,y:mouth.y-65,w:100,h:90}});
+    a.drawX=sx;a.drawY=y;if(a.state!=='vanish')pushSay(a,mouth.x,y-h,mouth);
+  }
   function drawActor(a) {
+    if (a.departure) return drawCampDeparture(a);
+    if(a.id==='bridgekeeper'&&a.riddleVariant>0)return drawRiddleVariant(a);
     if (a.stall) return drawStall(a);
     if (a.hidden || a.facade || a.eaten) return;
-    if (a.distant && (KM_ART.entities[a.id] || {}).onHill && S.swaps) return; // v19: while distant it IS the dragon on the hill strip
-    const sx = screenX(a.x); if (sx < -700 || sx > VW + 700) return;
-    const ln = laneOf(a);
+    if (a.distant && (KM_ART.entities[a.id] || {}).onHill && S.swaps && !S.swaps.mid.landmark) return; // v19: while distant it IS the dragon on the hill strip
+    const dp = dragonPose(a), sx = dp ? dp.x : screenX(a.x); if (sx < -700 || sx > VW + 700) return;
+    const ln = dp ? { y: dp.y, filter: dp.filter, alpha: 1 } : laneOf(a);
     let y = (ln ? ln.y : W.groundY) + a.dy;
     const moving = a.state === "walkin" || a.state === "charge" || a.state === "hunt";
     const did = a.state === "newt" ? "newt" : a.id; // newt: its own (missing-art) placeholder, never a shrunken knight
@@ -1504,16 +2338,24 @@
     // v12r (Magnus: "All friendly knights you can get shall face the player"): one rule for every recruitable knight still
     // standing as an NPC on the road (ditch / camp wanderer / shop sellsword / tavern): mirrored to face the party
     // (KM_DATA.party.npcFaceParty). Once he joins he is a party member (not an actor) and faces the walking direction.
-    const faceParty = D.party.npcFaceParty && D.party.recruitArt && did.startsWith(D.party.recruitArt);
-    KM.Assets.drawEntity(ctx, did, sx + (fx ? fx.dx : 0), y + (fx ? fx.dy : 0), { flip: faceParty, t: fx ? fx.t : moving && KM_ART.walkRate ? a.t * KM_ART.walkRate(did) : a.t, action, hurt: fx && fx.hurt, alpha: a.alpha * (ln ? ln.alpha : 1), flash: a.flash > 0, name: a.label,
+    const faceParty = D.party.npcFaceParty && (["frank","timmy","executioner","dark_wizard"].includes(did) || (D.party.recruitArt && did.startsWith(D.party.recruitArt)));
+    const dx = fx ? fx.dx : 0, dy = fx ? fx.dy : 0, ds = dp ? dp.scale : 1;
+    ctx.save(); ctx.translate(sx + dx, y + dy); ctx.scale(ds, ds);
+    KM.Assets.drawEntity(ctx, did, 0, 0, { flip: faceParty, t: fx ? fx.t : moving && KM_ART.walkRate ? a.t * KM_ART.walkRate(did) : a.t, action, hurt: fx && fx.hurt, alpha: a.alpha * (ln ? ln.alpha : 1), flash: a.flash > 0, name: a.label,
       filter: ln && ln.filter, seq: a.seqPlay && a.seqPlay.id, seqT: a.seqPlay && a.seqPlay.t });
+    ctx.restore();
     // v18: a separate foreground occluder drawn right after its owner (riddle keeper -> rock), never merged with it
-    const fr = (KM_ART.entities[did] || {}).front; if (fr) KM.Assets.drawEntity(ctx, fr, sx, y, { alpha: a.alpha * (ln ? ln.alpha : 1), filter: ln && ln.filter });
+    const fr = a.wizardRock ? "keeper_rock" : (KM_ART.entities[did] || {}).front; if (fr) KM.Assets.drawEntity(ctx, fr, sx, y, { alpha: a.alpha * (ln ? ln.alpha : 1), filter: ln && ln.filter });
     a.drawX = sx + (fx ? fx.dx : 0); a.drawY = y + (fx ? fx.dy : 0); // where it really is this frame (hearts follow a lunge)
-    const h = occupy(a, did, sx, y), sa = (KM_ART.entities[did] || {}).sayAt; // sayAt: where his head is (source px from the pivot)
+    let h = occupy(a, did, sx, y);
+    if (dp) { const o = occ[occ.length - 1]; o.w *= ds; o.h *= ds; o.x = sx - o.w / 2; o.y = y - o.h; h = o.h; }
+    const sa = (KM_ART.entities[did] || {}).sayAt; // sayAt: where his head is (source px from the pivot)
     const sm = L.art * ((KM_ART.entities[did] || {}).artMul || 1); // v12b: the narrator's artMul (Magnus: knight-sized)
     if (sa) { const N = window.KM_NARRATOR, sw = (N ? N.skull.w : 180) * sm; occ[occ.length - 1].head = { x: sx + sa[0] * sm - sw * 0.6, y: y + sa[1] * sm, w: sw * 1.2, h: sw * 1.5 }; } // the skull, not the whole rock
-    if (a.state !== "vanish") pushSay(a, sa ? sx + sa[0] * sm : sx, sa ? y + sa[1] * sm : y - h);
+    const keeperMouth = did === 'bridgekeeper' ? {x:sx+(398-KM_ART18.keeper.anchor[0])*sm,y:y+(350-KM_ART18.keeper.anchor[1])*sm} : null;
+    const face=faceOf(did,sx,y,faceParty,ds);if(face)occ[occ.length-1].head=face;
+    if(keeperMouth)occ[occ.length-1].head={x:sx+(410-KM_ART18.keeper.anchor[0])*sm,y:y+(210-KM_ART18.keeper.anchor[1])*sm,w:185*sm,h:190*sm};
+    if (a.state !== "vanish") pushSay(a, sa ? sx + sa[0] * sm : sx, sa ? y + sa[1] * sm : y - h, keeperMouth || mouthOf(did,sx,y,faceParty,ds));
   }
   function drawGraves() {
     for (const g of S.graves) {
@@ -1528,6 +2370,12 @@
   const DIE = () => (KM_ART7 && KM_ART7.dice ? KM_ART7.dice.cell[0] : 512) * L.art; // 512-px cell x global factor
   const DIEY = 390; // v11b: 300 + LIFT 90
   const dieRect = d => ({ x: d.x - DIE() / 2, y: DIEY - DIE() / 2, w: DIE(), h: DIE() + 60 });
+  function roadDoor() {
+    const a=S.actors.find(a=>a.facade && a.stop===S.stop && !a.dead);
+    const sc=KM_ART7.scenes["tavern-exterior"]; if (!a || !sc) return null;
+    const [fx,fy,fw,fh]=sc.facadePlacement, [dx,dy,dw,dh]=sc.doorRect, s=L.art*(L.buildingMul||1);
+    return {x:screenX(a.x)-fw*s/2+(dx-fx)*s,y:W.groundY+8-fh*s+(dy-fy)*s,w:dw*s,h:dh*s};
+  }
   function drawFacade(a) { // tavern exterior: dark door backing, (doorway slot), facade cut from Magnus's layered exterior
     const sc = ART7 && KM_ART7.scenes["tavern-exterior"]; if (!sc || !sc.facadeCrop) return;
     const im = KM.RestView.img(sc.facadeCrop.img), bk = KM.RestView.img(sc.doorBackingCrop.img); // v10: paper-graded copies
@@ -1537,7 +2385,7 @@
     if (S.entering) { // v8: at 1:1 the hero is far taller than the painted door, so he walks to it and fades (no shrink)
       const [dx, , dw] = sc.doorRect, k = Math.min(1, S.entering.t / 0.6);
       const doorX = x0 + (dx - fx + dw / 2) * s, hx = W.partyScreenX + (doorX - W.partyScreenX) * k;
-      KM.Assets.drawEntity(ctx, "hero", hx, W.groundY, { alpha: 1 - k });
+      KM.Assets.drawEntity(ctx, artId(S.party[0]), hx, W.groundY, { alpha: 1 - k });
     }
     // v10: the facade's paper-white walls take the parchment like all road scenery (offline ink, KM.Scenery.drawInked)
     const raw = KM.Assets.loadImg(KM_ART7.root + sc.facadeCrop.img), tint = SCN() && D.scenery.tint && D.scenery.tint.enabled;
@@ -1546,19 +2394,27 @@
   }
   function drawParty(walking) {
     for (let i = S.party.length - 1; i >= 0; i--) {
-      const m = S.party[i]; if (S.entering && m.id === "hero" && S.entering.t < 0.75) continue;
-      const id = artId(m), rig = KM_ART.entities[id] && KM_ART.entities[id].walk; // v13 walkers: no procedural bob
-      const bob = walking && !rig ? -Math.abs(Math.sin(S.t * 9 + i)) * 9 : 0, y = W.groundY + m.hopY + bob;
-      if (m.eaten) continue; // v19: inside the creature's composite eating drawing now
-      if (m.dying) { // approved drawn death (KM_ART7.sequences.knight_death): frame-by-frame, held on the last drawing
-        const seq = m.dying.seq || (KM_ART.entities[id] || {}).deathSeq || (KM_ART.entities.hero || {}).deathSeq; // own death; companions w/o one: the hero's as a stand-in
-        KM.Assets.drawEntity(ctx, id, m.sx, W.groundY, seq ? { seq, seqT: m.dying.t } : { alpha: m.dying.t < 0.6 ? 1 : 0.4, name: S.name });
-        continue;
+      const m = S.party[i]; if (m.eaten || (S.entering && m.id === "hero" && S.entering.t < .75)) continue;
+      const id = artId(m), rig = KM_ART.entities[id] && KM_ART.entities[id].walk, pose = partyPose(m, i);
+      const bob = walking && !rig ? -Math.abs(Math.sin(S.t * 9 + i)) * 6 : 0;
+      const y = pose.y + ((m.hopY || 0) + bob) * pose.scale, fx = actFx(id, m.act, 1);
+      const [w, h] = KM.Assets.entitySize(id), x = pose.x + (fx ? fx.dx : 0);
+      let rear = false;
+      if (!m.dying && pose.rear) rear = KM.DragonApproach.drawRear(ctx, S, m, i, pose, h);
+      if (!rear) {
+        ctx.save(); ctx.translate(x, y + (fx ? fx.dy : 0)); ctx.scale(pose.scale, pose.scale);
+        if (m.dying) {
+          const cfg=KM_ART.entities[id]||{},seq=m.dying.seq || cfg.deathSeq || (!cfg.noFallbackDeath && (KM_ART.entities.hero || {}).deathSeq);
+          KM.Assets.drawEntity(ctx, id, 0, 0, seq ? { seq, seqT: m.dying.t } : {rot:Math.min(1,Math.floor(m.dying.t*5)/3)*Math.PI/2});
+        } else KM.Assets.drawEntity(ctx, id, 0, 0, { flip: pose.returning,
+          t: fx ? fx.t : walking && rig ? (S.walkT || 0) * KM_ART.walkRate(id) : S.t,
+          action: fx ? fx.action : walking ? "walk" : "idle", hurt: fx && fx.hurt, rot: fx && fx.rot,
+          name: m.id === "hero" ? S.name : shortName(m.name) });
+        ctx.restore();
       }
-      const fx = actFx(id, m.act, 1);
-      KM.Assets.drawEntity(ctx, id, m.sx + (fx ? fx.dx : 0), y + (fx ? fx.dy : 0), { t: fx ? fx.t : walking && rig ? (S.walkT || 0) * KM_ART.walkRate(id) : S.t, action: fx ? fx.action : walking ? "walk" : "idle", hurt: fx && fx.hurt, rot: fx && fx.rot, name: m.id === "hero" ? S.name : shortName(m.name) });
-      const h = occupy(m, id, m.sx, y);
-      pushSay(m, m.sx, y - h);
+      occ.push({ owner: m, x: x - w * pose.scale / 2, y: y - h * pose.scale, w: w * pose.scale, h: h * pose.scale });
+      const face=faceOf(id,x,y,pose.returning,pose.scale);if(face)occ[occ.length-1].head=face;
+      if (!m.dying) pushSay(m, x, y - h * pose.scale, mouthOf(id,x,y,pose.returning,pose.scale));
     }
   }
   // layered rest views (camp / tavern interior). v8: the 1774x887 canvas is drawn at 1:1 x the global factor (KM.RestView).
@@ -1566,10 +2422,12 @@
   // so 1:1 characters cannot sit in the seat slots: the party and the recruits stand on OUR ground line in front of the
   // scene (party left, recruits right). Seated poses at the scene's scale are MISSING ART; the bartender slot stays empty.
   function drawView() {
-    const v = S.view, sc = KM.RestView.scene(v.id); if (!sc) return;
+    const v = S.view;
+    if(v.id==='tavern-interior'){bubbleQ=[];occ=[];drawTavernPOV();return;}
+    const sc = KM.RestView.scene(v.id); if (!sc) return;
     const cands = S.enc && S.enc.st && S.enc.st.cands ? S.enc.st.cands.map((p, j) => p && { p, j }).filter(Boolean) : [];
     ctx.save(); ctx.globalAlpha = v.a; ctx.fillStyle = "#efe3c8"; ctx.fillRect(0, 0, VW, L.artSpaceH); ctx.restore();
-    if (SCN()) { ctx.save(); ctx.globalAlpha = v.a; KM.Scenery.draw(ctx, S.camX, S.t, { seed: S.fgSeed, swaps: S.swaps }); ctx.restore(); }
+    if (SCN() && v.id !== "tavern-interior") { ctx.save(); ctx.globalAlpha = v.a; KM.Scenery.draw(ctx, S.camX, S.t, { chapter:S.chapter, seed: S.fgSeed, swaps: S.swaps }); ctx.restore(); }
     KM.RestView.draw(ctx, v.id, {}, v.a);
     ctx.save(); ctx.globalAlpha = v.a;
     if (v.id === "tavern-interior" && KM.RestView.scene(v.id).full) { drawTavernInside(cands); ctx.restore(); exitRect = null; return; } // v12o: draws its own party, after the sign
@@ -1655,7 +2513,7 @@
       const cw = ctx.measureText(String(it.cost)).width;
       if (purse && purse._ok) { const s3 = pp / Math.max(purse.naturalWidth, purse.naturalHeight); ctx.drawImage(purse, x1 - cw - gap / 2 - purse.naturalWidth * s3, cy - purse.naturalHeight * s3 / 2, purse.naturalWidth * s3, purse.naturalHeight * s3); }
       ctx.restore();
-      ctx.fillStyle = ink; ctx.textAlign = "left"; ctx.fillText(it.label, x0 + ip + gap, cy + fs * 0.04);
+      ctx.fillStyle = ink; ctx.textAlign = "left"; ctx.fillText(T(it.label), x0 + ip + gap, cy + fs * 0.04);
       ctx.textAlign = "right"; ctx.fillText(String(it.cost), x1, cy + fs * 0.04);
       if (selId === it.id) { const lw = ctx.measureText(it.label).width; ctx.fillStyle = G.lit; ctx.fillRect(x0 + ip + gap, cy + fs * 0.55, lw, px(G.underline)); } // lit line
     });
@@ -1663,6 +2521,7 @@
   }
   function tvSpots() {
     const e = S.enc; if (!e || !S.view || S.view.id !== "tavern-interior") return [];
+    if(KM.TavernPOV)return KM.TavernPOV.spots(e.st.cands,fareItems());
     const m = KM.RestView.mapper("tavern-interior"), sg = signGeom(), items = fareItems(), lines = sg ? fareLines(sg, items.length) : [];
     const out = items.map((it, i) => ({ id: "fare:" + it.id, kind: "fare", item: it.id, name: it.label, r: lines[i].r }));
     const n = (e.st.cands || []).length;
@@ -1671,6 +2530,14 @@
     return out;
   }
   function buyFare(id) { const it = fareItems().find(f => f.id === id); if (!it) return; swingSign(SG().swing.deg); A.play("ui_click"); it.buy(); renderTavernInside(); }
+  function drawTavernPOV(){
+    const e=S.enc;if(!e)return;
+    KM.TavernPOV.draw(ctx,e.st.cands,e.tv?.sel, fareItems(),S.party[0],e.tavernDepartures||[],S.t);
+    const geom=KM.TavernPOV.seats(e.st.cands);
+    geom.forEach(({p,r,j})=>{const head={x:r.x+r.w*.23,y:r.y,w:r.w*.52,h:r.h*.48};occ.push({...r,owner:p,head});pushSay(p,r.x+r.w/2,r.y,{x:r.x+r.w/2,y:r.y+r.h*.3});});
+    S.party.forEach(m=>pushSay(m,VW*.32,W.groundY*.80));
+    S.voices.forEach(q=>pushSay(q,VW*.5,W.groundY*.45));
+  }
   function drawTavernInside(cands) {
     const e = S.enc, tv = e && e.tv, spots = tvSpots(); if (tv && tv.sel >= spots.length) tv.sel = Math.max(0, spots.length - 1);
     const cur = tv && spots[tv.sel]; drawSign(cur && cur.kind === "fare" ? cur.item : null);
@@ -1695,64 +2562,82 @@
   // v11b (Magnus: clean, but no click-fest): the highlighted thing's options are on the strip straight away, one keypress
   // each: sign -> 1 Mead, 2 Stew (buy again and again); recruit -> 1 Join my party?; door -> 1 Go outside, 2 Walk on.
   // ←/→ (A/D) move the highlight, Enter = the main action, Esc = go outside. No open/close step.
-  function renderTavernInside() {
-    const e = S.enc, T = restT(); e.phase = "rest"; e.tv = e.tv || { sel: 0, open: null };
-    const spots = tvSpots(); if (e.tv.sel >= spots.length) e.tv.sel = spots.length - 1;
-    const sp = spots[e.tv.sel]; e.tv.open = sp ? sp.id : null;
-    if (!sp) return showPanel(`<div class="center tavernp"><div class="prompt">Look around</div></div>`, "rest");
-    const pl = [];
-    if (sp.kind === "fare") { // v12q: the fare is on the sign itself; nothing on the strip
-    } else if (sp.kind === "npc") pl.push(move("1", esc(D.recruitTalk.ask), "tvJoin", "", `data-n="1" data-j="${sp.j}"`, partyFull()));
-    else { pl.push(move("1", "Go outside", "leaveInside", "", `data-n="1"`)); pl.push(move("2", "Walk on", "leaveRest", "", `data-n="2"`)); }
-    showPanel(`<div class="center tavernp"><div class="opts big3 turn moves tvmenu">${pl.join("")}</div></div>`, "rest");
+  function renderTavernInside(){
+    const e=S.enc;e.phase='rest';e.tv=e.tv||{sel:-1,open:null};const spots=tvSpots();
+    if(e.tv.sel>=spots.length)e.tv.sel=-1;const sp=spots[e.tv.sel];e.tv.open=sp?sp.id:null;
+    const nav=spots.map((q,i)=>big('',q.kind==='npc'?esc(shortName(q.p.name)):q.kind==='fare'?'Menu':'Go outside',q.kind==='door'?'leaveInside':'selectTavern',`data-i="${i}" aria-pressed="${e.tv.sel===i}"`)).join('');
+    const pl=[];
+    if(sp?.kind==='fare')fareItems().forEach((it,i)=>pl.push(move(String(i+1),`${it.label} · ${it.cost}`,'buyFare',it.id,`data-item="${it.id}" data-n="${i+1}"`,it.off)));
+    if(sp?.kind==='npc')pl.push(move('1',`Ask ${esc(shortName(sp.p.name))} to join`,'tvJoin','',`data-j="${sp.j}" data-n="1"`,!canRecruit(e.st)));
+    const chosen=tavernRecruit(e.st);
+    const note=chosen ? `${esc(shortName(chosen))} joined you. One recruit per tavern.` : 'Choose one companion from this tavern.';
+    showPanel(`<div class="center tavernp"><div class="tavern-nav">${nav}</div><div class="tavern-options">${pl.join('') || `<span class="tavern-note">${note}</span>`}</div>${sp?.kind==='npc'?`<div class="tavern-note">${note}</div>`:''}</div>`,'rest');
   }
   function tvMove(d) { const e = S.enc, n = tvSpots().length; if (!e || !e.tv || !n || e.phase !== "rest") return; e.tv.sel = (e.tv.sel + d + n) % n; A.play("ui_click"); renderTavernInside(); } // a small nudge on highlight
   function tvOpen(i) { const e = S.enc, spots = tvSpots(); if (!e || !e.tv || e.phase !== "rest") return; if (i != null) e.tv.sel = i; const sp = spots[e.tv.sel]; if (!sp) return; A.play("ui_click");
-    if (sp.kind === "fare") return buyFare(sp.item); // v12q: click / Enter on a sign line buys it
+    if (sp.kind === "fare") return renderTavernInside(); // v12q: click / Enter on a sign line buys it
     else if (sp.kind === "npc" && i == null) tvJoin(sp.j); // Enter on a recruit = "Join my party?"
     else if (sp.kind === "door" && i == null) leaveInside(); else renderTavernInside(); }
   function tvBack() { const e = S.enc; if (!e || !e.tv || e.phase !== "rest") return; leaveInside(); }
   function drawToast() {
     const tt = S.toast, a = Math.min(1, tt.t / 0.3, (tt.dur - tt.t) / 0.5);
     ctx.save(); ctx.globalAlpha = Math.max(0, a); ctx.font = "italic 50px Georgia, serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    const w = ctx.measureText(tt.text).width + 90, x = VW / 2 - w / 2, y = 44;
+    const w = ctx.measureText(T(tt.text)).width + 90, x = VW / 2 - w / 2, y = 44;
     ctx.fillStyle = "rgba(250,244,228,.94)"; ctx.strokeStyle = "#1b1410"; ctx.lineWidth = 4; ctx.fillRect(x, y, w, 90); ctx.strokeRect(x, y, w, 90);
-    ctx.fillStyle = "#1b1410"; ctx.fillText(tt.text, VW / 2, y + 47); ctx.restore();
+    ctx.fillStyle = "#1b1410"; ctx.fillText(T(tt.text), VW / 2, y + 47); ctx.restore();
   }
   function draw() {
     bubbleQ = []; occ = [];
     const sh = S.shake > 0 ? [rnd(-10, 10), rnd(-8, 8)] : [0, 0];
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
     ctx.setTransform(K, 0, 0, K, sh[0] * K, sh[1] * K);
-    const live = S.actors.filter(a => a.active && !a.dead);
-    if (S.view && S.view.a >= 1) drawView();
+    const arena=KM.DragonApproach.arena(S);
+    const live = S.actors.filter(a => a.active && !a.dead && (!arena || a.stop===S.stop && a.foe));
+    if(inTomb()){
+      KM.Tomb.draw(ctx,S,{walking:isWalking(),occupy:(owner,x,y,w,h)=>occ.push({owner,x,y,w,h}),say:pushSay,
+        heart:(x,y,s,full,col)=>{ctx.save();ctx.setTransform(1,0,0,1,0,0);heart(x,y,s,full,col);ctx.restore();}});
+    } else if(sketch) {
+      sketch.back(ctx,S.camX);
+      const attacking=S.party.some(m=>m.act?.name==='attack');
+      if(!attacking)drawParty(isWalking());
+      live.filter(a=>a.foe).sort((a,b)=>b.x-a.x).forEach(drawActor);
+      if(attacking)drawParty(isWalking());
+      sketch.front(ctx,S.camX);
+    } else if (S.view && S.view.a >= 1) drawView();
     else {
-      if (SCN()) KM.Scenery.draw(ctx, S.camX, S.t, { seed: S.fgSeed, swaps: S.swaps, keepOut: foeHeartsRects().concat(partyHeartsRect() ? [partyHeartsRect()] : [], statusRects()).map(r => ({ x: r.x / K, y: r.y / K, w: r.w / K, h: r.h / K })), midLane: () => { live.filter(a => a.distant && a.hill).forEach(drawActor); } });
-      else { KM_ART.layers.forEach(Ly => KM.World.drawLayer(ctx, Ly, S.camX, S.t)); live.filter(a => a.distant && a.hill).forEach(drawActor); }
-      S.skyEvents.forEach(s => KM.Assets.drawEntity(ctx, "sky_dragon", s.x, s.y + Math.sin(s.t * 4) * 14, { scale: 0.6 })); // v12g: solid
-      if (SCN()) S.trees.forEach(tr => { const x = screenX(tr.x); if (x > -600 && x < VW + 600) KM.Scenery.tree(ctx, tr.i, x); });
-      S.props.forEach(p => { const x = screenX(p.x); if (x > -400 && x < VW + 400) KM.Assets.drawEntity(ctx, p.id, x, W.propLaneY, { scale: W.propScale, alpha: W.propAlpha }); });
-      S.obstacles.forEach(o => { const x = screenX(o.x); if (x > -400 && x < VW + 400) KM.Assets.drawEntity(ctx, o.id, x, W.groundY + 10); });
-      drawGraves(); // v12g: graves are road props on the ground line (behind the party and road actors)
-      const behind = a => (a.back || a.narrator) && !(a.distant && a.hill);
+      if(arena)KM.Scenery.drawSky(ctx,S.camX,S.t,S.fgSeed);
+      else if (SCN()) KM.Scenery.draw(ctx, S.camX, S.t, { chapter:S.chapter, seed: S.fgSeed, swaps: S.swaps, keepOut: foeHeartsRects().flatMap(r=>r.intent?[r,r.intent]:[r]).concat(partyHeartsRect() ? [partyHeartsRect()] : [], statusRects(), S.mode === "title" ? [{x:440,y:66,w:720,h:134}] : []).map(r => ({ x: r.x / K, y: r.y / K, w: r.w / K, h: r.h / K })), graveLane: drawCompanionGraves, midLane: () => { drawCompanionGraves(1);live.filter(a => (a.distant && a.hill && !dragonPose(a)) || a.riddleVariant===2).forEach(drawActor); } });
+      else { KM_ART.layers.forEach(Ly => KM.World.drawLayer(ctx, Ly, S.camX, S.t)); live.filter(a => (a.distant && a.hill && !dragonPose(a)) || a.riddleVariant===2).forEach(drawActor); }
+      KM.DragonApproach.drawHill(ctx, S);
+      live.filter(a => a.distant && a.hill && dragonPose(a) && (a.id!=="turd_dragon" || !S.dragonSlain)).forEach(drawActor);
+      if(!arena)S.skyEvents.forEach(s => KM.Assets.drawEntity(ctx, "sky_dragon", s.x, s.y + Math.sin(s.t * 4) * 14, { scale: 0.6 })); // v12g: solid
+      if (!arena && SCN()) S.trees.forEach(tr => { const x = screenX(tr.x); if (x > -600 && x < VW + 600) KM.Scenery.tree(ctx, tr.i, x); });
+      if(!arena)S.props.forEach(p => { const x = screenX(p.x); if (x > -400 && x < VW + 400) KM.Assets.drawEntity(ctx, p.id, x, W.propLaneY, { scale: W.propScale, alpha: W.propAlpha }); });
+      if(!arena)S.obstacles.forEach(o => { const x = screenX(o.x); if (x > -400 && x < VW + 400) KM.Assets.drawEntity(ctx, o.id, x, W.groundY + 10); });
+      if(!arena){drawCompanionGraves(2);drawGraves();drawLoot();} // v12g: graves are road props on the ground line (behind the party and road actors)
+      const behind = a => a.riddleVariant!==2 && (a.back || a.narrator) && !(a.distant && a.hill);
+      if(!arena)KM.RoadCamp.draw(ctx,S.stops,S.camX,"back");
       live.filter(a => a.facade).forEach(drawFacade);
       live.filter(behind).forEach(drawActor);
-      const lunging = S.party[0] && S.party[0].act && S.party[0].act.name === "attack"; // the striker is drawn on top of his target
+      const lunging = S.party.some(m=>m.act && m.act.name === "attack"); // the striker is drawn on top of his target
       if (!lunging) drawParty(isWalking());
-      live.filter(a => !behind(a) && !(a.distant && a.hill) && !(a.act && a.act.name === "attack")).forEach(drawActor);
+      live.filter(a => a.riddleVariant!==2 && !behind(a) && !(a.distant && a.hill) && !(a.act && a.act.name === "attack")).sort((a,b)=>b.x-a.x).forEach(drawActor);
       if (lunging) drawParty(isWalking());
-      live.filter(a => !behind(a) && !(a.distant && a.hill) && a.act && a.act.name === "attack").forEach(drawActor);
+      live.filter(a => a.riddleVariant!==2 && !behind(a) && !(a.distant && a.hill) && a.act && a.act.name === "attack").forEach(drawActor);
+      if(!arena)KM.RoadCamp.draw(ctx,S.stops,S.camX,"front");
       KM.FireFx.draw(ctx); // v12k fire bottle: in front of the foes, under the front ground
-      if (SCN()) KM.Scenery.foreground(ctx, S.camX, fgSeed(), W.partyScreenX); // v10 frontGround: over the feet, below effects/UI
-      if (!SCN()) KM_ART.foreground.forEach(Ly => KM.World.drawLayer(ctx, Ly, S.camX, S.t));
+      if (!arena && SCN()) {if(S.chapter==="hollowwood")KM.HollowWood.foreground(ctx,S.camX);else KM.Scenery.foreground(ctx, S.camX, fgSeed(), W.partyScreenX);} // v10 frontGround: over the feet, below effects/UI
+      if (!arena && !SCN()) KM_ART.foreground.forEach(Ly => KM.World.drawLayer(ctx, Ly, S.camX, S.t));
       if (S.view) drawView();
     }
     S.dice.forEach(d => KM.D20.draw(ctx, d, d.x, DIEY, DIE()));
     if (S.toast) drawToast();
-    S.floats.forEach(f => { ctx.globalAlpha = Math.max(0, 1 - f.t / 1.8); ctx.fillStyle = f.color; ctx.strokeStyle = "#000"; ctx.lineWidth = 6; ctx.font = "bold 46px Georgia"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.strokeText(f.text, f.x, f.y - f.t * 40); ctx.fillText(f.text, f.x, f.y - f.t * 40); ctx.globalAlpha = 1; });
+    KM.DarkWizard?.draw(ctx,S.lightning);
+    S.floats.forEach(f => { if(f.fellowship)return KM.Fellowship.drawBurst(ctx,inTomb()?{...f,x:1200+(f.total?0:(f.index-1.5)*170),y:175}:f,window.matchMedia?.("(prefers-reduced-motion: reduce)").matches); ctx.globalAlpha = Math.max(0, 1 - f.t / 1.8); ctx.fillStyle = f.color; ctx.strokeStyle = "#000"; ctx.lineWidth = 6; ctx.font = "bold 46px Georgia"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.strokeText(f.text, f.x, f.y - f.t * 40); ctx.fillText(f.text, f.x, f.y - f.t * 40); ctx.globalAlpha = 1; });
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     drawHearts(); drawSpellBadge();
     layoutBubbles();
+    ctx.setTransform(K,0,0,K,0,0);KM.DragonApproach.drawInk(ctx,S);ctx.setTransform(1,0,0,1,0,0);
   }
 
   // ---------- layout + stage scaling ----------
@@ -1780,19 +2665,15 @@
     const sheet = own && SCN() && KM.Scenery.stripBackground(sc);
     if (sheet) { $("strip").style.backgroundImage = "none"; $("strip").dataset.sheet = "1"; }
     else if (own && ART7 && !(skinStrip.tries > 40)) { skinStrip.tries = (skinStrip.tries || 0) + 1; setTimeout(skinStrip, 250); } // images still loading
-    // v11b: Magnus's divider line (KM_ART11.divider) replaces every drawn / CSS / strip_bg divider, in every scene (the strip
-    // is shared): 26.5 stage px under the ground line, ornament centred on x 800 (= the centred question), one uniform
-    // scale (0.742 stage px per source px) so it spans 98.1 % of the width like reference_composition_divider.png
+    // Shared woodcut timer and slim decorative divider, in every mode/biome.
     const DV = window.KM_ART11 && KM_ART11.divider;
-    if (DV && !dv) { // (an art pack that registers its own ui.divider still wins)
-      const d = $("divider"), s = DV.scale, y = W.groundY * K + DV.belowGround - L.scene.h;
-      d.className = "magnus"; d.style.backgroundImage = "";
-      const pos = `left:${(L.stage.w / 2 - DV.ornament[0] * s).toFixed(2)}px;top:${(y - DV.ornament[1] * s).toFixed(2)}px;width:${(DV.size[0] * s).toFixed(2)}px;height:${(DV.size[1] * s).toFixed(2)}px`;
-      d.innerHTML = `<img src="${KM_ART11.root + DV.img}" alt="" style="${pos}"><canvas id="dvfill" width="${DV.size[0]}" height="${DV.size[1]}" style="position:absolute;${pos};opacity:0"></canvas>`;
-      { const im = d.querySelector("img"), paint = () => { const c = $("dvfill"); if (!c) return; const x = c.getContext("2d"); x.clearRect(0, 0, c.width, c.height); x.drawImage(im, 0, 0);
-          x.globalCompositeOperation = "source-in"; x.fillStyle = DVORANGE; x.fillRect(0, 0, c.width, c.height); // v12c answer timer: the same ink, in the ornament's orange
-          x.globalCompositeOperation = "source-over"; x.clearRect(DV.ornament[0] - DVORN, 0, DVORN * 2, c.height); dvFillFrac = -1; }; // the ornament itself is never tinted
-        im.complete && im.naturalWidth ? paint() : im.addEventListener("load", paint); }
+    if (DV && !dv) {
+      const d=$("divider"),y=W.groundY*K+DV.belowGround-L.scene.h;
+      const width=L.stage.w-24,scale=width/1605;
+      d.className="magnus";d.style.backgroundImage="";
+      d.innerHTML=`<img class="woodcut-divider" src="assets/timing-woodcut/divider.png" alt="" style="left:${L.stage.w/2-808*scale}px;top:${y+16-12*scale}px;width:${width}px;height:${24*scale}px">`;
+      KM.TimingBar?.mount(d,{left:56,top:y-9,width:L.stage.w-112});
+      paintTimingLegend();dvFillFrac=-1;dividerFill(0);
     } else {
       $("divider").classList.toggle("painted", !!dv); $("divider").style.backgroundImage = dv ? `url("${dv}")` : "";
       $("divider").classList.toggle("hidden", own);
@@ -1809,21 +2690,22 @@
     update(dt); draw(); requestAnimationFrame(frame);
   }
 
-  window.__km = {
-    S, L, strength, maxHp, leagues, lungeDbg: () => [lungeReach(S.party[0], S.enc && S.enc.act), S.party[0].sx, S.enc && screenX(S.enc.act.x), wideOf(artId(S.party[0])), S.enc && wideOf(S.enc.act.id)], partyFull, weakDmg, hardDmg, rerenderMath: () => S.enc && S.enc.phase === "math" && renderMath(), rerenderRest: () => S.enc && S.enc.phase === "rest" && renderRest(), rerenderChoice: () => S.enc && S.enc.phase === "choose" && renderChoice(), setSpeed: k => (S.speedMul = k), audioLog: A.log, audioCounts: A.counts, forceRoll: 0, forceContest: null, props: () => S.props,
+  window.__km = { completeRecruit, replaceMember, keepParty, beginDismissalBattle, finishDismissalBattle,
+    startTomb,tombEnd,chapterGate,enterWood,showWin,
+    S, L, chooseMode, strength, maxHp, leagues, roleMembers, firestarter, executioner, canHeal, canResurrect, frankMember, partyPose, lungeDbg: () => [lungeReach(S.party[0], S.enc && S.enc.act), S.party[0].sx, S.enc && screenX(S.enc.act.x), wideOf(artId(S.party[0])), S.enc && wideOf(S.enc.act.id)], partyFull, weakDmg, hardDmg, rerenderMath: () => S.enc && S.enc.phase === "math" && renderMath(), rerenderRest: () => S.enc && S.enc.phase === "rest" && renderRest(), rerenderChoice: () => S.enc && S.enc.phase === "choose" && renderChoice(), setSpeed: k => (S.speedMul = k), audioLog: A.log, audioCounts: A.counts, forceRoll: 0, forceContest: null, props: () => S.props,
     answer: () => (S.enc && S.enc.phase === "math" && S.enc.problem ? S.enc.problem.answer : null), phase: () => S.enc && S.enc.phase, mode: () => S.mode,
     voLog: A.voLog, music: () => MU.state(), musicLog: MU.log,
-    graves: () => S.graves.map(g => ({ cam: g.cam, wx: g.wx, n: g.deaths.length, marker: g.marker, killer: g.killer, done: g.done, sx: graveSX(g) })),
-    respect: () => S.respect && { t: S.respect.t, cam: S.respect.g.cam }, further: () => S.furtherDone, toast: () => S.toast && S.toast.text, view: () => S.view && S.view.id, arrivalDoor: () => S.view && S.view.id === "tavern-arrival" ? arrivalDoor() : null, hoverSpot: () => S.hoverSpot,
+    companionGraves: () => S.companionGraves.map(d=>({...d})), graves: () => S.graves.map(g => ({ cam: g.cam, wx: g.wx, n: g.deaths.length, marker: g.marker, killer: g.killer, done: g.done, sx: graveSX(g) })),
+    respect: () => S.respect && { t: S.respect.t, cam: S.respect.g.cam }, further: () => S.furtherDone, toast: () => S.toast && S.toast.text, view: () => S.view && S.view.id, arrivalDoor: () => S.view && S.view.id === "tavern-arrival" ? arrivalDoor() : roadDoor(), hoverSpot: () => S.hoverSpot,
     hunters: () => S.hunters, enemy: () => (S.enc && S.enc.revealed ? { id: S.enc.act.id, hp: S.enc.hp, maxHp: S.enc.maxHp, atk: S.enc.atk } : null),
     dice: () => S.dice.map(d => ({ result: d.result, done: d.done })), spell: () => ({ charges: S.spells, left: S.spellLeft, problem: S.enc && S.enc.problem ? { text: S.enc.problem.text, stupid: !!S.enc.problem.stupid, level: S.enc.problem.level } : null }),
     chunks: t => chunksOf(t), speechOverflow: () => speechOverflow.slice(),
     bubbles: () => bubbleQ.filter(b => b.rect).map(b => Object.assign({ text: b.text, lines: b.lines.slice(), font: SP.font, art: !!(b.rect.side && bubArt), textW: Math.max(...b.lines.map(l => (ctx.font = `${SP.font}px Georgia, serif`, ctx.measureText(l).width))), maxW: SP.maxW }, b.rect)),
     statusRects: () => statusRects(),
     tavern: () => S.enc && S.enc.tv ? { sel: Math.min(S.enc.tv.sel, tvSpots().length - 1), open: S.enc.tv.open, spots: tvSpots().map(q => ({ id: q.id, kind: q.kind, item: q.item, name: q.name, r: q.r })) } : null,
-    heartsUI: () => ({ party: partyHeartsRect() && Object.assign({ hp: S.hp, max: maxHp() }, partyHeartsRect()), foe: foeHeartsRect() && Object.assign({ hp: S.enc.hp, max: S.enc.maxHp }, foeHeartsRect()) }),
+    heartsUI: () => ({ party: partyHeartsRect() && Object.assign({ hp: S.hp, max: maxHp(), armor:PA.armour(S.party) }, partyHeartsRect()), foe: foeHeartsRect() && Object.assign({ hp: S.enc.hp, max: S.enc.maxHp }, foeHeartsRect()) }),
     spellBadge: () => spellBadgeRect() && Object.assign({ left: S.spellLeft, mead: S.mead }, spellBadgeRect()), mead: () => ({ state: S.mead, now: meadNow() }), group: () => S.enc && S.enc.foes ? S.enc.foes.map(a => ({ id: a.id, hp: a.hp, maxHp: a.maxHp, gone: !!a.gone, x: a.x, sx: screenX(a.x), state: a.state, ext: wideOf(a.id) })) : null,
-    foeHearts: () => foeHeartsRects().map(r => ({ id: r.id, hp: r.hp, max: r.max, shown: r.shown, full: r.full, x: r.x, y: r.y, w: r.w, h: r.h })),
+    foeHearts: () => foeHeartsRects().map(r => ({ id: r.id, hp: r.hp, max: r.max, shown: r.shown, full: r.full, intent: r.intent, x: r.x, y: r.y, w: r.w, h: r.h })),
     forceGroup: (ids) => { const i = S.stops.findIndex((s2, k) => k >= S.stop && s2.type === "math"); const st = S.stops[i]; if (!st) return null;
       S.actors = S.actors.filter(a => !(a.stop === i && a.extra)); st.group = ids; addGroup(st, i); const m = S.actors.find(a => a.stop === i && a.main);
       if (m) { m.homeX = st.homeX; if (!m.active) { m.x = st.stopX + 500; m.state = "waiting"; } } return i; },
@@ -1839,20 +2721,97 @@
     const i = S.stops.findIndex(st => [st.type, st.enemy, st.npc, st.id, st.rest].includes(want)); if (i < 0) return false;
     hush(); S.runId = S.runId || "run-debug"; S.name = S.name === "Nobody" ? "Magnus" : S.name;
     const party = [newMember("hero", slotX(0))].concat(looks.map((k, j) => Object.assign(followerFrom(D.recruitPool[j % D.recruitPool.length], slotX(j + 1), k), { skin: k })));
-    applyCore(Object.assign(core(), { stop: i, party, hp: HPM() * party.length, hunters: 0 })); S.mode = "walk"; MU.setScene("walk"); renderWalk(); return S.stops[i];
+    applyCore(Object.assign(core(), { stop: i, party, hp: HPM() * party.length, hunters: 0 })); S.mode = "walk"; musicScene("walk"); renderWalk(); return S.stops[i];
   };
 
   (async function boot() {
-    KM.Assets.preloadGlyphs(); applyLayout();
+    if(sketch){
+      applyLayout();
+      KM.Assets.preloadGlyphs();
+      MU.settings({muted:true,volume:D.music.volume});
+      MU.onChange(()=>renderHUD());
+      try {
+        await Promise.all([sketch.load(),KM.Audio.init()]);
+        S.party=[newMember('hero',slotX(0))];S.name='Pilgrim';S.hp=maxHp();buildWorld(0);
+        sketchPage('sketchTitle');renderHUD();requestAnimationFrame(frame);
+        await KM.Loader.ready();
+      } catch(err) {
+        console.error(err);showPanel('<div class="center">The sketchbook could not load. Reload to try again.</div>','info');
+      } finally { KM.Loader.finish();skinStrip(); }
+      return;
+    }
+    KM.Assets.preloadGlyphs(); KM.DragonApproach.preload();
+    KM.Palette.preload().forEach(im=>KM.Loader&&KM.Loader.want(im));
+    for(const file of ["v22/villager-walk.png","v22/villager_sword-walk.png","v22/villager_armour-walk.png"]){const starterArt=KM.Assets.loadImg("assets/villager-start/"+file);if(KM.Loader)KM.Loader.want(starterArt);} applyLayout();
     const ms = KM.Save.musicSettings(); MU.settings({ volume: ms.volume == null ? D.music.volume : ms.volume, muted: ms.muted });
-    MU.onChange(m => KM.Save.saveMusic(m));
+    KM.Save.saveMusic(MU.settings()); // every page starts silent, even if an older profile enabled music
+    MU.onChange(m => { KM.Save.saveMusic(m); renderHUD(); });
+    if (ART7) { const ext=KM_ART7.scenes["tavern-exterior"];
+      [ext.facadeCrop.img,ext.doorBackingCrop.img].forEach(p=>{const im=KM.RestView.img(p); if(KM.Loader) KM.Loader.want(im);});
+    }
+    KM.TavernPOV.preload().forEach(im=>KM.Loader&&KM.Loader.want(im)); KM.RoadCamp.preload();
+    KM.HollowWood?.preload().forEach(im=>{if(S.chapter==="hollowwood"&&KM.Loader)KM.Loader.want(im);});
+    if(KM.Tomb?.requested())KM.Tomb.preload().forEach(im=>KM.Loader&&KM.Loader.want(im));
     if (ART7) KM.Scenery.preload(); // v12f: road / title art first (KM.Loader); the rest views stream in after the bar
     MU.preload(); // v12r: the title + first road music load with the bar (KM_DATA.music.preload)
     await Promise.all([KM.Assets.loadPacks(KM_ART.packs), KM.Audio.init()]);
     skinStrip(); setTimeout(skinStrip, 600);
-    showTitle(); requestAnimationFrame(frame);
+    if(KM.Tomb?.requested()){
+      await KM.Loader.ready();startTomb();requestAnimationFrame(frame);KM.Loader.finish();skinStrip();return;
+    }
+    showTitle();
+    if (PREVIEW && PREVIEW !== "start") {
+      const want = D.enemies[PREVIEW] ? PREVIEW : PREVIEW==='hollowwood'?'campsite':PREVIEW==='opening'?S.stops[0].enemy:PREVIEW==='squirrel-pack'?'squirrel-pack':PREVIEW.startsWith("camp") ? "campsite" : PREVIEW.startsWith("tavern") ? "tavern" : PREVIEW === "shop" ? "shop" : PREVIEW === "ogre" ? "ogre" : PREVIEW === "boss" ? "mega" : ["riddle","riddle-left","riddle-far","wizard-riddle","bubbles"].includes(PREVIEW) ? "riddle" : PREVIEW === "frank" ? "recruit_frank" : ["heal-locked","roles","twins","priests","armour","graveyard","formation","score","score-win","wizard","jp-word","knight-hand","fellowship"].includes(PREVIEW) ? "goblin" : "frank";
+      __km.debugJump(want, PREVIEW === "dragon" ? [1, 2] : []);
+      if(PREVIEW.startsWith('wizard'))S.party.push(followerFrom(D.companions.darkWizard,slotX(1)));
+      if(PREVIEW==='jp-word')S.party.push(followerFrom(D.companions.timmy,slotX(1)));
+      if (PREVIEW === "dragon") S.party.push(followerFrom(D.companions.frank, slotX(3)));
+      if(PREVIEW==='hollowwood'){for(const id of ['frank','timmy'])S.party.push(followerFrom(D.companions[id],slotX(S.party.length)));S.party[0].weapon=1;S.party[0].armor=1;S.gold=10;}
+      if(PREVIEW==='fellowship' && isFellowship()){for(const id of ['frank','timmy','darkWizard'])S.party.push(followerFrom(D.companions[id],slotX(S.party.length)));S.party[0].weapon=1;S.gold=25;}
+      if(PREVIEW==='knight-hand' && isKnight()){S.party[0].origin="villager";for(const id of ["frank","timmy"])S.party.push(followerFrom(D.companions[id],slotX(S.party.length)));S.spells=1;}
+      if(PREVIEW==='squirrel-pack'){
+        S.party[0].origin='villager';
+        S.actors.filter(a=>a.stop===S.stop && a.foe).forEach(a=>{a.active=true;a.x=a.homeX;a.state='idle';});
+      }
+      if(PREVIEW==='armour'){S.party[0].armor=2;}
+      if(PREVIEW==='roles'||PREVIEW==='formation'){for(const id of ['frank','timmy','executioner'])S.party.push(followerFrom(D.companions[id],slotX(S.party.length)));S.spells=1;}
+      if(PREVIEW==='priests')for(let i=0;i<3;i++)S.party.push(followerFrom({...D.companions.frank,companionId:'priest-'+i,name:i?'Brother '+i:D.companions.frank.name},slotX(S.party.length)));
+      if(PREVIEW==='twins')for(let i=0;i<2;i++)S.party.push(followerFrom(D.recruitPool[i],slotX(S.party.length),i+1));
+      S.party.forEach((m, i) => { m.sx = slotX(i); }); S.hp = maxHp();
+      if (PREVIEW === "heal-locked" || PREVIEW === "campwounded") S.hp = 1;
+      if(PREVIEW==='formation'){
+        __km.forceGroup(['goblin','killer_rabbit','goblin']);
+        S.party[0].armor=1;S.party[1].armor=1;
+        S.actors.filter(a=>a.stop===S.stop&&a.foe).forEach(a=>{a.active=true;a.state='idle';a.x=a.homeX;});
+      }
+      const st = S.stops[S.stop]; S.camX = haltCam(st);
+      const a = S.actors.find(a => a.stop === S.stop && a.main);
+      if (a) { a.active = true; a.state = "idle"; a.x = a.homeX || st.stopX; if(PREVIEW==='riddle-left')a.riddleVariant=1;if(PREVIEW==='riddle-far')a.riddleVariant=2; }
+      if(PREVIEW.endsWith("approach")){S.camX-=1800;S.mode="walk";renderWalk();}else engage(st,a);
+      if(['wizard','knight-hand','squirrel-pack'].includes(PREVIEW)){commit();}
+      if(PREVIEW==='jp-word'){commit();later(.8,pickFire);}
+      if(PREVIEW==='tavern-wizard'){st.cands[0]={...D.companions.darkWizard};goInside();}
+      if(PREVIEW==='graveyard'){
+        S.companionGraves=[];
+        for(let i=0;i<12;i++){const d={chapter:S.chapter,deathId:'preview-'+i,name:'Fallen companion '+i,x:S.camX,wx:S.camX};Object.assign(d,KM.CompanionGraves.place(d,S.companionGraves));S.companionGraves.push(d);}
+        S.enc=null;S.mode='review';S.actors.forEach(a=>a.active=false);hush();showPanel('<div class="center">Companion graveyard · 12 deaths in the same area</div>','rest');
+      }
+      if(PREVIEW==="shop"){S.gold=60;renderRest();}
+      if(PREVIEW==='score'||PREVIEW==='score-win'){
+        S.score=27;S.scoreLedger={answers:[2,3,2,3],riddles:[1,2],scrolls:2,penalty:4};S.dist=4100;S.enc=null;
+        S.actors.filter(a=>a.foe).forEach(a=>a.active=false);
+        if(PREVIEW==='score'){S.hp=0;S.party[0].dying={t:10};renderHUD();}
+        if(PREVIEW==='score-win')showWin();else gameOver('goblin',st);
+      }
+      if (PREVIEW === 'bubbles') {
+        hush();speak(S.party[0], 'Go on, then.', {hold:true});
+        if(a)speak(a, 'A riddle for you.', {hold:true});
+      }
+    }
+    if(PREVIEW === "start")newGame();
+    requestAnimationFrame(frame);
     if (KM.Loader) { await KM.Loader.ready(); KM.Loader.finish(); skinStrip(); }
-    if (ART7) ["camp", "tavern-interior", "tavern-arrival"].forEach(KM.RestView.preload);
+    KM.RoadCamp.preload(); KM.TavernPOV.preload();
     KM.FireFx.preload(); KM.Spelling.preload(); // v12k: after the bar
   })();
 })();

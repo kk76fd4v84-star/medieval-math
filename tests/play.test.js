@@ -349,7 +349,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const G = KM_LAYOUT.artScale, k = KM_LAYOUT.k, W = KM_ART10.walks, out = {};
     out.sizes = ["hero", "follower_1", "follower_2", "follower_3", "follower_4"].map(id => { const e = KM_ART.entities[id], w = W[e.walk];
       return [id, e.walk, KM.Assets.entitySize(id)[1] * k / (w.pivot[1] - w.standTop)]; });
-    out.speed = [KM_DATA.world.walkSpeed * k, W.hero.rootMotionSpeed * G * 1.0];               // stage px/s: road == hero root motion x scale x rate 1
+    out.speed = [KM_DATA.world.walkSpeed * k, W.hero.rootMotionSpeed * G * (KM_DATA.world.walkSpeedMultiplier || 1)];               // stage px/s: road == hero root motion x scale x configured playback rate
     out.rates = ["follower_1", "follower_2", "follower_3", "follower_4"].map(id => KM_ART.walkRate(id) * W[KM_ART.entities[id].walk].rootMotionSpeed * G);
     out.frames = new Set([0, .13, .26, .38, .51, .63, .76, .88].map(t => KM.Assets.seqFrame("walk_hero", t).i)).size;
     out.ms = KM_ART7.sequences.walk_hero.frames.map(f => f.ms).join();

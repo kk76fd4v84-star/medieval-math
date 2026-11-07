@@ -1,0 +1,85 @@
+{
+  "id": "villager",
+  "format": "articulated-sidewalk-v3",
+  "hipSockets": [
+    [
+      38.12,
+      12.71
+    ],
+    [
+      -38.12,
+      -12.71
+    ]
+  ],
+  "upper": {
+    "frontShoulder": [
+      446,
+      598
+    ],
+    "frontElbow": [
+      282,
+      754
+    ],
+    "backShoulder": [
+      733,
+      736
+    ],
+    "backElbow": [
+      801,
+      868
+    ],
+    "neck": [
+      672,
+      612
+    ],
+    "wrist": [
+      217,
+      942
+    ],
+    "armSwing": 0.105
+  },
+  "duration": 1,
+  "stance": 0.55,
+  "scale": 0.51,
+  "baseline": 1457,
+  "bindHip": [
+    550,
+    1055
+  ],
+  "hip": [
+    550,
+    1055
+  ],
+  "partHip": [
+    650,
+    1036
+  ],
+  "partKnee": [
+    765,
+    1176
+  ],
+  "partAnkle": [
+    716,
+    1381
+  ],
+  "ankleY": 1381,
+  "step": 330.35294117647067,
+  "lift": 57.1764705882353,
+  "weightScale": 1.5882352941176472,
+  "thighLength": 181.17670931993436,
+  "shinLength": 210.77476129745705,
+  "parts": {
+    "body": "parts/body.png",
+    "head": "parts/head.png",
+    "frontUpper": "parts/frontUpper.png",
+    "frontFore": "parts/frontFore.png",
+    "backUpper": "parts/backUpper.png",
+    "backFore": "parts/backFore.png",
+    "thigh": "parts/thigh.png",
+    "shin": "parts/shin.png",
+    "boot": "parts/boot.png",
+    "frontJoint": "parts/frontJoint.png",
+    "backJoint": "parts/backJoint.png",
+    "neckJoint": "parts/neckJoint.png"
+  }
+}

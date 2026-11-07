@@ -2,6 +2,9 @@
 window.KM = window.KM || {};
 KM.Save = (function () {
   const KEY = "knightMath.save";
+  let selectedMode="math";
+  const runKey=()=>selectedMode==="math"?KEY:KEY+"."+selectedMode;
+  function selectMode(mode){selectedMode=["knight","fellowship"].includes(mode)?mode:"math";}
   const VERSION = 7;
   // migrations[n] upgrades a save from version n to n+1. Add new ones, never edit old ones.
   const migrations = {
@@ -76,18 +79,18 @@ KM.Save = (function () {
   }
   function load() {
     try {
-      const raw = localStorage.getItem(KEY); if (!raw) return null;
+      const raw = localStorage.getItem(runKey()); if (!raw) return null;
       const s = migrate(JSON.parse(raw));
-      if (s) localStorage.setItem(KEY, JSON.stringify(s));
+      if (s) localStorage.setItem(runKey(), JSON.stringify(s));
       return s;
-    } catch (e) { console.info("[save] unreadable save kept as backup"); try { localStorage.setItem(KEY + ".bak", localStorage.getItem(KEY)); } catch (_) {} return null; }
+    } catch (e) { console.info("[save] unreadable save kept as backup"); try { localStorage.setItem(runKey() + ".bak", localStorage.getItem(runKey())); } catch (_) {} return null; }
   }
-  function write(s) { s.version = VERSION; s.savedAt = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
-  function clear() { try { const raw = localStorage.getItem(KEY); if (raw) localStorage.setItem(KEY + ".prev", raw); localStorage.removeItem(KEY); } catch (e) {} }
+  function write(s) { s.version = VERSION; s.savedAt = Date.now(); try { localStorage.setItem(runKey(), JSON.stringify(s)); } catch (e) {} }
+  function clear() { try { const raw = localStorage.getItem(runKey()); if (raw) localStorage.setItem(runKey() + ".prev", raw); localStorage.removeItem(runKey()); } catch (e) {} }
 
   // ---------- profile: survives new games, retries and clears (best journey + graves of past deaths) ----------
   // Own versioned schema + migrations, same rules as the run save.
-  const PKEY = "knightMath.profile", PVERSION = 4, OLD_BEST = "knightMath.best";
+  const PKEY = "knightMath.profile", PVERSION = 5, OLD_BEST = "knightMath.best";
   const pmigrations = {
     0: p => { // nothing stored yet / pre-profile builds: adopt the old standalone best-distance record
       let b = null; try { b = JSON.parse(localStorage.getItem(OLD_BEST)); } catch (e) {}
@@ -98,7 +101,8 @@ KM.Save = (function () {
     3: p => { // v3 -> v4: death records gain identity + killer + stable progress (GAME_DESIGN "PERSISTENT GRAVES")
       p.deaths = p.deaths.map((d, i) => Object.assign({ deathId: "legacy-" + i + "-" + (d.at || 0), runId: "legacy", route: "road-v6", progress: null, killer: "unknown", marker: "grave" }, d));
       return p;
-    }
+    },
+    4: p => { p.companionGraves = []; return p; }
   };
   function profile() {
     let p = null;
@@ -111,6 +115,7 @@ KM.Save = (function () {
     return p;
   }
   function writeProfile(p) { p.version = PVERSION; try { localStorage.setItem(PKEY, JSON.stringify(p)); } catch (e) {} }
+  function unlock(id) { const p=profile();p.unlocks=p.unlocks||{};p.unlocks[id]=true;writeProfile(p); }
   function best() { return profile().best || null; }
   function recordBest(leagues, name) {
     const p = profile(), b = p.best;
@@ -129,7 +134,17 @@ KM.Save = (function () {
     }
     writeProfile(p); return p.deaths.length;
   }
+  // Companions have their own markers; never consume the player's 20 memorial slots.
+  function companionGraves() { return (profile().companionGraves || []).slice(); }
+  function addCompanionGrave(d) {
+    const p=profile();p.companionGraves=p.companionGraves||[];
+    if(!p.companionGraves.some(g=>g.deathId===d.deathId))p.companionGraves.push(d);
+    writeProfile(p);
+  }
+  function removeCompanionGrave(id) {
+    const p=profile();p.companionGraves=(p.companionGraves||[]).filter(g=>g.deathId!==id);writeProfile(p);
+  }
   function musicSettings() { return profile().music; }
   function saveMusic(m) { const p = profile(); p.music = { volume: m.volume, muted: !!m.muted }; writeProfile(p); }
-  return { load, write, clear, migrate, best, recordBest, deaths, addDeath, profile, musicSettings, saveMusic, VERSION, KEY, PKEY, PVERSION };
+  return { selectMode, runKey, unlock, companionGraves, addCompanionGrave, removeCompanionGrave, load, write, clear, migrate, best, recordBest, deaths, addDeath, profile, musicSettings, saveMusic, VERSION, KEY, PKEY, PVERSION };
 })();

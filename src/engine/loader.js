@@ -15,7 +15,8 @@ KM.Loader = (function () {
   const size = s => (window.KM_ASSET_SIZES && KM_ASSET_SIZES[rel(s)]) || 60000;
   // ---- the overlay
   const ov = document.createElement("div"); ov.id = "kmLoader";
-  ov.innerHTML = `<div class="ld-bar"><img alt="" src="assets/v11/ui/divider.png"><canvas width="2128" height="66"></canvas></div><div class="ld-txt">Loading</div>`;
+  let loadingLabel='Loading';try{if(localStorage.getItem('knightMath.language')==='ja')loadingLabel='読み込み中';}catch(_){}
+  ov.innerHTML = `<div class="ld-bar"><img alt="" src="assets/v11/ui/divider.png"><canvas width="2128" height="66"></canvas></div><div class="ld-txt">${loadingLabel}</div>`;
   document.body.appendChild(ov);
   const dimg = ov.querySelector("img"), cv = ov.querySelector("canvas");
   const paint = () => { const x = cv.getContext("2d"); x.drawImage(dimg, 0, 0, cv.width, cv.height); x.globalCompositeOperation = "source-in"; x.fillStyle = ORANGE; x.fillRect(0, 0, cv.width, cv.height);
@@ -68,10 +69,15 @@ KM.Loader = (function () {
     return new Promise(res => { const tick = () => { const now = performance.now();
       if ((totW > 0 && !pend.size && now - lastChange > 500) || now - t0 > maxMs) return res(); setTimeout(tick, 100); }; tick(); });
   }
+  const sketch = new URLSearchParams(location.search).get('biome') === 'sketchbook';
+  const artwork = !sketch && KM.LoadingArt ? KM.LoadingArt(ov, track) : null;
   function finish() {
     if (phase === "done") return; phase = "done"; shown = 1; draw();
     deferred.splice(0).forEach(([im, src]) => { im.src = src; });
-    setTimeout(() => { ov.classList.add("out"); setTimeout(() => ov.remove(), 450); }, 150);
+    setTimeout(() => {
+      if (artwork) artwork.dissolve(() => ov.remove());
+      else { ov.classList.add("out"); setTimeout(() => ov.remove(), 450); }
+    }, 150);
   }
   return { gate, want, fetch: fetchFile, ready, finish, phase: () => phase, progress: () => ({ done: doneW, total: totW, pending: pend.size, deferred: deferred.length, shown }) };
 })();

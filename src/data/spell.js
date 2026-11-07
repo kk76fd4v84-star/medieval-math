@@ -1,11 +1,12 @@
-// v11 (Magnus: "Add the spell of stupidity. It lowers the difficulty. For a while.")
+// Scroll of Stupidity: simplify the next maths problem only.
 // A consumable: cast with Z on the road or on your turn in a fight; the next `problems` sums use the "stupid" maths
 // level (single digits, + and - only), then it wears off. TEMP_BALANCE values are marked; tune freely.
 window.KM_DATA = window.KM_DATA || {};
 KM_DATA.spell = {
   key: "Z",              // cast (road / your turn / mid-sum); at a tavern or shop Z buys one
   start: 1,              // TEMP_BALANCE: scrolls at the start of a new game
-  problems: 5,           // TEMP_BALANCE: how many sums it lasts
+  problems: 1,           // One maths problem only: right, wrong or backing out; waiting at a full bar does not consume it.
+  scorePenalty: 2,      // Subtract from a correct scroll-assisted maths answer; negative scores are allowed.
   level: "stupid",       // KM_DATA.mathLevels.stupid
   price: 5,              // TEMP_BALANCE: gold per scroll at the tavern and the shop (not the campsite)
   sellAt: ["stall", "shop"], // v11b: the roadside scroll stall first; the tavern sells mead instead (its sign: Mead, Stew)

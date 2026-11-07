@@ -1,6 +1,6 @@
 // v12r (Magnus: "Very often the math timer does not start"): every path into a timed battle sum / fire-bottle word goes
 // through startAnswerTimer(); this test enters each path and checks the answer timer exists and ADVANCES on its own:
-// first (starter) fight, the next sum after a right answer, after a wrong answer, after a time-out, after Esc back,
+// first (starter) fight, the next sum after a right answer, after a wrong answer, after a late answer, after Esc back,
 // a scroll cast mid-sum (fresh timer), the fire bottle word, a group fight after a foe drops, and a stale hold (an act
 // left on a dead foe) that must not freeze it. Run: URL=http://localhost:8799/index.html?debug node tests/timer.test.js
 let playwright; try { playwright = require("playwright"); } catch (e) { playwright = require("/workspace/pwtest/node_modules/playwright"); }
@@ -29,8 +29,8 @@ const URL = process.env.URL || "http://localhost:8799/index.html?debug", sleep =
     await pick("pickWeak"); await runs("starter fight, first sum"); await right();
     await toChoose(); await pick("pickHard"); await runs("next sum after a right answer"); await wrong();
     await toChoose(); await pick("pickWeak"); await runs("next sum after a wrong answer");
-    await ev(() => { __km.S.enc.tmr.t = __km.S.enc.tmr.secs - 0.05; }); await sleep(400);
-    await toChoose(); await pick("pickWeak"); await runs("next sum after a time-out");
+    await ev(() => { __km.S.enc.tmr.t = __km.S.enc.tmr.secs - 0.05; }); await sleep(400);await right();
+    await toChoose(); await pick("pickWeak"); await runs("next sum after a late answer");
     await page.keyboard.press("Escape"); await toChoose(); await pick("pickHard"); await runs("after Esc back to the moves");
     await ev(() => { __km.S.spells = 1; __km.S.spellLeft = 0; }); await page.keyboard.press("z"); await sleep(200);
     const sp = await ev(() => ({ stupid: __km.spell().problem.stupid, t: __km.answerTimer() && __km.answerTimer().t }));
@@ -45,7 +45,7 @@ const URL = process.env.URL || "http://localhost:8799/index.html?debug", sleep =
   await ev(() => { __km.debugJump("goblin"); __km.S.bottles = 1; __km.forceGroup(["killer_rabbit", "goblin"]); __km.setSpeed(3); });
   if (await toChoose()) {
     await pick("pickFire"); await runs("fire bottle word", "spell");
-    await until(() => __km.phase() !== "spell", 12000);
+    await ev(() => { __km.S.enc.tmr.t=__km.S.enc.tmr.secs; });const word=await ev(()=>__km.S.enc.spell.word);await page.keyboard.type(word);await until(() => __km.phase() !== "spell", 12000);
     await toChoose(); await ev(() => { const e = __km.S.enc; e.letDie = true; e.foes[0].hp = 1; e.hp = 1; }); await pick("pickHard"); await right();
     await until(() => (__km.group() || []).filter(a => a.hp <= 0 || a.gone).length >= 1, 8000); await ev(() => { __km.S.enc.letDie = false; });
     if (await toChoose()) { await pick("pickWeak"); await runs("group fight, next sum after a foe drops"); }

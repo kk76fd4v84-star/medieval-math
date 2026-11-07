@@ -23,12 +23,15 @@
   creature("dragon", "dragon", "v8 dragon-sequence (MEGA BOSS): idle = drawing 6, eating = drawings 1-6");
   creature("toad", "toad", "v8 toad-sequence: idle = drawing 6, eating = drawings 1-6");
   creature("ogre", "ogre", "v8 ogre-sequence: idle = drawing 6, eating = drawings 1-6");
+  ["ogre_idle","ogre_eat"].forEach(id=>{ A7.sequences[id].img="assets/v19/sequences/ogre-sequence-clean.png"; });
+  E.ogre.artMul = 1.85; // Same scale for idle, attacks, eating, bounds and HP anchors.
   E.toad.box = E.toad.box || { w: 300, h: 260, color: "#6a7a3a", label: "TOAD" }; E.ogre.box = E.ogre.box || { w: 300, h: 360, color: "#8a7a5a", label: "OGRE" };
+  Object.assign(E.dragon,{img:"assets/bosses/mud-dragon-coiled.png",anchor:[700,1161],top:13,seq:null,eatSeq:null,artMul:1.08,sayAt:[-400,-600],status:"Three-headed mud dragon final boss"});
   set("turd_dragon", { img: A.colourDragon.img, anchor: A.colourDragon.anchor, top: A.colourDragon.top, art: null, onHill: true, status: "v3 dragon-colour-cutout (close reveal of the hill dragon)" });
   // killer -> brutal death. at "killer": the killer's own sheet plays (victim baked in, victim hidden); at "victim": the
   // composite plays where the victim stood and its last drawing is held as the corpse.
   KM_ART.brutal = {
-    dragon: { seq: "dragon_eat", at: "killer" }, toad: { seq: "toad_eat", at: "killer" }, ogre: { seq: "ogre_eat", at: "killer" },
+     toad: { seq: "toad_eat", at: "killer" }, ogre: { seq: "ogre_eat", at: "killer" },
     killer_rabbit: { seq: "rabbits_tear", at: "victim" }, hunters: { seq: "knight_arrow_death", at: "victim" }
   };
   // the hill dragon strip: a back-layer parallax strip like the others (offline ink for the parchment tint)

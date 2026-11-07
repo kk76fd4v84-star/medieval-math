@@ -1,0 +1,46 @@
+{
+  "copse": {
+    "width": 421,
+    "height": 290
+  },
+  "tree": {
+    "width": 459,
+    "height": 435
+  },
+  "dead-tree": {
+    "width": 396,
+    "height": 452
+  },
+  "rocks": {
+    "width": 394,
+    "height": 205
+  },
+  "cliff": {
+    "width": 577,
+    "height": 277
+  },
+  "bush": {
+    "width": 361,
+    "height": 198
+  },
+  "castle": {
+    "width": 639,
+    "height": 395
+  },
+  "village": {
+    "width": 691,
+    "height": 289
+  },
+  "church": {
+    "width": 628,
+    "height": 428
+  },
+  "field": {
+    "width": 680,
+    "height": 311
+  },
+  "hills": {
+    "width": 2172,
+    "height": 724
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "room": {
+    "source": "/Users/magnusjansson/.codex/generated_images/01a193c0-0a31-7800-b92c-2684d1f1dc20/exec-032ecb1c-dd10-437d-a9a1-94747e89d561.png",
+    "size": [
+      1671,
+      941
+    ],
+    "paper": [
+      241.0,
+      207.0,
+      168.0
+    ]
+  },
+  "sentry": {
+    "source": "/Users/magnusjansson/.codex/generated_images/01a193c0-0a31-7800-b92c-2684d1f1dc20/exec-b2a1d1b5-c61d-4cec-b6d6-9b0a2216a7db.png",
+    "size": [
+      1018,
+      1348
+    ]
+  }
+}

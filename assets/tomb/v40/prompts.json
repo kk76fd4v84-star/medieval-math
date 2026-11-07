@@ -1,0 +1,16 @@
+{
+  "method": "Built-in image_gen; approved tomb-concept-v1.png used as edit reference. Pixel crop/alpha/ink calibration by import.py; portraits cropped from approved concept.",
+  "prompts": [
+    {
+      "key": "tombRoom",
+      "prompt": "Edit the supplied approved game concept into its separate BACKGROUND ART layer, keeping the architecture and medieval woodcut style EXACTLY. Remove the central skeleton enemy entirely, remove all four portrait cards, all hearts, all divider lines, icons, math numbers and interface. Replace their areas with empty engraved paving floor and aged parchment that continues naturally. Preserve the identical stone arches, burial niches, coffin on the right, torches, fine crosshatching, irregular ink lines and perspective. The environment should fill the entire landscape 16:9 image with the tunnel camera at the same eye level; extend the flagstone floor downward into the former interface area, keep the vanishing point at horizontal centre, about 30% down. The far door should be OPEN: a dark small arched opening revealing the next stretch of this same tomb corridor, no visible people. Flat parchment and black ink, small dirty orange torch flames, same paper colour as the reference, no gradient light, no bloom, no grey smudges, no extra props or characters. This is a clean empty background plate to animate in game, not a new interpretation of the concept.",
+      "transparent_background": false
+    },
+    {
+      "key": "tombSentry",
+      "prompt": "Extract and faithfully redraw ONLY the skeleton tomb sentry from the supplied approved concept as one large full-body game sprite on a genuinely transparent background. Identical character: shabby skeleton, absurdly tall battered domed bucket helmet, dented shoulder metal, orange tattered tabard with small black cross, scrawny exposed skeletal shins, worn boots, short rusty sword in its right hand (viewer left) and small battered wooden shield in its left hand (viewer right). It is facing TOWARD THE VIEWER for a first-person dungeon crawler encounter, slight three-quarter head, full body and all equipment visible. Keep exactly the concept's fine engraved woodcut strokes, irregular black outlines, paper coloured bone and metal, dirty muted orange cloth; same proportions and silly-menacing personality, no glowing eyes, no horror gore. Independent cutout: zero floor, wall, shadow, text, border, frame or UI, no background paper rectangle. Opaque pale parchment interiors with truly transparent surroundings. Large enough to preserve fine original carved linework.",
+      "transparent_background": true
+    }
+  ],
+  "processing": "Alpha noise cleanup/crop and paper-to-ink extraction; approved concept portrait crops, with only baked heart pixels cleared inside their plaques. Runtime hearts replace them."
+}

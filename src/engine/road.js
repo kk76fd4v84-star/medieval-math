@@ -2,7 +2,7 @@
 window.KM = window.KM || {};
 KM.Road = (function () {
   const isBattle = st => st.type === "math" || st.type === "boss";
-  function build() {
+  function legacy() {
     const R = KM_DATA.restStops, out = []; let battles = 0, rest = 0;
     KM_DATA.encounters.forEach((e, i) => {
       out.push(Object.assign({ src: i }, e));
@@ -15,9 +15,10 @@ KM.Road = (function () {
   }
   // index of the first stop after the n-th battle (0 = start of the road)
   function indexAfterBattles(n) {
-    const list = build(); if (n <= 0) return 0; let b = 0;
+    const list = legacy(); if (n <= 0) return 0; let b = 0;
     for (let i = 0; i < list.length; i++) if (isBattle(list[i]) && ++b === n) return i + 1;
     return list.length - 1;
   }
+  function build(version=0, seed="run") { return version ? KM.Progression.route(seed,version) : legacy(); }
   return { build, indexAfterBattles, isBattle };
 })();

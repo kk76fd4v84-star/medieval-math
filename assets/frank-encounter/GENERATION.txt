@@ -1,0 +1,17 @@
+Built-in image_gen. Rear-party atlas approved by Magnus ("perfect").
+
+Use case: stylized-concept.
+Asset type: ONE transparent game sprite atlas, rear-view walking companions, 7 rows by 2 columns, uniform cells. 1024 x 1792 canvas if possible.
+References in order: original player walk, Frank friar, scarf knight, feather knight, coif knight. The remaining two knight variants follow the exact row descriptions. These are the actual in-game characters. Preserve their clothes, silhouettes, shabby proportions and woodcut style exactly, but draw them from BEHIND, walking AWAY diagonally very slightly toward the right. No faces visible. Do not redesign.
+Each row is one character shown in TWO alternating walk contact poses: left foot forward, then right foot forward, appropriate opposite arms. Same body height, same helmet, same costume, same scale and baseline within each row; modest steps, no exaggerated lunge. Entire body visible in each separate cell with generous transparent gutters, no overlap between sprites. 14 figures total.
+Row 1: MAIN HERO: plain dented bucket great helm fully down, rusty pale orange ragged tabard, skinny mail/plate limbs, wooden long kite shield on left forearm and short worn sword in right hand lowered. Back of helmet has NO eye slit. No feather.
+Row 2: FRANK: plump balding tonsured friar, charcoal-grey ragged robe, dirty orange hood draped over shoulders, rope belt, sandals, small jug. Stocky, shorter than knights.
+Row 3: SCARF: kettle brim hat, orange scarf, patched pale-grey tunic, skinny armoured legs.
+Row 4: FEATHER: bucket helm with single orange feather, orange ragged tunic.
+Row 5: MOUSTACHE: raised bucket helmet showing only back of hair, cream patched tunic, orange sash.
+Row 6: STRIPE: closed bucket helmet, pale cream tunic with diagonal dirty-orange stripe across back.
+Row 7: COIF: pointed chainmail coif, cream ragged tunic with small orange patch, leather belt.
+Artwork: irregular BLACK engraved medieval woodblock print, warm parchment-white opaque interiors, black carved hatching, sparse flat dirty pale orange cloth only. Same line weight as supplied characters. Simplify internal hatching because displayed around 100-170 px tall. Worn printed marks, not glossy, not Disney, no 3D shading or gradients. Transparent alpha background outside figures, NO ground, NO shadows, NO labels, NO grid lines, NO text. Left and right cells within a row must depict the SAME exact character, with only leg/arm stride changed. This sheet is for actual gameplay walking into a distant hill, not a presentation board.
+
+CLEAN HILL EDIT:
+Edit this existing game terrain sprite. Remove ONLY the small dragon sitting on the right-hand hill. Continue the hill's thin engraved crest line and sparse hatching naturally through the small area formerly covered by the dragon. Preserve every other hill, slope, plant, worn edge, opaque pale paper-white interior and transparent background. Keep the same very wide 2172:724 aspect ratio and exact composition. No new trees, objects, creatures or detail. This is the clean hill layer underneath a separately moving dragon, so preserve the existing shapes and native style as closely as possible. Real alpha transparency outside the hills.

@@ -25,9 +25,10 @@ KM.Scenery = (function () {
   const keyOf = src => { const s = decodeURI(src), i = s.lastIndexOf("assets/"); return i < 0 ? s : s.slice(i); };
   function available() { return !!(window.KM_ART7 && C() && C().enabled && ok(img(A().parallax.hills.img))); }
   function preload() {
+    ["forest","meadow","rocky","tundra"].forEach(b => img("assets/modular-world/ground-"+b+".png"));
     if (A11()) { (A11().clouds || []).forEach(c => img("assets/v11/ui/" + c.img)); (A11().birds || []).forEach(b => b.frames.forEach(f => img("assets/v11/ui/" + f))); }
     if (!window.KM_ART7) return; const a = A(); [...Object.values(a.parallax).map(p => p.img), ...a.trees.map(t => t.img)].forEach(img); parchImg(); skyImg();
-    if (A10()) { Object.values(A10().walks).forEach(w => img(w.img)); Object.values(A10().foreground.strips).flat().forEach(s => img(A10().foreground.root + s)); if (PRE()) { Object.values(A10().ink).forEach(v => img(v.img)); img(A10().dividerInk.img); } }
+    if (A10()) { Object.values(A10().walks).filter(w=>w.img).forEach(w => img(w.img)); Object.values(A10().foreground.strips).flat().forEach(s => img(A10().foreground.root + s)); if (PRE()) { Object.values(A10().ink).forEach(v => img(v.img)); img(A10().dividerInk.img); } }
   }
 
   // ---- 1) colour-to-alpha ink layers (computed once per image; null = not possible, e.g. file:// tainted canvas)
@@ -36,6 +37,7 @@ KM.Scenery = (function () {
   function inkOf(im) {
     if (!C().tint || !C().tint.enabled) return null;
     if (inkCache.has(im)) return inkCache.get(im);
+    if(KM.Palette?.profile(im))return runtimeInk(im);
     const pre = PRE() && A10().ink[keyOf(im.src)];
     if (pre) { const ii = img(pre.img); if (!ok(ii)) return ii._bad ? runtimeInk(im) : WAIT; paperOf.set(im, pre.paper); inkCache.set(im, ii); return ii; }
     return runtimeInk(im);
@@ -43,6 +45,7 @@ KM.Scenery = (function () {
   function runtimeInk(im) {
     if (inkCache.has(im)) return inkCache.get(im);
     let out = null;
+    if(KM.Palette?.profile(im)){out=KM.Palette.ink(im);if(out){inkCache.set(im,out);paperOf.set(im,KM.Palette.profile(im).paper);return out;}}
     try {
       const w = im.naturalWidth, h = im.naturalHeight, c = document.createElement("canvas"); c.width = w; c.height = h;
       const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(im, 0, 0);
@@ -92,6 +95,9 @@ KM.Scenery = (function () {
   // v12g (Magnus: "a lot of see-through images"): the silhouette that hides what is behind a drawing is made SOLID: the
   // painted alpha is hardened once per device-size copy (soft canopy / brush alpha -> opaque), so back layers never show through
   function solidOf(src, key, w, h) {
+    // Clean exports already have opaque interiors and tight edge antialiasing.
+    // Do not expand that edge into the old 12..44-alpha matte silhouette.
+    if (key.includes("assets/terrain-clean/")) return devOf(src, key, w, h);
     const k = key + "|solid|" + w + "x" + h; if (devCache.has(k)) return devCache.get(k);
     const c = devOf(src, key, w, h), o = document.createElement("canvas"); o.width = w; o.height = h; const g = o.getContext("2d"); g.drawImage(c, 0, 0);
     try { const d = g.getImageData(0, 0, w, h), a = d.data; for (let i = 3; i < a.length; i += 4) a[i] = a[i] < 12 ? 0 : a[i] > 44 ? 255 : (a[i] - 12) * 8; g.putImageData(d, 0, 0); } catch (e) {}
@@ -112,18 +118,35 @@ KM.Scenery = (function () {
     if (bx1 <= bx0 || by1 <= by0) return;
     const B = [bx0, by0, bx1 - bx0, by1 - by0], s = scratch(ctx), pb = parchmentCanvas(ctx), ox = Math.round(T.e), oy = Math.round(T.f);
     s.setTransform(1, 0, 0, 1, 0, 0); s.globalAlpha = 1; s.filter = "none"; s.globalCompositeOperation = "source-over"; s.clearRect(B[0], B[1], B[2], B[3]);
-    place.forEach(q => s.drawImage(q.sil, q.x, q.y));                                   // silhouette (v12g: solid, see solidOf)
-    s.globalCompositeOperation = "source-in";                                             // filled with the parchment behind
-    s.drawImage(pb, B[0] - ox, B[1] - oy, B[2], B[3], B[0], B[1], B[2], B[3]);
-    s.globalCompositeOperation = "source-over"; place.forEach(q => s.drawImage(q.ink, q.x, q.y)); // the ink, as painted
-    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(scr, B[0], B[1], B[2], B[3], B[0], B[1], B[2], B[3]); ctx.restore();
+    // Composite each solid cutout BEFORE the next one. A union mask followed by
+    // all ink layers let distant lines show through overlapping foreground props.
+    for (const q of place) {
+      s.globalCompositeOperation="source-over";s.clearRect(...B);
+      s.drawImage(q.sil,q.x,q.y);
+      s.globalCompositeOperation="source-in";
+      s.drawImage(pb,B[0]-ox,B[1]-oy,B[2],B[3],...B);
+      s.globalCompositeOperation="source-over";s.drawImage(q.ink,q.x,q.y);
+      ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(scr,...B,...B);ctx.restore();
+    }
   }
+  const mirrored = new WeakMap();
+  function reflected(im) {
+    if (mirrored.has(im)) return mirrored.get(im);
+    const ii=inkOf(im); if (ii===WAIT) return null;
+    const flip=src=>{const c=document.createElement("canvas");c.width=im.naturalWidth;c.height=im.naturalHeight;
+      const g=c.getContext("2d");g.translate(c.width,0);g.scale(-1,1);g.drawImage(src,0,0);return c;};
+    const c=flip(im);c.src=im.src+"#reflected";c.naturalWidth=c.width;c.naturalHeight=c.height;
+    inkCache.set(c,ii ? flip(ii) : null);mirrored.set(im,c);return c;
+  }
+  // Overlap the drawn bare-ground ends; never clip complete trees or cliffs.
+  const terrainOverlap = () => C().terrainOverlap || 640;
+  const terrainScale = layer => G() * ((layer && layer.artScale) || C().terrainScale || 1);
   function strip(ctx, name, L, camX) {
     const p = A().parallax[name]; if (!p) return; const im = img(p.img); if (!ok(im)) return;
-    const s = G(), w = p.size[0] * s, h = p.size[1] * s, y = L.bottom - h, step = w - OV();
-    if (L.once != null) return inked(ctx, [[im, L.once - camX * L.speed, y, w, h]]);
-    const off = ((camX * L.speed) % step + step) % step, draws = [];
-    for (let x = -off; x < VW(); x += step) draws.push([im, x, y, w, h]);
+    const s = terrainScale(), w = p.size[0] * s, h = p.size[1] * s, y = L.bottom - (p.baseline || p.size[1])*s, step = w - terrainOverlap()*s;
+    if (L.once != null) return inked(ctx, [[im, L.once - camX * L.speed - p.size[0]*(s-G())/2, y, w, h]]);
+    const first=Math.floor(camX*L.speed/step)-1, off=camX*L.speed-first*step, draws=[];
+    for (let i=first,x=-off;x<VW();i++,x+=step) {const base=(i%2) ? reflected(im) : im;const tile=base;if(tile) draws.push([tile,x,y,w,h]);}
     inked(ctx, draws);
   }
   // The parchment behind the scene (also what paper-white interiors become, and the strip below). The parchment / sky
@@ -155,7 +178,12 @@ KM.Scenery = (function () {
     const im = parchImg(), sk = skyImg(), HH = span || H(), P = C().paper;
     ctx.fillStyle = "#ecdcb6"; ctx.fillRect(0, 0, VW(), HH);
     if (ok(im)) { const T = seamless(im, P.rect, P.overlap[0], P.overlap[1]), w = T.width * G(), h = T.height * G();
-      for (let y = 0; y < HH; y += h) for (let x = 0; x < VW(); x += w) ctx.drawImage(T, x, y, w, h); }
+      const k=KM_LAYOUT.k;
+      for (let y=0;y<HH;y+=h) for(let x=0;x<VW();x+=w) {
+        const x0=Math.round(x*k)/k,y0=Math.round(y*k)/k;
+        const x1=Math.round((x+w)*k)/k,y1=Math.round((y+h)*k)/k;
+        ctx.drawImage(T,x0,y0,x1-x0,y1-y0);
+      } }
     if (ok(sk)) { const S = C().skyPaper, T = seamless(sk, S.rect, S.overlap, 0, S.fade), w = T.width * G();
       for (let x = 0; x < VW(); x += w) ctx.drawImage(T, x, C().sky.y || 0, w, T.height * G()); }
   }
@@ -191,19 +219,78 @@ KM.Scenery = (function () {
     }
     ctx.drawImage(c, 0, 0, VW(), H());
   }
-  // v19: M.swap = one mid tile is the dragon-on-its-hill strip (KM_ART19, same 2172x724 size). hooks.swaps.mid = { at:
-  // layer-space x where that tile starts, on: false = its normal biome }; the row is phased so the tiles abut it exactly.
-  let midAt = 0; // the mid row's phase (also used by midBiomeAt so the foreground biomes follow the same tiles)
+  // Encounter landmarks have independent world anchors. Never phase the terrain
+  // route around Frank: doing so can put the canyon at the new-game origin.
+  // Canyon formations are distant landmarks, not roadside props. Their camera
+  // anchor is centred on the canyon biome; slow parallax brings them into view
+  // continuously before arrival and lets them recede afterwards.
+  function mountains(ctx,camX,hooks) {
+    const L=C().mountains;if(!L)return;
+    const M=C().mid,q=A().parallax[L.strip],im=img(q.img);if(!ok(im))return;
+    const region=(A().parallax.fields.size[0]-terrainOverlap())*terrainScale(M)*M.segment;
+    const period=region*M.biomes.length/M.speed;
+    const centre=((M.biomes.indexOf(L.biome)+.5)*region-VW()/2)/M.speed;
+    const s=G()*L.artScale,w=q.size[0]*s,h=q.size[1]*s;
+    const nearest=Math.round((camX-centre)/period);
+    for(let n=nearest-1;n<=nearest+1;n++) {
+      const x=VW()/2+(centre+n*period-camX)*L.speed-w/2;
+      if(x+w<0||x>VW())continue;
+      inked(ctx,[[im,x,L.bottom-q.baseline*s,w,h]]);
+    }
+  }
   function mid(ctx, camX, hooks) {
-    const M = C().mid, p = A().parallax.fields, w = p.size[0] * G(), step = w - OV(), sw = M.swap && hooks && hooks.swaps && hooks.swaps.mid;
-    midAt = sw ? sw.at : 0; const off = camX * M.speed - midAt;
-    const first = Math.floor(off / step), last = Math.floor((off + VW()) / step), draws = [];
+    const M = C().mid, p = A().parallax.fields, s = terrainScale(M), w = p.size[0] * s, step = w - terrainOverlap()*s, sw = M.swap && hooks && hooks.swaps && hooks.swaps.mid;
+    const off = camX * M.speed;
+    // A unique church; never mirror or repeat it with the village terrain row.
+    // Draw before the cottages so their solid ground correctly covers its base.
+    const landmark=M.landmark;
+    if(landmark) {
+      const q=A().parallax[landmark.strip],im=q&&img(q.img);
+      if(ok(im)) {
+        const centre=(M.biomes.indexOf(landmark.biome)*M.segment+landmark.tileOffset)*step;
+        const x=centre-off-landmark.anchorX*s, width=q.size[0]*s;
+        if(x+width>0 && x<VW()) inked(ctx,[[im,x,M.bottom-landmark.rise-q.baseline*s,width,q.size[1]*s]]);
+      }
+    }
+    const first = Math.floor(off / step)-1, last = Math.floor((off + VW()) / step)+1, draws = [], tiles=[];
     for (let i = first; i <= last; i++) {
-      const biome = sw && sw.on && i === 0 ? M.swap.strip : M.biomes[((Math.floor(i / M.segment) % M.biomes.length) + M.biomes.length) % M.biomes.length];
-      const q = A().parallax[biome], im = img(q.img); if (!ok(im)) continue;
-      draws.push([im, i * step - off, M.bottom - q.size[1] * G(), w, q.size[1] * G()]);
+      const biome = M.biomes[((Math.floor(i / M.segment) % M.biomes.length) + M.biomes.length) % M.biomes.length];
+      // Low rocky ground occupies the near lane in the canyon region.
+      const mountain=C().mountains;
+      if(mountain && biome===mountain.biome) {
+        const q=A().parallax[mountain.nearStrip],im=img(q.img),ns=G()*mountain.nearScale;
+        if(!ok(im))continue;
+        const nw=q.size[0]*ns,nh=q.size[1]*ns,advance=(q.size[0]-terrainOverlap())*ns;
+        const count=Math.max(1,Math.ceil(step/advance)),pitch=step/count;
+        for(let j=0;j<count;j++) {
+          const tile=(i*count+j)%2?reflected(im):im;
+          if(tile)draws.push([tile,i*step-off+j*pitch,M.bottom-q.baseline*ns,nw,nh]);
+        }
+        continue;
+      }
+      // Choose a stable woodland drawing per tile; camera movement cannot shuffle it.
+      const variants=M.variants&&M.variants[biome];
+      const cycle=Math.floor(i/(M.biomes.length*M.segment));
+      const local=((i%M.segment)+M.segment)%M.segment;
+      const pick=variants&&variants[((cycle*M.segment+local)%variants.length+variants.length)%variants.length];
+      const q = A().parallax[pick||biome], im = img(q.img); if (!ok(im)) continue;
+      const base = (i%2 && biome !== "dragon-hill") ? reflected(im) : im;
+      const tile=base;
+      if(tile) {
+        const bs=M.biomeScale&&M.biomeScale[biome]?G()*M.biomeScale[biome]:s;
+        const bw=q.size[0]*bs;
+        const d=[tile,i*step-off+(w-bw)/2,M.bottom-(q.baseline||q.size[1])*bs,bw,q.size[1]*bs];
+        draws.push(d);tiles.push({i,biome,d});
+      }
     }
     inked(ctx, draws);
+    // Frank's dragon stays where the encounter placed it without moving any
+    // biome, church, foreground or mountain. Its own paper ground overlaps here.
+    if(sw && sw.on) {
+      const q=A().parallax[M.swap.strip],im=q&&img(q.img),x=sw.at-off;
+      if(q && ok(im) && x+q.size[0]*s>0 && x<VW())
+        inked(ctx,[[im,x,M.bottom-(q.baseline||q.size[1])*s,q.size[0]*s,q.size[1]*s]]);
+    }
   }
   // the mid strip's lower ink melts into the ground: a gradient of the SAME parchment pixels (no flat colour band)
   function groundFade(ctx) { const F = C().groundFade; if (F) paperGradient(ctx, [[F.from, 0], [F.to, 1]], true); }
@@ -252,7 +339,7 @@ KM.Scenery = (function () {
     SK.flocks.forEach(f => {
       f.x += f.dir * f.sp * dt - dcam * P.birdPar;
       f.members.forEach(m => {
-        const B = a11.birds[m.row], fr = PING[Math.floor((t + m.ph) * m.fps) % PING.length], w = B.size[0] * g * (P.birdMul||0.5), h = B.size[1] * g * (P.birdMul||0.5);
+        const B = a11.birds[m.row], fr = PING[Math.floor((t + m.ph) * m.fps) % PING.length], w = B.size[0] * g * ((P.birdMul||0.5)*0.5), h = B.size[1] * g * ((P.birdMul||0.5)*0.5);
         const x = f.x + f.dir * m.dx, y = f.y + m.dy + Math.sin((t + m.ph) * 2.2) * P.bob;
         const im = img("assets/v11/ui/" + B.frames[fr]), al = fade(m, !hitsKeep({ x: x - w / 2, y: y - h / 2, w, h }, keep), dt);
         if (ok(im) && al > 0) { ctx.save(); ctx.globalAlpha *= al; ctx.drawImage(im, x - w / 2, y - h / 2, w, h); ctx.restore(); }
@@ -264,13 +351,21 @@ KM.Scenery = (function () {
   }
   // hooks: { midLane(ctx), seed } drawn in the right depth slot
   function draw(ctx, camX, t, hooks) {
+    if(hooks?.chapter==="hollowwood")return KM.HollowWood.draw(ctx,camX,t,hooks);
     const c = C();
     background(ctx);
     skyLife(ctx, camX, t, (hooks && hooks.seed) || 1, hooks && hooks.keepOut);
-    c.back.forEach(L => strip(ctx, L.strip, L, camX));
+    // Occlusion and movement must describe the same depth: farthest first.
+    // The castle is farther than the cliffs; the hills/woods are nearer.
+    const distant=c.back.map(layer=>({speed:layer.speed,layer}));
+    if(c.mountains)distant.push({speed:c.mountains.speed,mountain:true});
+    distant.sort((a,b)=>a.speed-b.speed).forEach(q=>{
+      if(q.mountain)mountains(ctx,camX,hooks);
+      else strip(ctx,q.layer.strip,q.layer,camX);
+    });
     mist(ctx, c.rearMist);
     mid(ctx, camX, hooks);
-    groundFade(ctx);
+    if(hooks?.graveLane)hooks.graveLane(0);
     if (hooks && hooks.midLane) hooks.midLane(ctx);
     mist(ctx, c.frontMist);
   }
@@ -297,7 +392,7 @@ KM.Scenery = (function () {
   // biomeAt(tileIndex): the mid-scenery biome that stands behind the party when the party reaches that front tile
   // (stable per tile; mid biome -> foreground biome via C().front.biomes; several options -> seeded, stable pick)
   function midBiomeAt(screenX, camX) {
-    const M = C().mid, step = A().parallax.fields.size[0] * G() - OV(), i = Math.floor((screenX + camX * M.speed - midAt) / step);
+    const M = C().mid, step = (A().parallax.fields.size[0]-terrainOverlap()) * terrainScale(M), i = Math.floor((screenX + camX * M.speed) / step);
     return M.biomes[((Math.floor(i / M.segment) % M.biomes.length) + M.biomes.length) % M.biomes.length];
   }
   function fgBiomeAt(tileIndex, seed, partyX) {
@@ -309,11 +404,15 @@ KM.Scenery = (function () {
   function foreground(ctx, camX, seed, partyX) {
     const biomeAt = i => fgBiomeAt(i, seed, partyX);
     const F = A10() && A10().foreground, L = C().front; if (!F || !L || !L.enabled) return;
-    const s = G(), h = F.canvas[1] * s, y = L.groundY - F.groundY * s, draws = [];
-    for (const t of fgVisible(camX * L.speed, VW(), s)) {
-      if (t.x > VW() || t.x + t.width < 0) continue;
-      const im = img(F.root + fgChoose(biomeAt(t.index), t.index, seed)); if (!ok(im)) return; // all or nothing: no half-drawn ground
-      draws.push([im, t.x, y, t.width, h, t.x + t.width]);
+    // Use the continuous original middle, excluding the old pasted rectangular end caps.
+    // Alternate reflections so each repeated edge meets its identical source edge.
+    const s=G(),w=1940*s,y=L.groundY-270*s,draws=[],off=camX*L.speed;
+    for(let i=Math.floor(off/w);i*w-off<VW();i++){
+      const x=i*w-off,worldCenter=i*w+w/2;
+      const oldIndex=Math.floor(worldCenter/fgWidth()),biome=biomeAt(oldIndex);
+      const original=img('assets/modular-world/ground-'+biome+'.png');if(!ok(original))return;
+      const im=i%2?reflected(original):original;if(!im)return;
+      draws.push([im,x,y,w+OV(),280*s]);
     }
     inked(ctx, draws);
   }
@@ -346,5 +445,6 @@ KM.Scenery = (function () {
   }
   const tintInfo = () => [...paperOf.entries()].map(([im, W]) => ({ src: im.src.split("/").pop(), paper: W }));
   const drawInked = (ctx, im, x, y, w, h) => inked(ctx, [[im, x, y, w, h]]);
-  return { sky: () => skyLast, birdsNow: () => { if (SK) SK.nextBird = 0; }, available, preload, draw, drawInked, tree, treeWidth, foreground, fgChoose, fgVisible, fgWidth, fgBiomeAt, midBiomeAt, img, ok, root, tintInfo, inkOf, runtimeInk, parchmentCanvas: () => parchmentCanvas(), stripBackground };
+  const drawSky=(ctx,cam,t,seed)=>{background(ctx);skyLife(ctx,cam,t,seed||1,[]);};
+  return { drawSky, sky: () => skyLast, birdsNow: () => { if (SK) SK.nextBird = 0; }, available, preload, draw, drawInked, tree, treeWidth, foreground, fgChoose, fgVisible, fgWidth, fgBiomeAt, midBiomeAt, img, ok, root, tintInfo, inkOf, runtimeInk, parchmentCanvas: () => parchmentCanvas(), stripBackground };
 })();

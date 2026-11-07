@@ -36,12 +36,12 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await page.evaluate(() => { localStorage.clear(); localStorage.setItem("knightMath.best", JSON.stringify({ leagues: 3.3, name: "Legacy", at: 1 })); });
   await page.reload(); await sleep(700);
   let prof = await page.evaluate(() => JSON.parse(localStorage.getItem("knightMath.profile")));
-  checks.push(["legacy best -> profile v4 (best kept, empty deaths)", prof && prof.version === 4 && prof.best.leagues === 3.3 && prof.deaths.length === 0]);
+  checks.push(["legacy best -> profile v4 (best kept, empty deaths)", prof && prof.version === 5 && prof.best.leagues === 3.3 && prof.deaths.length === 0]);
   await page.evaluate(() => localStorage.setItem("knightMath.profile", JSON.stringify({ version: 3, best: { leagues: 2, name: "X", at: 1 }, deaths: [{ name: "Oldtimer", x: 5000, leagues: 1.7, at: 2 }], music: { volume: null, muted: true } })));
   await page.reload(); await sleep(700);
   prof = await page.evaluate(() => JSON.parse(localStorage.getItem("knightMath.profile")));
   const d0 = prof.deaths[0];
-  checks.push(["profile v3 -> v4: old deaths get killer 'unknown', marker 'grave', progress null", prof.version === 4 && d0.killer === "unknown" && d0.marker === "grave" && d0.progress === null && d0.name === "Oldtimer" && d0.deathId]);
+  checks.push(["profile v3 -> v4: old deaths get killer 'unknown', marker 'grave', progress null", prof.version === 5 && d0.killer === "unknown" && d0.marker === "grave" && d0.progress === null && d0.name === "Oldtimer" && d0.deathId]);
 
   // 2) seed v4 deaths: killed by the rabbit (encounters[2]) twice -> one shared grave with the rabbit emblem; best 0.5 leagues
   await page.evaluate(() => {

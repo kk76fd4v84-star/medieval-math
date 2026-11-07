@@ -50,7 +50,7 @@ KM.Assets = (function () {
   }
   function seqPick(id, t) {
     const r = seqFrame(id, t); if (!r) return null; const im = loadImg(r7(r.s.img)); if (!ok(im)) return null;
-    return { img: im, src: [r.f.x, r.f.y, r.f.w, r.f.h], anchor: [r.s.pivot[0], r.s.pivot[1]], top: r.s.standTop, mul: r.s.mul, frame: r.i, done: r.done, seq: id };
+    return { img: KM.Palette?.sprite(im)||im, src: [r.f.x, r.f.y, r.f.w, r.f.h], anchor: r.f.pivot || [r.s.pivot[0], r.s.pivot[1]], top: r.f.top == null ? r.s.standTop : r.f.top, mul: r.s.mul, frame: r.i, done: r.done, seq: id };
   }
   // Pick a drawable for entity id + action at time t (s). Returns {img, anchor} or null.
   function pick(id, action, t, seqId, seqT) {
@@ -68,7 +68,7 @@ KM.Assets = (function () {
     }
     const c = cfg.art && reg.cut[cfg.art];
     if (c && ok(c.img)) return { img: c.img, anchor: c.anchor };
-    if (cfg.img) { const im = loadImg(cfg.img); if (ok(im)) return { img: im, anchor: cfg.anchor || [im.naturalWidth / 2, im.naturalHeight], top: cfg.top }; }
+    if (cfg.img) { const im = loadImg(cfg.img); if (ok(im)) return { img: KM.Palette?.sprite(im)||im, anchor: cfg.anchor || [im.naturalWidth / 2, im.naturalHeight], top: cfg.top }; }
     return null;
   }
   // v8 (Magnus): art is NEVER fitted or scaled per entity/pose. Every image = source px x the ONE global factor
@@ -86,6 +86,8 @@ KM.Assets = (function () {
   let tintC = null; const tintCv = (w, h) => { tintC = tintC || document.createElement("canvas"); if (tintC.width < w) tintC.width = w; if (tintC.height < h) tintC.height = h; return tintC; };
   const SIL_NONE = /^(log|rock|puddle|signpost|dead_cart|haystack|gallows_tree|shrubbery)$/;
   function drawEntity(ctx, id, x, y, o = {}) {
+    // All saved death causes share the existing solid wooden cross, never a placeholder stone.
+    if(/^grave/.test(id) && !KM_DATA.enemies[id])return KM.CompanionGraves.drawMarker(ctx,x,y,{lean:o.rot||0,alpha:o.alpha??1});
     const cfg = KM_ART.entities[id] || { box: { w: 60, h: 60, color: "#f0f", label: id } };
     const d = pick(id, o.action || "idle", o.t || 0, o.seq, o.seqT);
     // art: native px x global factor (o.scale is ignored for art; it only sizes placeholder boxes)
@@ -110,9 +112,8 @@ KM.Assets = (function () {
       // v11b (Magnus): missing art is a minimal ink silhouette (hooded figure, no box, no label); listed in MISSING_ART.md
       const b = cfg.box; const w = b.w * sc, h = b.h * sc, hr = Math.min(w * 0.22, h * 0.09);
       ctx.fillStyle = o.hurt ? "#8e2416" : "#2a1d12"; ctx.globalAlpha *= o.flash ? 0.4 : 0.82;
-      const kind = SIL_NONE.test(id) ? "none" : /^grave/.test(id) ? "grave" : /^(tavern|campsite|shop)$/.test(id) ? "house" : "figure";
+      const kind = SIL_NONE.test(id) ? "none" : /^(tavern|campsite|shop)$/.test(id) ? "house" : "figure";
       if (kind === "none") { ctx.restore(); return; } // decorative props: nothing until painted
-      if (kind === "grave") { ctx.beginPath(); ctx.moveTo(-w * 0.4, 0); ctx.lineTo(-w * 0.4, -h * 0.7); ctx.arc(0, -h * 0.7, w * 0.4, Math.PI, 0); ctx.lineTo(w * 0.4, 0); ctx.closePath(); ctx.fill(); ctx.restore(); return; }
       if (kind === "house") { ctx.beginPath(); ctx.moveTo(-w / 2, 0); ctx.lineTo(-w / 2, -h * 0.6); ctx.lineTo(0, -h); ctx.lineTo(w / 2, -h * 0.6); ctx.lineTo(w / 2, 0); ctx.closePath(); ctx.fill(); ctx.restore(); return; }
       ctx.beginPath(); ctx.arc(0, -h + hr * 1.15, hr, 0, Math.PI * 2); ctx.fill();         // head
       ctx.beginPath(); ctx.moveTo(-hr * 1.1, -h + hr * 2.1); ctx.quadraticCurveTo(-w * 0.42, -h * 0.72, -w * 0.4, 0); // robe
@@ -122,6 +123,7 @@ KM.Assets = (function () {
   }
   // Visible size in stage px (for bubbles / lane checks).
   function entitySize(id, scale) {
+    if(/^grave/.test(id) && !KM_DATA.enemies[id])return KM.CompanionGraves.size();
     const cfg = KM_ART.entities[id]; if (!cfg) return [100, 100];
     const d = pick(id, "idle", 0), sc = d ? artScale(cfg, d) : (scale || 1);
     if (d && d.src) return [(d.src[2] * 0.7) * sc, (d.anchor[1] - (d.top || 0)) * sc];
@@ -194,6 +196,6 @@ KM.Assets = (function () {
   // Preload glyph images that are direct paths so they are ready by the first sum.
   function preloadGlyphs() { for (const g of Object.values(Object.assign({}, KM_ART.glyphs, KM_ART.ui))) if (g && g.img) loadImg(g.img); if (window.KM_ART10) Object.values(KM_ART10.glyphInk).forEach(loadImg); }
   function background(ref) { const b = ref && reg.bg[ref]; return b && ok(b.img) ? b : null; }
-  const hasArt = id => !!pick(id, "idle", 0);
+  const hasArt = id => (/^grave/.test(id) && !KM_DATA.enemies[id]) || !!pick(id, "idle", 0);
   return { hasArt, colorToAlpha, seqDur, seqFrame, seqPick, loadPacks, register, drawEntity, entityHeight, entitySize, hasAnim, artScale, glyphHTML, glyphImg, uiSrc, preloadGlyphs, background, reg, loadImg };
 })();

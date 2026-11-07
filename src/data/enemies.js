@@ -1,12 +1,15 @@
 // Enemies & NPCs. Visuals live in src/config/art_config.js (same ids).
 window.KM_DATA = window.KM_DATA || {};
 KM_DATA.enemies = {
+  rabid_squirrel: { dropsCoins: false, name: "Rabid Squirrel", taunt: "*chitters with unreasonable confidence*", defeat: "*tiny indignant squeak*", material: "flesh" },
+  rabid_dog: { dropsCoins: false, name: "Rabid Dog", taunt: "*growls through a mouthful of froth*", defeat: "*whimper*", material: "flesh" },
+  rabid_villager: { name: "Rabid Villager", taunt: "Off my land! And out of my sums!", defeat: "That's... not fair...", material: "flesh" },
   goblin:          { name: "Goblin",            taunt: "Oi, tin can! Do my sums or I bite yer knees!", defeat: "Me sums! Nooo!" },
-  killer_rabbit:   { name: "Killer Rabbit",     taunt: "*nibbles menacingly*", defeat: "*squeak*" },
+  killer_rabbit:   { dropsCoins: false, name: "Killer Rabbit",     taunt: "*nibbles menacingly*", defeat: "*squeak*" },
   black_knight:    { name: "The Black Knight",  taunt: "None shall pass! Unless they can count.", defeat: "Tis but a scratch!" },
   skeleton_knight: { name: "Skeleton Knight",   taunt: "I have no brain and even I can do these.", defeat: "*clatter clatter*", boss: true },
   dragon:          { name: "Gristlefang the Dragon", taunt: "ROAR! I am power 22. You are... a rounding error.", defeat: "Defeated... by ARITHMETIC?!", boss: true },
-  toad:            { name: "A Very Large Toad",  taunt: "*gulp* Knights. Crunchy on the outside.", defeat: "*sad croak*" },
+  toad:            { dropsCoins: false, name: "A Very Large Toad",  taunt: "*gulp* Knights. Crunchy on the outside.", defeat: "*sad croak*" },
   ogre:            { name: "The Ogre",          taunt: "Me count to three. Then me eat you. One... uh...", defeat: "Me... carried the one..." },
   turd_dragon:     { name: "A Turd Dragon",     taunt: "*steams quietly on its hill*", defeat: "*plop*" },
   frank:           { name: "Frank the Priest",  taunt: "Brothers! A dragon! We must investigate it. For God. And science." },

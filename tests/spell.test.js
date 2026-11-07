@@ -48,11 +48,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const c = await ev(() => ({ sp: __km.spell(), said: __km.speaking(), hud: document.querySelectorAll("#hud .spell").length, badge: __km.spellBadge(), log: [].concat(typeof __km.audioLog === "function" ? __km.audioLog() : __km.audioLog).slice(-6), vo: [].concat(typeof __km.voLog === "function" ? __km.voLog() : __km.voLog).slice(-2),
     files: __km.audioFiles ? __km.audioFiles() : KM.Audio.fileLog.slice(-6), saved: JSON.parse(localStorage.getItem("knightMath.save")), bub: __km.bubbles().map(b => b.text) }));
   await page.screenshot({ path: SHOTS + "/17_spell_of_stupidity_cast.png" });
-  checks.push(["Z casts it: scroll used, 5 sums left; while active the scroll icon + countdown 5 sits at the top left beside the hearts (" + JSON.stringify(c.badge) + ")", hud0 && c.sp.charges === 0 && c.sp.left === 5 && c.hud === 0 && !!c.badge && c.badge.left === 5 && c.badge.x < 400 && c.badge.y < 40]);
+  checks.push(["Z casts it: scroll used, 1 sum left; while active the scroll icon + countdown 1 sits at the top left beside the hearts (" + JSON.stringify(c.badge) + ")", hud0 && c.sp.charges === 0 && c.sp.left === 1 && c.hud === 0 && !!c.badge && c.badge.left === 1 && c.badge.x < 400 && c.badge.y < 40]);
   checks.push(["cast: ONE big hero bubble holding the whole line (" + c.bub.join(" | ") + ")", c.bub.some(t => /soft and warm\. Lovely|less clever\. Hooray|Ooh\. Small sums/.test(t))]);
   checks.push(["cast hooks: sfx 'scroll_use' (v12r Charlie) + VO 'vo_spell_cast'", c.log.includes("scroll_use") && c.files.some(f => /sfx\/scroll_use_[12]\.ogg/.test(f)) && c.vo.includes("vo_spell_cast")]);
-  checks.push(["saved in the versioned save (v" + c.saved.version + ", spells " + c.saved.spells + ", left " + c.saved.spellLeft + ")", c.saved.version === 7 && c.saved.spells === 0 && c.saved.spellLeft === 5]);
-  // fight: 5 stupid sums, then normal again
+  checks.push(["saved in the versioned save (v" + c.saved.version + ", spells " + c.saved.spells + ", left " + c.saved.spellLeft + ")", c.saved.version === 7 && c.saved.spells === 0 && c.saved.spellLeft === 1]);
+  // fight: one stupid sum, then normal again
   await toNextFight();
   const probs = []; let wore = false, shot = false, zeroRow = null;
   for (let n = 0; n < 40 && probs.length < 7; n++) {
@@ -65,15 +65,15 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       const p = await ev(() => __km.spell().problem); probs.push(p);
       if (!shot && p.stupid) { await page.screenshot({ path: SHOTS + "/17b_spell_stupid_sum.png" }); shot = true; }
       const a = String(await ev(() => __km.answer())); for (const ch of a) await page.keyboard.press(ch); await page.keyboard.press("Enter"); await sleep(1400);
-      if (probs.length === 5) { await sleep(400); wore = await ev(() => __km.speechLog().some(t => /brain is back|wears off/.test(t)) && [].concat(typeof __km.audioLog === "function" ? __km.audioLog() : __km.audioLog).includes("spell_wear_off") && [].concat(typeof __km.voLog === "function" ? __km.voLog() : __km.voLog).includes("vo_spell_wear_off"));
+      if (probs.length === 1) { await sleep(400); wore = await ev(() => __km.speechLog().some(t => /brain is back|wears off/.test(t)) && [].concat(typeof __km.audioLog === "function" ? __km.audioLog() : __km.audioLog).includes("spell_wear_off") && [].concat(typeof __km.voLog === "function" ? __km.voLog() : __km.voLog).includes("vo_spell_wear_off"));
         await page.screenshot({ path: SHOTS + "/17c_spell_wears_off.png" }); }
     } else await sleep(150);
   }
   checks.push(["0 scrolls: spell hidden completely in the choice row (no greyed option) and the status row (" + JSON.stringify(zeroRow) + ")",
     !!zeroRow && zeroRow.charges === 0 && zeroRow.spellBtn === 0 && !/Spell|Stupidity|✶/.test(zeroRow.panel) && zeroRow.hud === 0 && /Weak swing/.test(zeroRow.panel) && /Heal/.test(zeroRow.panel) && !/\b[1-4]\s*(Weak|Hard|Heal)/.test(zeroRow.panel)]);
   const easy = p => { const m = p.text.match(/^(\d+) ([+−]) (\d+)$/); return !!m && +m[1] <= 9 && +m[3] <= 9; };
-  checks.push(["the next 5 sums are the stupid level, single-digit + / − only (" + probs.slice(0, 5).map(p => p.text).join(", ") + ")", probs.length >= 6 && probs.slice(0, 5).every(p => p.stupid && easy(p))]);
-  checks.push(["then it wears off: bubble + sfx 'spell_wear_off' + VO 'vo_spell_wear_off'; sum 6 is normal again (" + (probs[5] && probs[5].text) + ")", wore && probs[5] && !probs[5].stupid && probs[5].level !== "stupid"]);
+  checks.push(["only the next sum is the stupid level, single-digit + / − only (" + probs.slice(0, 1).map(p => p.text).join(", ") + ")", probs.length >= 2 && probs.slice(0, 1).every(p => p.stupid && easy(p))]);
+  checks.push(["then it wears off: bubble + sfx 'spell_wear_off' + VO 'vo_spell_wear_off'; sum 2 is normal again (" + (probs[1] && probs[1].text) + ")", wore && probs[1] && !probs[1].stupid && probs[1].level !== "stupid"]);
   checks.push(["spell icon still hidden after it wears off (0 scrolls)", await ev(() => !document.querySelector("#hud .spell") && __km.spell().charges === 0 && __km.spell().left === 0)]);
   // no scrolls: Z = a cheeky bubble, nothing else
   await waitFor(() => __km.mode() === "walk" || __km.phase() === "choose", 30000);

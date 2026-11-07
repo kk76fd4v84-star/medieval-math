@@ -18,7 +18,7 @@ window.KM_LAYOUT = {
   // to edge: x1.832 artScale (1.099 stage px per source px), centred, ~175 stage px cropped each side. buildingMul =
   // an extra factor for the tavern facade only (1.832 = same pixel scale as the "cover" interior). Preview without
   // editing: index.html?viewFit=cover&buildingMul=1.832
-  viewFit: "artScale", buildingMul: 1,
+  viewFit: "artScale", buildingMul: 2.6,
   artScale: 0.6,                           // THE global factor: source px -> stage px for ALL art (see README "v8")
   artSpaceH: 990,                          // height of the layout grid (v11b: 900 + LIFT 90; k = 660 / 990 = 2/3 unchanged)
   dividerH: 46,                            // v11b: band at the top of the strip holding Magnus's divider (ground line + 26.5 px, ornament ~49 px tall)

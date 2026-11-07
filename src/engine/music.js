@@ -1,22 +1,51 @@
 // Music system: per-scene categories (src/data/music.js), crossfades, shuffle without immediate repeats,
 // tracks roll on to the next when they end, world music resumes where it left off, ducking under voice-over.
-// Browsers block autoplay: nothing plays until the first keypress/click (unlock).
+// Music is opt-in for EACH page load. Gameplay clicks, saved settings and volume keys never enable it.
 window.KM = window.KM || {};
 KM.Music = (function () {
   const M = () => KM_DATA.music;
   const ch = {};                 // category -> { el, bag, last, src, fade }
   const log = [];                // [{ scene, cat }] and [{ cat, track }] for tests/debug
-  let scene = null, cur = null, sceneDuck = 1, voiceDuck = 1, unlocked = false, lastTrack = null;
-  let volume = M().volume, muted = false, onChange = () => {};
+  let scene = null, chapter = 'village', cur = null, sceneDuck = 1, voiceDuck = 1, unlocked = false, lastTrack = null;
+  let volume = M().volume, muted = true, onChange = () => {};
+  const SILENCE_KEY = 'knightMath.musicSilence';
+  let bus = null;
+  try { if (typeof BroadcastChannel !== 'undefined') bus = new BroadcastChannel(SILENCE_KEY); } catch (_) {}
+  const hidden = () => document.visibilityState === 'hidden';
+  function pauseAll() {
+    for (const c in ch) { const h = ch[c]; h.fade = 0; h.el.muted = true; h.el.volume = 0; h.el.pause(); }
+    try { if (navigator.mediaSession) navigator.mediaSession.playbackState = 'paused'; } catch (_) {}
+  }
+  function silenceOthers() {
+    try { if (bus) bus.postMessage('silence'); } catch (_) {}
+    try { localStorage.setItem(SILENCE_KEY, Date.now() + ':' + Math.random()); } catch (_) {}
+  }
+  function setMuted(value, broadcast = true) {
+    muted = !!value;
+    if (muted) pauseAll();
+    // Only this tab can opt in. Other game tabs are stopped, never unmuted remotely.
+    if (broadcast) silenceOthers();
+    if (!muted && cur && !hidden()) { const h = channel(cur); if (!h.src) startTrack(cur); else play(h); }
+    onChange(settings());
+  }
+  if (bus) bus.onmessage = e => { if (e.data === 'silence') setMuted(true, false); };
+  addEventListener('storage', e => {
+    if (e.key === SILENCE_KEY) setMuted(true, false);
+  });
+  document.addEventListener('visibilitychange', () => { if (hidden()) setMuted(true); });
+  addEventListener('pagehide', () => setMuted(true));
+  try {
+    if (navigator.mediaSession) for (const action of ['pause', 'stop']) navigator.mediaSession.setActionHandler(action, () => setMuted(true));
+  } catch (_) {}
 
   const catDef = c => M().categories[c] || {};
   const tracks = c => { const C = catDef(c); return C.tracks || (C.use ? catDef(C.use).tracks || [] : []); };
   function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
   function channel(c) {
     if (ch[c]) return ch[c];
-    const el = new Audio(); el.preload = "none";
+    const el = new Audio(); el.preload = "none"; el.muted = true; el.volume = 0;
     const h = ch[c] = { el, bag: [], last: null, src: null, fade: 0 };
-    el.addEventListener("ended", () => { if (cur === c) startTrack(c); else h.src = null; }); // roll on to the next track
+    el.addEventListener("ended", () => { if (cur === c && !muted && !hidden()) startTrack(c); else h.src = null; });
     el.addEventListener("error", () => { if (h.src) console.info("[music] could not load", h.src); });
     return h;
   }
@@ -29,12 +58,18 @@ KM.Music = (function () {
     return h.bag.shift();
   }
   function startTrack(c) {
+    if (muted || hidden()) return;
     const h = channel(c), t = nextTrack(c); if (!t) return;
     h.last = lastTrack = h.src = t; const u = urlOf(t); if (h.el.src !== u) h.el.src = u; else h.el.currentTime = 0; h.el.preload = "auto";
     log.push({ cat: c, track: t }); if (log.length > 300) log.shift();
     play(h);
   }
-  function play(h) { if (!unlocked || muted || !h.src) return; const p = h.el.play(); if (p && p.catch) p.catch(() => {}); }
+  function play(h) {
+    if (!unlocked || muted || hidden() || !h.src) return;
+    h.el.muted = false;
+    const p = h.el.play();
+    if (p && p.then) p.then(() => { if (muted || hidden()) { h.el.muted = true; h.el.pause(); } }).catch(() => {});
+  }
 
   // v12r (Magnus: "make sure the music is loaded before the game starts so the music loads in with the load bar"):
   // KM_DATA.music.preload lists the categories whose FIRST track loads with the bar (real bytes via KM.Loader.fetch),
@@ -42,6 +77,7 @@ KM.Music = (function () {
   const blobs = {};                                    // track -> blob: URL (preloaded)
   const urlOf = t => blobs[t] || M().root + t;
   function preload() {
+    if (muted) return;
     const L = window.KM && KM.Loader; if (!L || !L.fetch) return;
     const taken = new Set();
     (M().preload || []).forEach(c => {
@@ -58,12 +94,12 @@ KM.Music = (function () {
   let place = null;
   function resolve(sc) { const c = sc.cat || null, w = c && catDef(c).where; return w && w !== place ? (sc.outside || M().outside || null) : c; }
   function setPlace(p) { p = p || null; if (p === place) return; place = p; if (scene) apply(); }
-  function setScene(name) { scene = name; apply(); }
+  function setScene(name, area = chapter) { scene = name; chapter = area || 'village'; apply(); }
   function apply() {
-    const name = scene, sc = M().scenes[name] || { cat: null };
+    const name = scene, sc = { ...(M().scenes[name] || { cat: null }), ...(M().chapters?.[chapter]?.[name] || {}) };
     sceneDuck = sc.duck == null ? 1 : sc.duck;
     const c = resolve(sc);
-    log.push({ scene: name, cat: c, place });
+    log.push({ scene: name, cat: c, place, chapter });
     if (c === cur) return;
     cur = c;
     if (!c) return;
@@ -77,7 +113,7 @@ KM.Music = (function () {
     const now = performance.now(), dt = Math.min(0.25, (now - lastT) / 1000); lastT = now;
     const step = dt / Math.max(0.05, M().crossfade);
     for (const c in ch) {
-      const h = ch[c], on = c === cur && !muted;
+      const h = ch[c], on = c === cur && !muted && !hidden();
       h.fade = Math.max(0, Math.min(1, h.fade + (on ? (h.el.paused ? 0 : step) : -step))); // fade in only once actually playing
       const v = volume * (catDef(c).vol == null ? 1 : catDef(c).vol) * h.fade * (c === cur ? sceneDuck : 1) * voiceDuck;
       h.el.volume = Math.max(0, Math.min(1, v));
@@ -89,14 +125,18 @@ KM.Music = (function () {
   function unlock() { if (unlocked) return; unlocked = true; if (cur) play(channel(cur)); }
   ["keydown", "pointerdown", "touchstart"].forEach(ev => addEventListener(ev, unlock, { capture: true }));
 
-  function settings(s) { if (s) { if (s.volume != null) volume = s.volume; muted = !!s.muted; } return { volume, muted }; }
-  function setVolume(v) { volume = Math.round(Math.max(0, Math.min(1, v)) * 100) / 100; if (volume > 0 && muted) muted = false; onChange(settings()); }
-  function toggleMute() { muted = !muted; if (muted) for (const c in ch) ch[c].el.pause(); onChange(settings()); }
+  function settings(s) {
+    if (s) { if (s.volume != null) volume = Math.max(0, Math.min(1, s.volume)); if (s.muted === true) { muted = true; pauseAll(); } }
+    return { volume, muted };
+  }
+  function setVolume(v) { volume = Math.round(Math.max(0, Math.min(1, v)) * 100) / 100; onChange(settings()); }
+  function toggleMute() { setMuted(!muted); }
   function duckVoice(on) { voiceDuck = on ? M().duckVoice : 1; }
   function state() {
     const h = cur && ch[cur];
-    return { scene, cat: cur, track: h ? h.src : null, playing: !!(h && !h.el.paused), time: h ? h.el.currentTime : 0,
+    return { scene, chapter, cat: cur, track: h ? h.src : null, playing: !!(h && !h.el.paused), time: h ? h.el.currentTime : 0,
       vol: h ? h.el.volume : 0, place, vocal: !!(cur && catDef(cur).vocal), sceneDuck, voiceDuck, unlocked, muted, volume };
   }
-  return { preload, preloaded: () => Object.keys(blobs), setScene, setPlace, place: () => place, unlock, settings, setVolume, toggleMute, duckVoice, state, log, channels: ch, onChange: f => (onChange = f) };
+  silenceOthers();
+  return { preload, preloaded: () => Object.keys(blobs), setScene, setPlace, place: () => place, unlock, settings, setVolume, setMuted, toggleMute, duckVoice, state, log, channels: ch, onChange: f => (onChange = f) };
 })();

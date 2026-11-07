@@ -1,8 +1,6 @@
-// v12k (Magnus): items you buy and carry. One entry per item; every number here is a tunable (TEMP_BALANCE).
-// Fire bottle: bought at the tavern, carry at most `max`. In battle it is a move: spell the word before the divider
-// timer fills (`spellSecs`) and the bottle bursts into fire on EVERY living enemy (one weak-swing hit each, with the hit
-// flash). Too slow: it fizzles (used up, no damage) and the enemies strike as usual. Logic: src/modes/spelling.js
-// (the word challenge) + src/engine/firefx.js (the throw and fire drawings) + small hooks in src/game.js.
+// Timmy owns the word-typing fire move. Shop bottle sales are retired.
+// Legacy price/max/start fields preserve old save compatibility; they do not gate his attacks.
+// Word challenge: src/modes/spelling.js. Throw/fire visuals: src/engine/firefx.js.
 window.KM_DATA = window.KM_DATA || {};
 KM_DATA.items = {
   fireBottle: {
@@ -12,7 +10,8 @@ KM_DATA.items = {
     price: 6,               // gold at the tavern
     max: 2,                 // most you can carry
     start: 0,               // bottles at the start of a new game
-    sellAt: ["tavern"],     // rest-stop types that sell it (on the tavern's fare sign)
+    sellAt: [],     // rest-stop types that sell it (on the tavern's fare sign)
+    wordsPerAttack: 1, usesPerBattle: Infinity, // word-typing attacks, not two words or two uses
     spellSecs: 7,           // seconds to spell the word (the divider timer)
     words: "fire",          // word list in KM_DATA.words
     damage: "weak",         // each living enemy takes one weak-swing hit

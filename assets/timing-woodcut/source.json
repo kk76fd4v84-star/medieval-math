@@ -1,0 +1,49 @@
+{
+  "source": "art-direction/concepts/swamp-tunnel-concept-v1.png",
+  "reference": "Screenshot 2026-11-06 at 9.27.55.png",
+  "method": "Original concept crops, connected paper-matte removal; original enclosed colour and ink retained. No redraw or new image generation.",
+  "crops": {
+    "block": [
+      462,
+      727,
+      514,
+      780
+    ],
+    "crit": [
+      784,
+      721,
+      885,
+      781
+    ],
+    "normal": [
+      1129,
+      730,
+      1237,
+      779
+    ],
+    "weak": [
+      1444,
+      722,
+      1521,
+      777
+    ],
+    "fill": [
+      111,
+      751,
+      290,
+      771
+    ],
+    "track": [
+      520,
+      752,
+      780,
+      763
+    ],
+    "divider": [
+      27,
+      775,
+      1632,
+      799
+    ]
+  }
+}

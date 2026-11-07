@@ -1,0 +1,287 @@
+{
+  "imp": {
+    "pivot": [
+      163,
+      314
+    ],
+    "width": 370,
+    "height": 317,
+    "sourceCrop": [
+      255,
+      280,
+      619,
+      591
+    ],
+    "mirrored": false
+  },
+  "maw": {
+    "pivot": [
+      348,
+      540
+    ],
+    "width": 519,
+    "height": 543,
+    "sourceCrop": [
+      600,
+      65,
+      1113,
+      602
+    ],
+    "mirrored": false
+  },
+  "coif": {
+    "pivot": [
+      105,
+      244
+    ],
+    "width": 210,
+    "height": 247,
+    "sourceCrop": [
+      1185,
+      197,
+      1389,
+      438
+    ],
+    "mirrored": false
+  },
+  "fence": {
+    "pivot": [
+      229,
+      169
+    ],
+    "width": 458,
+    "height": 172,
+    "sourceCrop": [
+      1652,
+      48,
+      2104,
+      214
+    ],
+    "mirrored": false
+  },
+  "post": {
+    "pivot": [
+      145,
+      174
+    ],
+    "width": 290,
+    "height": 177,
+    "sourceCrop": [
+      2138,
+      77,
+      2422,
+      248
+    ],
+    "mirrored": false
+  },
+  "sign": {
+    "pivot": [
+      126,
+      185
+    ],
+    "width": 251,
+    "height": 188,
+    "sourceCrop": [
+      2240,
+      285,
+      2485,
+      467
+    ],
+    "mirrored": false
+  },
+  "cottage": {
+    "pivot": [
+      366,
+      475
+    ],
+    "width": 733,
+    "height": 478,
+    "sourceCrop": [
+      1624,
+      279,
+      2351,
+      751
+    ],
+    "mirrored": false
+  },
+  "cross-a": {
+    "pivot": [
+      98,
+      303
+    ],
+    "width": 196,
+    "height": 306,
+    "sourceCrop": [
+      94,
+      624,
+      284,
+      924
+    ],
+    "mirrored": false
+  },
+  "cross-b": {
+    "pivot": [
+      86,
+      254
+    ],
+    "width": 172,
+    "height": 257,
+    "sourceCrop": [
+      328,
+      640,
+      494,
+      891
+    ],
+    "mirrored": false
+  },
+  "cross-c": {
+    "pivot": [
+      72,
+      228
+    ],
+    "width": 143,
+    "height": 231,
+    "sourceCrop": [
+      582,
+      640,
+      719,
+      865
+    ],
+    "mirrored": false
+  },
+  "stack-small": {
+    "pivot": [
+      136,
+      236
+    ],
+    "width": 271,
+    "height": 239,
+    "sourceCrop": [
+      830,
+      767,
+      1095,
+      1000
+    ],
+    "mirrored": false
+  },
+  "stack-large": {
+    "pivot": [
+      222,
+      507
+    ],
+    "width": 445,
+    "height": 510,
+    "sourceCrop": [
+      1110,
+      521,
+      1549,
+      1025
+    ],
+    "mirrored": false
+  },
+  "castle": {
+    "pivot": [
+      632,
+      597
+    ],
+    "width": 1265,
+    "height": 600,
+    "sourceCrop": [
+      3,
+      861,
+      1262,
+      1455
+    ],
+    "mirrored": false
+  },
+  "hill": {
+    "pivot": [
+      792,
+      215
+    ],
+    "width": 1583,
+    "height": 218,
+    "sourceCrop": [
+      3,
+      1539,
+      1356,
+      1751
+    ],
+    "mirrored": false
+  },
+  "hermit": {
+    "pivot": [
+      255,
+      648
+    ],
+    "width": 482,
+    "height": 651,
+    "sourceCrop": [
+      1272,
+      1113,
+      1748,
+      1758
+    ],
+    "mirrored": false
+  },
+  "knight": {
+    "pivot": [
+      248,
+      816
+    ],
+    "width": 621,
+    "height": 819,
+    "sourceCrop": [
+      1618,
+      906,
+      2233,
+      1719
+    ],
+    "mirrored": true
+  },
+  "rushes": {
+    "pivot": [
+      378,
+      143
+    ],
+    "width": 755,
+    "height": 146,
+    "sourceCrop": [
+      1715,
+      771,
+      2464,
+      911
+    ],
+    "mirrored": false
+  },
+  "daisies": {
+    "pivot": [
+      208,
+      131
+    ],
+    "width": 417,
+    "height": 134,
+    "sourceCrop": [
+      2086,
+      980,
+      2497,
+      1108
+    ],
+    "mirrored": false
+  },
+  "clover": {
+    "pivot": [
+      168,
+      127
+    ],
+    "width": 336,
+    "height": 130,
+    "sourceCrop": [
+      2143,
+      1147,
+      2473,
+      1271
+    ],
+    "mirrored": false
+  }
+}

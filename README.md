@@ -1,4 +1,44 @@
-# Scruffy Knights & Sums (working title): prototype v11
+# Current project handoff — 7 November 2026
+
+Start with [GROK_HANDOFF.md](GROK_HANDOFF.md) for the consolidated current rules,
+implemented features and unfinished work. [VERIFICATION.md](VERIFICATION.md)
+records this export’s checks; [GITHUB_PUBLISH.md](GITHUB_PUBLISH.md) covers updating
+the existing repository. The notes below are historical and can be superseded.
+
+---
+
+## The Fellowship — role volleys (fellowship-roles-36)
+
+Play: `http://localhost:8801/?mode=fellowship&v=fellowship-roles-36`
+Four-person preview: `?debug&mode=fellowship&preview=fellowship&v=fellowship-roles-36`
+
+One sum launches each character's role: knights hit two enemies, wizards/firestarters
+hit all, priests heal when wounded (two shared heals per battle) or use their staff,
+and executioners deal double damage at half HP. Each failed wizard/fire cast costs
+one shared party damage, absorbed by armour first. Multiple casters stack that risk.
+The original riddles and hihuuu greeting are restored. See the top of GAME_DESIGN.txt
+and HANDOFF.md for exact behaviour, provisional damage values and current rules.
+
+Checks: `node tests/fellowship.test.js` and `node tests/firefx-concurrent.test.js`.
+Browser QA uses a temporary profile with audio output muted.
+
+## CORE DESIGN RULE — POWER, DIFFICULTY AND RISK
+
+**Non-negotiable, confirmed by Magnus on 5 November 2026:** weak attacks are easier
+and weaker; strong attacks are harder and stronger; powerful spells are hard and
+risky. Preserve this relationship in every challenge format and future port.
+Temporary buffs and upgrades may deliberately reduce execution difficulty; never
+silently cancel their benefit by scaling difficulty back up. A powerful found
+sword or mage staff can initially demand a formidable challenge; blacksmith
+refinement makes it manageable for later biomes without merely stripping its power.
+Failed fire-bottle throws can ignite the player's own party, with another living
+companion reacting in written dialogue. Communicate damage, difficulty and risk
+clearly before commitment. Preserve existing buff durations and wizard backfire rules.
+
+The bottle backfire, companion reactions and weapon/refinement progression are
+**approved design awaiting implementation**, not features delivered by this edit.
+Read [GAME_DESIGN.txt](GAME_DESIGN.txt) for the full rule and implementation status. This rule supersedes
+conflicting historical notes; do not flatten it during balancing.
 
 This is a seamless 2D side-scrolling math quest: Baldur's Gate-style choices and dice, with Monty Python-style humour.
 It uses plain HTML5 canvas, JS and CSS. There is no engine and no build step. The stage is a fixed 1600×900 and scales to fit the window.

@@ -16,10 +16,11 @@ KM_DATA.scenery = {
   skyPaper: { rect: [140, 0, 1560, 230], overlap: 240, fade: 80 },
   // strip: the painted ground divider's ink, from strip_bg rows y..y+h (cols without the vignette), mirrored like the tiles
   divider: { rect: [120, 0, 1580, 22], floor: 0.06 },                 // source rows at the bottom of the sky crop that melt into the parchment (no straight edge)
+  // Depth increases toward the road: castle .08, cliffs .12, hills .16, woods .22, near .30, ground 1.0.
   back: [
     { strip: "castle", speed: 0.08, bottom: 730, once: 1150 },   // landmark, placed once (layer-stack back = 0.08)
-    { strip: "hills", speed: 0.08, bottom: 790 },
-    { strip: "distant-woods", speed: 0.08, bottom: 830 }
+    { strip: "hills", speed: 0.16, bottom: 790 },
+    { strip: "distant-woods", speed: 0.22, bottom: 830 }
   ],
   // v9: paper-white interiors take the parchment behind them (see src/engine/scenery.js); paperPercentile picks each
   // image's paper white from its own bright pixels (0.5 = per-channel median: paper grain maps to exactly the parchment)
@@ -27,8 +28,14 @@ KM_DATA.scenery = {
   // parchment/sky graded to the reference's paper tone (false = the parchment exactly as painted)
   tint: { enabled: true, paperPercentile: 0.5, precomputed: true, paperGrade: true },
   rearMist: null,   // v11b (Magnus: "skip the mist gradients between layers"): no parchment mist bands (was alpha 0.3, 510-890)    // between back and mid (rear fades more). Parchment mist; add color: "255,253,246" for white
-  // mid: one biome strip per segment of road, cycling (fields, village, forest, rocks, canyon)
-  mid: { speed: 0.3, bottom: 950, segment: 2, biomes: ["fields", "village", "near-forest", "barren-rocks", "canyon", "fields"] },
+  // A leisurely countryside route: long meadows, brief hamlets, then occasional woods.
+  // Camps remain road encounters; rocks/canyon belong much later, never the introduction.
+  mid: { speed: 0.3, bottom: 950, segment: 1, biomes: [
+    "fields", "fields", "village", "fields", "fields", "fields",
+    "near-forest", "fields", "fields", "village", "fields",
+    "near-forest", "near-forest", "fields", "barren-rocks", "fields",
+    "barren-rocks", "canyon", "canyon", "fields", "fields"
+  ] },
   midLane: { y: 860, speed: 0.3 },               // distant creatures (hidden strength: grey + mist, NOT shrunk) + graves
   frontMist: null,  // v11b: removed (was alpha 0.14, 730-970). The ink/paper tint of every layer stays
   // the mid strip's lower edge melts into the parchment ground (parchment-coloured, not mist)

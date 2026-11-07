@@ -1,7 +1,16 @@
-// Problem generators by level. NOT a ramp: normal stays normal all game,
-// bosses/specials use "hard". Each entry: type (engine-implemented) + weight + ranges.
+// Problem ranges. Progression selects a gentler opening, a middle stage, then the hard pool.
 window.KM_DATA = window.KM_DATA || {};
 KM_DATA.mathLevels = {
+  opening_normal: [
+    { type: "add", weight: 2, a: [5, 20], b: [2, 9] },
+    { type: "mul", weight: 1, a: [2, 5], b: [2, 5] }
+  ],
+  march_hard: [
+    { type: "add", weight: 2, a: [20, 49], b: [10, 29] },
+    { type: "sub", weight: 1, a: [30, 69], b: [10, 19] },
+    { type: "mul", weight: 2, a: [2, 9], b: [2, 9] },
+    { type: "div", weight: 1, divisor: [2, 9], quotient: [2, 9] }
+  ],
   normal: [
     { type: "add", weight: 3, a: [10, 49], b: [10, 49] },          // 13 + 12
     { type: "sub", weight: 3, a: [20, 99], b: [10, 19] },           // 45 - 17 (never negative)

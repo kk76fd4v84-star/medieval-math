@@ -18,10 +18,15 @@ KM.MathGen = (function () {
       const tot = list.reduce((s, g) => s + g.weight, 0);
       let r = Math.random() * tot, g = list[0];
       for (const x of list) { if ((r -= x.weight) < 0) { g = x; break; } }
-      const p = gens[g.type](g);
+      const p = gens[g.type](g); p.type = g.type;
       if (p.text !== lastText && p.answer >= 0) { lastText = p.text; return p; }
     }
     return { text: "13 + 12", answer: 25 };
   }
-  return { make, gens };
+  function multiply(easy=false, bounds=[3,12]){
+    const range=easy?[2,5]:bounds;let p;
+    for(let i=0;i<12;i++){p=gens.mul({a:range,b:range});if(p.text!==lastText)break;}
+    lastText=p.text;p.type="mul";return p;
+  }
+  return { make, gens, multiply };
 })();

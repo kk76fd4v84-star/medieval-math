@@ -27,6 +27,7 @@ KM.Spelling = (function () {
     k = String(k).toUpperCase(); if (!/^[A-Z]$/.test(k)) return null;
     if (k !== s.word[s.n]) { s.missAt = now(); return "bad"; }
     s.at[s.n++] = now(); s.missAt = null;
+    while(s.word[s.n]===' ')s.n++;
     return s.n === s.word.length ? "done" : "ok";
   }
 
@@ -65,6 +66,7 @@ KM.Spelling = (function () {
     const art = KM_LAYOUT.artScale, total = [...s.word].reduce((w, ch) => w + (AB.w[ch] || 170), 0) * art;
     const k = art * Math.min(1, AB.maxW / total); // stage px per source px
     return `<div class="spellword art ${cls || ""}" style="${vars}">${[...s.word].map((ch, i) => {
+      if(ch===' ')return `<span class="wordgap" style="width:${80*k}px" aria-hidden="true"></span>`;
       const st = slot(s, i), size = `width:${((AB.w[ch] || 170) * k).toFixed(1)}px;height:${(AB.h * k).toFixed(1)}px`;
       const inner = st === "done"
         ? `<img src="${src(AB, ch, "cooled")}" alt="${ch}"><img class="hot" src="${src(AB, ch, "hot")}" alt="" ${coolDelay(i)}>`

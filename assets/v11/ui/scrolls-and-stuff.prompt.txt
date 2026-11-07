@@ -1,0 +1,13 @@
+Generated with the built-in image-editing tool, 4 November 2026.
+Reference: assets/v11/ui/scroll-stall.png. The existing seller is a separate unchanged sprite.
+
+Use case: precise-object-edit.
+Edit target: the supplied existing transparent medieval scroll-stall sprite. This is production game art for a 2D medieval woodcut game, not a new style exploration.
+
+Primary changes: Rebuild the same shabby wooden market booth with a noticeably narrower footprint (about 25% narrower at the same height), and pack more merchandise into it. Replace the existing hanging sign lettering with the exact shop name "SCROLLS AND STUFF". Put SCROLLS on the first line and AND STUFF on the second line, clearly legible at game scale, black hand-carved medieval serif lettering on the same pale wooden plank sign. Spell every word correctly.
+
+Keep the familiar ragged patched canvas canopy, rough rope-tied side posts, uneven wooden counter, black ink and light aged parchment interiors, tiny faded ochre-orange patches. Keep the same worn woodblock linework and restrained detail as the target, same irregular carved hatching and flat graphic treatment. No glossy highlights, soft painterly shadows, new colours, excessive fine detail or smooth vector shapes.
+
+Merchandise: tightly stacked scroll bundles, a squat pile of closed books, one small ink jar, several modest battered swords leaning against a side post, a spare simple helmet and a chainmail shirt or breastplate hanging from a side hook, and a worn small wooden shield leaning against the counter. This is a cramped cheap scrolls-and-secondhand-arms stall, not an elaborate armoury. Fit all stock INSIDE or immediately against the booth footprint, keep silhouettes complete and uncropped. No extra character: the existing magician is a separate sprite that will stand behind the counter. Leave a clear TRANSPARENT opening in the upper middle-right beneath the canopy for his face and torso; keep added merchandise along the left side, sides and countertop. Do not paint the seller.
+
+Composition: one isolated full booth, almost square overall silhouette, front-facing with the same slight irregular perspective as reference; baseline horizontal and all feet visible. Use the canvas efficiently with a small transparent margin. The canopy is at top, counter top about 68% down the image, wooden front panel fills lower third and conceals the seller's lower body. Hanging sign in the upper-left opening should not cover the central seller space. Neutral transparent exterior AND transparent empty booth interior opening. No paper rectangle, scenery, ground strip, frame or extra lettering. All wood/cloth/merchandise interiors opaque pale parchment, no gray matte halos. Preserve real alpha transparency.
