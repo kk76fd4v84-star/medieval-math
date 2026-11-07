@@ -2,6 +2,7 @@
 // Reassign freely: move a file into another category's list, or point a scene at another category.
 window.KM_DATA = window.KM_DATA || {};
 KM_DATA.music = {
+  startOn: true,   // Magnus 2026-11-08: music on from the start (the music button still mutes it)
   root: "assets/audio/music/",
   volume: 0.7,          // default music volume 0..1 (player setting overrides; saved in the profile)
   crossfade: 1.2,       // seconds for a crossfade between categories (scene changes)
