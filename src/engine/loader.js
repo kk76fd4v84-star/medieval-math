@@ -17,6 +17,8 @@ KM.Loader = (function () {
   const ov = document.createElement("div"); ov.id = "kmLoader";
   let loadingLabel='Loading';try{if(localStorage.getItem('knightMath.language')==='ja')loadingLabel='読み込み中';}catch(_){}
   ov.innerHTML = `<div class="ld-bar"><img alt="" src="assets/v11/ui/divider.png"><canvas width="2128" height="66"></canvas></div><div class="ld-txt">${loadingLabel}</div>`;
+  const build = document.querySelector('meta[name="km-build"]')?.content; // which build is loading (index.html), so a stale cache is easy to spot
+  if (build) ov.insertAdjacentHTML("beforeend", `<div class="ld-build">build ${build}</div>`);
   document.body.appendChild(ov);
   const dimg = ov.querySelector("img"), cv = ov.querySelector("canvas");
   const paint = () => { const x = cv.getContext("2d"); x.drawImage(dimg, 0, 0, cv.width, cv.height); x.globalCompositeOperation = "source-in"; x.fillStyle = ORANGE; x.fillRect(0, 0, cv.width, cv.height);
@@ -61,7 +63,8 @@ KM.Loader = (function () {
   const extra = () => ((window.KM_DATA && KM_DATA.preload && KM_DATA.preload.firstSet) || []);
   function gate(im, src) {
     if (phase === "done") return false;
-    if (!CRIT.test(src) && !extra().some(k => src.includes(k))) { deferred.push([im, src]); return true; }
+    const all = window.KM_DATA && KM_DATA.preload && KM_DATA.preload.all; // everything joins the bar, nothing waits for after it
+    if (!all && !CRIT.test(src) && !extra().some(k => src.includes(k))) { deferred.push([im, src]); return true; }
     track(im, src); return false;
   }
   // a promise the bar must wait for (image decode, fonts, warmed sounds); counts as one small file

@@ -30,7 +30,9 @@ KM.Audio = (function () {
   }
   // .ogg where the browser plays Vorbis, else the .mp3 twin shipped next to it (Safari)
   const OGG = (() => { try { return !!new Audio().canPlayType('audio/ogg; codecs="vorbis"'); } catch (e) { return true; } })();
-  const src = f => "assets/audio/" + (OGG ? f : f.replace(/\.ogg$/, ".mp3"));
+  const path = f => "assets/audio/" + (OGG ? f : f.replace(/\.ogg$/, ".mp3"));
+  const blobs = {}; // file -> blob: URL fetched with the loading bar (preloadAll), so a play never goes to the network
+  const src = f => blobs[f] || path(f);
   const volOf = (m, g) => Math.min(1, (m.vol == null ? 1 : m.vol) * (g == null ? 1 : g));
   // v12s sfx pool (Magnus: "slower and slower the longer you walk"): one new <audio> per play meant ~2-5 new media
   // elements a second while walking (footsteps), each a full media player freed only by GC (Safari keeps them a long
@@ -80,5 +82,11 @@ KM.Audio = (function () {
       const t = setTimeout(res, maxMs); const fin = () => { clearTimeout(t); res(); };
       a.addEventListener("canplaythrough", fin, { once: true }); a.addEventListener("error", fin, { once: true }); a.load(); })));
   }
-  return { init, play, warm, loop, stop, stopLoops, looping: () => Object.keys(loops), voice, text, voOf, log, counts, voLog, voPlayed, voFail, voBusy: () => false, fileLog, map: () => map, poolSize: () => Object.values(pool).reduce((n, l) => n + l.length, 0), setMuted: v => { muted = v; if (v) stopLoops(0); } };
+  // every sound effect file fetched once with the loading bar (KM.Loader.fetch) and played from memory afterwards
+  function preloadAll() {
+    if (!window.KM || !KM.Loader || !KM.Loader.fetch) return Promise.resolve();
+    const files = [...new Set(Object.entries(map).filter(([ev]) => !ev.startsWith("vo_")).flatMap(([, m]) => [...((m && m.files) || []), ...(m && m.rare ? [m.rare.file] : [])]))];
+    return Promise.all(files.map(f => new Promise(res => KM.Loader.fetch(path(f), url => { if (/^blob:/.test(url)) blobs[f] = url; res(); }))));
+  }
+  return { init, play, warm, preloadAll, loop, stop, stopLoops, looping: () => Object.keys(loops), voice, text, voOf, log, counts, voLog, voPlayed, voFail, voBusy: () => false, fileLog, map: () => map, poolSize: () => Object.values(pool).reduce((n, l) => n + l.length, 0), setMuted: v => { muted = v; if (v) stopLoops(0); } };
 })();

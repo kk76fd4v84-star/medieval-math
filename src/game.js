@@ -2813,7 +2813,7 @@
       } finally { KM.Loader.finish();skinStrip(); }
       return;
     }
-    KM.Assets.preloadGlyphs(); KM.DragonApproach.preload();
+    KM.Assets.preloadGlyphs(); KM.Assets.preloadAll?.(); KM.DragonApproach.preload();
     if(KM.Loader&&document.fonts&&document.fonts.ready)KM.Loader.hold(document.fonts.ready); // the bar waits for the fonts too
     KM.Palette.preload().forEach(im=>KM.Loader&&KM.Loader.want(im));
     for(const file of ["v22/villager-walk.png","v22/villager_sword-walk.png","v22/villager_armour-walk.png"]){const starterArt=KM.Assets.loadImg("assets/villager-start/"+file);if(KM.Loader)KM.Loader.want(starterArt);} applyLayout();
@@ -2830,7 +2830,7 @@
     if (ART7) KM.Scenery.preload(); // v12f: road / title art first (KM.Loader); the rest views stream in after the bar
     MU.preload(); // v12r: the title + first road music load with the bar (KM_DATA.music.preload)
     await Promise.all([KM.Assets.loadPacks(KM_ART.packs), KM.Audio.init()]);
-    if(KM.Loader&&A.warm)KM.Loader.hold(A.warm((D.preload||{}).sfx||[],(D.preload||{}).sfxWaitMs)); // combat sounds buffer with the bar
+    if(KM.Loader&&A.warm)KM.Loader.hold((D.preload?.all&&A.preloadAll?A.preloadAll():Promise.resolve()).then(()=>A.warm((D.preload||{}).sfx||[],(D.preload||{}).sfxWaitMs))); // sounds load with the bar (all: every sfx file, played from memory)
     skinStrip(); setTimeout(skinStrip, 600);
     if(KM.Tomb?.requested()){
       await KM.Loader.ready();startTomb();requestAnimationFrame(frame);KM.Loader.finish();skinStrip();return;

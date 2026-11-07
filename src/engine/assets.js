@@ -207,6 +207,12 @@ KM.Assets = (function () {
     ...(window.KM_ALPHABET ? Object.keys(KM_ALPHABET.w).map(ch => KM_ALPHABET.dir + ch + ".png") : []),
     ...((KM_DATA.preload && KM_DATA.preload.images) || [])];
   function preloadGlyphs() { return Promise.all(glyphFiles().map(src => decode(loadImg(src)))); }
+  // KM_DATA.preload.all: every image the game can show (src/config/preload_images.js) loads + decodes with the bar
+  function preloadAll() {
+    const P = KM_DATA.preload || {}; if (!P.all) return Promise.resolve();
+    const skip = P.skip || [];
+    return Promise.all((window.KM_PRELOAD_IMAGES || []).filter(src => !skip.some(k => src.includes(k))).map(src => decode(loadImg(src))));
+  }
   // the sum's glyph pictures (slice + ink copy) are loaded and decoded; anything missing starts loading now
   function sumReady(text) {
     return String(text).split("").every(ch => {
@@ -218,5 +224,5 @@ KM.Assets = (function () {
   }
   function background(ref) { const b = ref && reg.bg[ref]; return b && ok(b.img) ? b : null; }
   const hasArt = id => (/^grave/.test(id) && !KM_DATA.enemies[id]) || !!pick(id, "idle", 0);
-  return { hasArt, colorToAlpha, seqDur, seqFrame, seqPick, loadPacks, register, drawEntity, entityHeight, entitySize, hasAnim, artScale, glyphHTML, glyphImg, uiSrc, preloadGlyphs, sumReady, glyphFiles, background, reg, loadImg };
+  return { hasArt, colorToAlpha, seqDur, seqFrame, seqPick, loadPacks, register, drawEntity, entityHeight, entitySize, hasAnim, artScale, glyphHTML, glyphImg, uiSrc, preloadGlyphs, preloadAll, sumReady, glyphFiles, background, reg, loadImg };
 })();
