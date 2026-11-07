@@ -51,6 +51,7 @@ KM_DATA.tavernRoom.sign = {
 // Tavern recruit cards (Magnus: "larger cards so you see what they can do"). Pure data, read by recruitCard in src/game.js.
 KM_DATA.recruitCards = {
   title: "Choose one companion from this tavern.",
+  ask: "Ask {name} to join?", leave: "{names} will leave.", yes: "Ask to join", no: "Cancel",
   roles: {
     knight:      { title: "Knight",      attack: "Answers + sums. Cleaves two foes." },
     priest:      { title: "Priest",      attack: "Answers − sums. Heals the party." },

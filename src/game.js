@@ -2011,6 +2011,9 @@
     frankAgree: () => { if (S.enc.phase === "frank") { say(S.enc.frank, "Splendid! For God and science!"); commit(); } }, frankNo: () => frankNo(),
     tvBack: () => tvBack(), tvJoin: b => tvJoin(+b.dataset.j), tvTalk: b => { const j = +b.dataset.j, p = S.enc.st.cands[j]; if (p) speak(candSpeaker(S.enc.st, j), p.join); },
     talkTable: () => talkPoint("table"), talkBar: () => talkPoint("bar"), castSpell: () => castSpell(), buySpell: () => buySpell(), pickFire: () => pickFire(), buyBottle: () => buyBottle(),
+    tvAsk:b=>{if(S.enc?.tv){A.play('ui_click');S.enc.tv.ask=+b.dataset.j;renderTavernInside();}},
+    tvAskYes:b=>{if(S.enc?.tv){S.enc.tv.ask=null;tvJoin(+b.dataset.j);}},
+    tvAskNo:()=>{if(S.enc?.tv){S.enc.tv.ask=null;renderTavernInside();}},
     selectTavern:b=>{if(S.enc?.tv){S.enc.tv.sel=+b.dataset.i;renderTavernInside();}},
     buyFare:b=>buyFare(b.dataset.item),
     restHeal: b => restHeal(b.dataset.k), openCards: () => { if (S.enc) { S.enc.cardPick = true; renderRest(); } }, closeCards: () => { if (S.enc) { S.enc.cardPick = false; renderRest(); } }, takeCard: b => takeCard(b.dataset.id), buyMead: () => buyMead(), restRecruit: b => restRecruit(+b.dataset.j),
@@ -2605,26 +2608,32 @@
   // v11b (Magnus: clean, but no click-fest): the highlighted thing's options are on the strip straight away, one keypress
   // each: sign -> 1 Mead, 2 Stew (buy again and again); recruit -> 1 Join my party?; door -> 1 Go outside, 2 Walk on.
   // ←/→ (A/D) move the highlight, Enter = the main action, Esc = go outside. No open/close step.
+  const TAV_ORN='<img class="tavern-orn" src="assets/timing-woodcut/divider.png" alt="">'; // the woodcut timing divider as heading ornaments
   function renderTavernInside(){
-    const e=S.enc;e.phase='rest';e.tv=e.tv||{sel:-1,open:null};const spots=tvSpots();
+    const e=S.enc;e.phase='rest';e.tv=e.tv||{sel:-1,open:null};const spots=tvSpots(),RC=D.recruitCards;
     if(e.tv.sel>=spots.length)e.tv.sel=-1;const sp=spots[e.tv.sel];e.tv.open=sp?sp.id:null;
-    const nav=spots.map((q,i)=>q.kind==='npc'?tavernCard(q.p,i,e.tv.sel===i):big('',q.kind==='fare'?'Menu':'Go outside',q.kind==='door'?'leaveInside':'selectTavern',`data-i="${i}" aria-pressed="${e.tv.sel===i}"`)).join('');
-    const pl=[];
-    if(sp?.kind==='fare')fareItems().forEach((it,i)=>pl.push(move(String(i+1),`${it.label} · ${it.cost}`,'buyFare',it.id,`data-item="${it.id}" data-n="${i+1}"`,it.off)));
-    if(sp?.kind==='npc')pl.push(move('1',`Ask ${esc(shortName(sp.p.name))} to join`,'tvJoin','',`data-j="${sp.j}" data-n="1"`,!canRecruit(e.st)));
+    if(e.tv.ask!=null&&e.st.cands[e.tv.ask])return showPanel(tavernAsk(e,e.tv.ask),'rest action-panel');
+    const cards=spots.map((q,i)=>q.kind==='npc'?tavernCard(q.p,q.j):actionCard({label:q.kind==='fare'?'Menu':'Go outside',act:q.kind==='door'?'leaveInside':'selectTavern',icon:q.kind==='door'?'→':'☰',attrs:`data-i="${i}" aria-pressed="${e.tv.sel===i}"`}));
+    const pl=sp?.kind==='fare'?fareItems().map((it,i)=>move(String(i+1),`${it.label} · ${it.cost}`,'buyFare',it.id,`data-item="${it.id}" data-n="${i+1}"`,it.off)):[];
     const chosen=tavernRecruit(e.st);
-    const note=chosen ? `${esc(shortName(chosen))} joined you. One recruit per tavern.` : 'Choose one companion from this tavern.';
-    showPanel(`<div class="center tavernp"><div class="tavern-title">${T(note)}</div><div class="tavern-nav">${nav}</div><div class="tavern-options">${pl.join('')}</div></div>`,'rest');
+    const note=chosen ? `${esc(shortName(chosen))} joined you. One recruit per tavern.` : RC.title;
+    const div=TAV_ORN;
+    showPanel(`<div class="action-deck tavern-deck"><div class="action-heading tavern-heading tavern-lift">${div}<span>${T(note)}</span>${div}</div><div class="action-row">${cards.join('')}</div>${pl.length?`<div class="tavern-options">${pl.join('')}</div>`:''}</div>`,'rest action-panel');
   }
-  function tavernCard(p,i,on){ // a tavern companion as a parchment card: name, role, hearts, damage, attack, trait (data: KM_DATA.recruitCards)
-    const RC=D.recruitCards||{roles:{}},role=KM.PartyAbilities.role(p),r=RC.roles[role]||RC.roles.knight||{title:role,attack:''};
-    const hp=KM.PartyAbilities.life(p),dmg=KM.Fellowship?KM.Fellowship.damage(p):'';
-    return `<button class="recruit-card" data-act="selectTavern" data-i="${i}" aria-pressed="${on}"><strong>${esc(shortName(p.name))}</strong><span class="rc-role">${T(r.title)}</span><span class="rc-stats">${'❤'.repeat(hp)}${dmg?` · ⚔ ${dmg}`:''}</span><span class="rc-attack">${T(r.attack)}</span><em>${esc(p.trait||'')}</em></button>`;
+  function tavernCard(p,j){ // a tavern companion in the same ink action card as attacks / shop items (data: KM_DATA.recruitCards)
+    const RC=D.recruitCards,role=KM.PartyAbilities.role(p),r=RC.roles[role]||RC.roles.knight;
+    const dmg=KM.Fellowship?` · ⚔ ${KM.Fellowship.damage(p)}`:'';
+    return actionCard({label:shortName(p.name),act:'tvAsk',meta:r.title,detail:`${'❤'.repeat(KM.PartyAbilities.life(p))}${dmg}`,note:r.attack,title:p.trait||'',attrs:`data-j="${j}"`,off:!canRecruit(S.enc.st)});
+  }
+  function tavernAsk(e,j){ // confirm popup: the same box as the sword / armour picker
+    const RC=D.recruitCards,p=e.st.cands[j],others=e.st.cands.filter((q,k)=>q&&k!==j).map(q=>shortName(q.name));
+    const q=T(RC.ask).replace('{name}',esc(shortName(p.name)))+(others.length?' '+T(RC.leave).replace('{names}',esc(others.join(' & '))):'');
+    return `<div class="gear-shade"><div class="gear-dialog action-gear tavern-deck" role="dialog" aria-modal="true" aria-labelledby="gear-title"><div id="gear-title" class="action-heading tavern-heading tavern-lift">${TAV_ORN}<span>${q}</span>${TAV_ORN}</div><div class="action-row">${actionCard({label:RC.yes,act:'tvAskYes',icon:'✓',attrs:`data-j="${j}"`})}${actionCard({label:RC.no,act:'tvAskNo',icon:'←',meta:'Back'})}</div></div></div>`;
   }
   function tvMove(d) { const e = S.enc, n = tvSpots().length; if (!e || !e.tv || !n || e.phase !== "rest") return; e.tv.sel = (e.tv.sel + d + n) % n; A.play("ui_click"); renderTavernInside(); } // a small nudge on highlight
   function tvOpen(i) { const e = S.enc, spots = tvSpots(); if (!e || !e.tv || e.phase !== "rest") return; if (i != null) e.tv.sel = i; const sp = spots[e.tv.sel]; if (!sp) return; A.play("ui_click");
     if (sp.kind === "fare") return renderTavernInside(); // v12q: click / Enter on a sign line buys it
-    else if (sp.kind === "npc" && i == null) tvJoin(sp.j); // Enter on a recruit = "Join my party?"
+    else if (sp.kind === "npc" && i == null) { S.enc.tv.ask = sp.j; renderTavernInside(); } // Enter on a recruit = "Join my party?"
     else if (sp.kind === "door" && i == null) leaveInside(); else renderTavernInside(); }
   function tvBack() { const e = S.enc; if (!e || !e.tv || e.phase !== "rest") return; leaveInside(); }
   function drawToast() {

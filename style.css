@@ -524,18 +524,11 @@ html[lang="ja"] .action-card .action-detail{font-size:18px;}
 @keyframes meter-grow{from{transform:scaleX(.04);opacity:.2}to{transform:none;opacity:1}}
 @keyframes emblem-pop{from{scale:0;opacity:0}to{scale:1;opacity:1}}
 @media(prefers-reduced-motion:reduce){.timing-rail.combat .timing-ink,.timing-rail.combat .timing-emblem{animation:none}}
-/* tavern recruit cards + ornamented title (Magnus) */
-.tavernp .tavern-title{white-space:nowrap;display:flex !important;align-items:center;justify-content:center;gap:16px;font-size:24px;font-style:italic;margin-bottom:8px;}
-.tavern-title::before,.tavern-title::after{content:"";flex:0 0 120px;height:12px;background:radial-gradient(circle,#292018 3px,transparent 4px) center/12px 12px no-repeat,linear-gradient(#292018,#292018) center/100% 2px no-repeat;}
-.tavern-title::after{transform:scaleX(-1);}
-.recruit-card{width:min(300px,24vw);min-height:190px;box-sizing:border-box;display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:space-between;padding:12px 14px;background:#ecdcc4;border:6px double #292018;color:#292018;font-family:Georgia,serif;text-align:center;cursor:pointer;}
-.recruit-card strong{font-size:26px;line-height:1.1;}
-.recruit-card .rc-role{font-size:15px;letter-spacing:.12em;text-transform:uppercase;}
-.recruit-card .rc-stats{font-size:20px;}
-.recruit-card .rc-attack{font-size:18px;line-height:1.25;background:#292018;color:#ecdcc4;padding:6px 10px;align-self:stretch;}
-.recruit-card em{font-size:15px;line-height:1.25;}
-.recruit-card:hover,.recruit-card[aria-pressed="true"]{outline:4px solid #8a5a1e;outline-offset:2px;}
-.tavernp:has(.recruit-card){position:fixed;left:0;right:0;bottom:10px;z-index:50;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;}
-.tavernp:has(.recruit-card)>*{pointer-events:auto;}
-.tavernp:has(.recruit-card) .tavern-title{background:rgba(236,220,196,.92);padding:2px 18px;}
-.tavern-nav:has(.recruit-card){align-items:flex-end;}
+
+.tavern-heading{display:flex;align-items:center;justify-content:center;gap:14px;}
+.tavern-orn{width:140px;height:12px;object-fit:cover;}
+.tavern-deck{position:relative;}
+.tavern-lift{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(100% + 18px);white-space:nowrap;padding:4px 20px;background:url('assets/v10/paper/parchment.png');}
+.panel:has(.tavern-deck){overflow:visible;}
+.action-gear #gear-title.tavern-lift{width:auto;height:auto;overflow:visible;clip-path:none;}
+#strip:has(.tavern-deck){z-index:5;}
