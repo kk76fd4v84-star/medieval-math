@@ -9,7 +9,11 @@ KM_DATA.combat = {
     weaponStep: .05, armourStep: .05, critCap: .7, blockCap: .45,
     companionStep: .05, companionCap: 3, // living companions only; deaths release the pressure
     critMultiplier: 2, lateMultiplier: .5, riddleGoldMultiplier: 2,
-    riddleSecs: 30 }, // provisional reading time; riddles award coins, never attack damage
+    riddleSecs: 30,
+    // answer seconds per sum (KM.Progression.seconds): [below, secs] by the largest number, first match wins
+    seconds: { manyNumbers: 24, div: 16,
+      mul: [[6, 12], [11, 16]], mulElse: 20,
+      add: [[10, 8], [20, 10], [40, 12], [70, 16]], addElse: 18 } }, // provisional reading time; riddles award coins, never attack damage
   // Fixed enemy traits: never scale pressure to the player's purchases.
   patterns: {
     rabid_squirrel: { forgiving: true }, killer_rabbit: { forgiving: true },

@@ -43,10 +43,11 @@ KM.Progression = (() => {
   }
   function seconds(p){
     const nums=(p.text.match(/\d+/g)||[]).map(Number),type=p.type||(/×/.test(p.text)?'mul':/÷/.test(p.text)?'div':'add');
-    if(nums.length>2)return 24;
-    if(type==='mul')return Math.max(...nums)<=5?12:Math.max(...nums)<=10?16:20;
-    if(type==='div')return 16;
-    const max=Math.max(...nums);return max<10?8:max<20?10:max<40?12:max<70?16:18;
+    const T=KM_DATA.combat.timing.seconds,max=Math.max(...nums),by=(rows,other)=>(rows.find(([below])=>max<below)||[0,other])[1];
+    if(nums.length>2)return T.manyNumbers;
+    if(type==='mul')return by(T.mul,T.mulElse);
+    if(type==='div')return T.div;
+    return by(T.add,T.addElse);
   }
   function shop(base,tier){
     if(!tier)return base;tier=Math.max(1,Math.min(3,Math.floor(tier)));return {...base,gear:{...base.gear,maxWeapon:tier,maxArmor:tier,weaponCost:7+(tier-1)*3,armorCost:5+(tier-1)*2}};

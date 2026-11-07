@@ -62,6 +62,7 @@
   // balance switches; tests that load without src/engine/balance-try.js get the switches-off behaviour
   const CARDS = KM.Cards && KM.BalanceTry?.on('cards') ? KM.Cards : null; // upgrade cards switch
   const BT = KM.BalanceTry || { on: () => false, unit: () => 1, healthMul: () => null, packRelay: () => false, bossAtk: (e, b) => b, heartsText: String };
+  const MP = KM.MeterPressure || { on: () => false, seconds: s => s, sells: () => [], level: () => 0, cost: () => null, image: () => null }; // meter pressure switch
   const maxHp = () => PA.maxHp(S.party);
   const roleMembers = role => PA.members(S.party, role);
   const priests = () => roleMembers('priest');
@@ -288,7 +289,7 @@
   // v10: the frontGround run seed (choose-strip.js: "store/reuse the run seed") = a hash of the saved runId, also saved
   const seedOf = id => { let h = 2166136261; for (const ch of String(id)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; return h & 0x7fffffff; };
   const fgSeed = () => (S.fgSeed != null ? S.fgSeed : (S.fgSeed = seedOf(S.runId)));
-  const core = () => ({ chapter:S.chapter, challengeMode:S.challengeMode, name: S.name, hp: S.hp, gold: S.gold, score: S.score, scoreLedger: KM.Score.copy(S.scoreLedger), cards:(S.cards||[]).slice(), riddleSolved:S.riddleSolved.slice(),wizardUnlocked:S.wizardUnlocked, stop: S.stop, dist: Math.round(S.dist), fid: S.fid, further: S.furtherDone, hunters: S.hunters, spells: S.spells, spellLeft: S.spellLeft, mead: S.mead ? 1 : 0, bottles: S.bottles, runId: S.runId, fgSeed: fgSeed(),
+  const core = () => ({ chapter:S.chapter, challengeMode:S.challengeMode, name: S.name, hp: S.hp, gold: S.gold, score: S.score, scoreLedger: KM.Score.copy(S.scoreLedger), cards:(S.cards||[]).slice(), ...(S.meterGear&&Object.keys(S.meterGear).length?{meterGear:{...S.meterGear}}:{}), riddleSolved:S.riddleSolved.slice(),wizardUnlocked:S.wizardUnlocked, stop: S.stop, dist: Math.round(S.dist), fid: S.fid, further: S.furtherDone, hunters: S.hunters, spells: S.spells, spellLeft: S.spellLeft, mead: S.mead ? 1 : 0, bottles: S.bottles, runId: S.runId, fgSeed: fgSeed(),
     pendingDismissal:S.pendingDismissal?JSON.parse(JSON.stringify(S.pendingDismissal)):null,loot:S.loot.map(q=>({...q})),routeVersion:S.routeVersion,restUses:JSON.parse(JSON.stringify(S.restUses)),rolesVersion: 3, dragonSlain: !!S.dragonSlain, tavernRecruits: {...S.tavernRecruits},
     party: S.party.map(m => { const { sx, hopY, act, hopping, dying, ...rec } = m; return rec; }), stats: Object.assign({}, S.stats), usedRiddles: S.usedRiddles.slice() });
   function save() { if (sketch || PREVIEW) return; KM.Save.write(Object.assign(core(), { checkpoint: S.checkpoint })); }
@@ -299,7 +300,7 @@
     S.pendingDismissal=c.pendingDismissal&&c.pendingDismissal.stop===c.stop?JSON.parse(JSON.stringify(c.pendingDismissal)):null;
     S.loot=(c.loot||[]).filter(q=>Number.isFinite(q.x)&&q.amount>0).map(q=>({...q}));
     S.routeVersion=c.routeVersion||0;S.restUses=JSON.parse(JSON.stringify(c.restUses||{}));
-    S.riddleSolved=(c.riddleSolved||[]).slice();S.cards=(c.cards||[]).slice();S.wizardUnlocked=!!c.wizardUnlocked;
+    S.riddleSolved=(c.riddleSolved||[]).slice();S.cards=(c.cards||[]).slice();S.meterGear={...(c.meterGear||{})};S.wizardUnlocked=!!c.wizardUnlocked;
     S.enc = null; S.deathDepth = null; S.dragonSlain = !!c.dragonSlain; S.tavernRecruits = {...(c.tavernRecruits || {})};
     S.name = c.name; S.hp = c.hp; S.gold = c.gold; S.score = Number.isFinite(c.score) ? Math.trunc(c.score) : 0; S.scoreLedger = KM.Score.copy(c.scoreLedger); S.stop = c.stop; S.stats = Object.assign({ correct: 0, wrong: 0, riddles: 0, sacrificed: 0 }, c.stats); S.usedRiddles = (c.usedRiddles || []).slice();
     S.dist = c.dist || 0; S.furtherDone = !!c.further; S.hunters = c.hunters || 0; S.spells = c.spells != null ? c.spells : SPL.start; S.spellLeft = Math.min(SPL.problems, Math.max(0, c.spellLeft || 0)); S.mead = c.mead ? 1 : 0; S.bottles = c.bottles || 0; S.runId = c.runId || "run-" + Date.now(); S.fgSeed = c.fgSeed != null ? c.fgSeed : seedOf(S.runId);
@@ -549,7 +550,7 @@
     if(KM.Tomb?.requested())return startTomb();
     S.chapter=KM.HollowWood?.requested()?"hollowwood":"village";syncChapterFlag();
     hush(); S.deathDepth = null; S.dragonSlain = false;
-    S.cards = [];
+    S.cards = []; S.meterGear = {};
     S.name = "Nobody"; S.hp = D.party.heartsPerMember; S.gold = 5; S.loot = []; S.score = 0; S.scoreLedger = KM.Score.empty(); S.riddleSolved=[];S.wizardUnlocked=false;S.lightning=null; S.stop = 0; S.dist = 0; S.fid = 0; S.hunters = 0; S.spells = 0; S.spellLeft = 0; S.mead = 0; S.bottles = 0; S.runId = "run-" + Date.now(); S.fgSeed = seedOf(S.runId);
     S.stats = { correct: 0, wrong: 0, riddles: 0, sacrificed: 0 }; S.usedRiddles = []; S.pendingDismissal=null; S.tavernRecruits = {}; S.restUses={}; S.routeVersion=3;
     S.party = [newMember("hero", slotX(0), true)]; S.hp = maxHp(); buildWorld(0); S.camX = 0; addNarrator(); S.floats = []; S.dice = []; S.enc = null; S.timers = []; S.view = null; S.dying = null; S.entering = null; S.voices = [];
@@ -765,6 +766,7 @@
     if (e.depth) { e.depth.mode = "battle"; e.act.closing = null; }
     else if (e.st.type === "special") e.act.x = e.st.stopX + 260;
     musicScene(encounterMusic(e.st));
+    if(MP.on()){const p=MP.strongest(living(e));MP.TYPES.forEach(k=>{if(p[k]>0)A.play(D.meterPressure.sfx[k]);});} // optional sounds, silent when missing
     const roaring=living(e).find(f=>KM.Timing.pattern(f.id).roar);
     if(roaring)return bossEntrance(e,roaring);
     say(e.act, e.act.taunt || E.taunt);
@@ -989,14 +991,16 @@
     const e=S.enc;
     const role={fire:'firestarter',execute:'executioner',lightning:'darkWizard',heal:'priest',resurrect:'priest'}[kind]||'knight';
     const owners=isFellowship()?S.party.filter(PA.alive):isKnight()&&e?.activeCard ? S.party.filter(m=>e.activeCard.owners.includes(m.id)) : PA.members(S.party,role);
-    const pressure=e?.revealed&&e.pressureReady!==false?KM.Timing.pressure(living(e)):{};
+    const ready=e?.revealed&&e.pressureReady!==false,weapon=Math.max(0,...owners.filter(PA.alive).map(m=>m.weapon||0)),armour=PA.armour(S.party.filter(PA.alive)),companions=S.party.filter(m=>m.id!=='hero'&&PA.alive(m)).length;
+    if(MP.on())return MP.windows({weapon,armour,companions,helm:MP.level(S,'helm'),lantern:MP.level(S,'lantern'),foes:ready?living(e):[]});
+    const pressure=ready?KM.Timing.pressure(living(e)):{};
     return KM.Timing.windows({weapon:Math.max(0,...owners.filter(PA.alive).map(m=>m.weapon||0)),armour:PA.armour(S.party.filter(PA.alive)),
       companions:S.party.filter(m=>m.id!=='hero'&&PA.alive(m)).length,pressure});
   }
   function paintTimingLegend() {
     const e=S.enc,w=e?.tmr?.windows||e?.answerTiming?.windows||combatWindows();
     const foes=e?.revealed?living(e):[];
-    KM.TimingBar?.update(w,{visible:S.mode==='encounter'&&!!e?.revealed,timed:S.mode==='encounter'&&!!(e?.tmr||e?.answerTiming),jp:!!KM.I18n?.jp(),forgiving:foes.length>0&&foes.every(f=>KM.Timing.pattern(f.id).forgiving),deadline:foes.some(f=>KM.Timing.pattern(f.id).deadline),hit:e?.answerTiming?.fraction??null});
+    KM.TimingBar?.update(w,{visible:S.mode==='encounter'&&!!e?.revealed,timed:S.mode==='encounter'&&!!(e?.tmr||e?.answerTiming),jp:!!KM.I18n?.jp(),forgiving:foes.length>0&&foes.every(f=>KM.Timing.pattern(f.id).forgiving),deadline:foes.some(f=>KM.Timing.pattern(f.id).deadline),hit:e?.answerTiming?.fraction??null,ink:w.ink||null,tags:w.tags||[]});
   }
   const NOTIMER = /[?&]debug\b/.test(location.search) && /[?&]notimer\b/.test(location.search);
   let tmrHold = 0;
@@ -1004,7 +1008,8 @@
     const e = S.enc; if (!e) return null;
     e.tmr = null; e.answerTiming = null; tmrHold = 0; dividerFill(0);
     if (!(secs > 0) || NOTIMER || !e.q) return null;
-    return (e.tmr = { t: 0, q: e.q, secs, held: 0,windows:e.revealed?combatWindows():KM.Timing.windows() });
+    const windows=e.revealed?combatWindows():KM.Timing.windows();
+    return (e.tmr = { t: 0, q: e.q, secs: MP.seconds(secs, windows), held: 0, windows }); // meter pressure: a Quick foe shortens the time
   }
   function tickAnswerTimer(dt) {
     paintTimingLegend();
@@ -1788,6 +1793,8 @@
     if(SPL.sellAt.includes(st.rest))cards.push(shopItem('Stupidity scroll',spellIcon('shop'),SPL.price,'buySpell','',S.gold<SPL.price||S.spells>=SPL.max,T(isFellowship()?'Automatic next sum · −2 score':'Easier next sum')));
     if(g&&g.maxWeapon)cards.push(shopItem('Sword +1','<img src="assets/ui/shop/sword-cutout.png" alt="">',g.weaponCost,'chooseGear','data-kind="weapon"',S.gold<g.weaponCost||S.party.every(m=>m.weapon>=PA.gearCap("weapon",g.maxWeapon)),T('Upgrade one ally')));
     if(g&&g.maxArmor)cards.push(shopItem('Armour +1','<img src="assets/ui/shop/armour-cutout.png" alt="">',g.armorCost,'chooseGear','data-kind="armor"',S.gold<g.armorCost||S.party.every(m=>m.armor>=PA.gearCap("armor",g.maxArmor)),T('+1 silver heart')));
+    MP.sells(st,S.stops,S.chapter).forEach(id=>{const G=D.meterPressure.gear[id],c=MP.cost(S,id),n=MP.level(S,id);
+      cards.push(shopItem(G.name+(c==null?'':' +1'),meterGearIcon(id),c??'–','buyMeterGear',`data-id="${id}"`,c==null||S.gold<c,`${T(G.note)} · ${n}/${G.max}`));});
     st.cands.forEach((p,j)=>{if(p)cards.push(recruitCard(p,j,'restRecruit',!canRecruit(st)));});cardOffer(e,cards);cards.push(walkCard());
     if(e.cardPick)return showPanel(cardDialog(e),'rest action-panel');
     showPanel(e.gearChoice?gearDialog(e.gearChoice):actionRow(cards),'rest action-panel');
@@ -1815,6 +1822,10 @@
     return `<div class="gear-shade"><div class="gear-dialog action-gear" role="dialog" aria-modal="true" aria-labelledby="gear-title"><div id="gear-title">${T(kind==='weapon'?'Who gets the sword?':'Who gets the armour?')}</div><div class="action-row">${cards.join('')}</div></div></div>`;
   }
   function chooseGear(kind){if(!S.enc||S.enc.phase!=='rest'||!['weapon','armor'].includes(kind))return;const g=restT().gear;if(!g||!(kind==='weapon'?g.maxWeapon:g.maxArmor))return;S.enc.gearChoice=kind;renderRest();}
+  // meter pressure: party-wide helm / lantern levels (switch meterPressure; data src/data/meter_pressure.js)
+  const meterGearIcon=id=>{const src=MP.image(id);return src?`<img src="${src}" alt="">`:(id==='helm'?`<svg viewBox="0 0 40 40" width="40" height="40"><path d="M8 30 V19 A12 12 0 0 1 32 19 V30 Z" fill="#b9b2a2" stroke="#292018" stroke-width="2.4"/><path d="M12 22 H28 M20 8 V22" stroke="#292018" stroke-width="2.4"/></svg>`:`<svg viewBox="0 0 40 40" width="40" height="40"><path d="M15 9 H25 M20 5 V9" stroke="#292018" stroke-width="2.4"/><path d="M13 12 H27 L25 31 H15 Z" fill="#e8b04a" stroke="#292018" stroke-width="2.4"/><path d="M12 33 H28" stroke="#292018" stroke-width="2.4"/></svg>`);};
+  function buyMeterGear(id){const e=S.enc;if(!e||e.phase!=='rest'||!MP.sells(e.st,S.stops,S.chapter).includes(id)||!MP.buy(S,id))return;
+    A.play(D.meterPressure.sfx[id]);A.play('buy_gear');save();keeperSay(`${T(D.meterPressure.gear[id].name)} · ${MP.level(S,id)}/${D.meterPressure.gear[id].max}`);renderRest();}
   function cancelGear(){if(S.enc)S.enc.gearChoice=null;renderRest();}
   function assignGear(i){const kind=S.enc&&S.enc.gearChoice;if(kind)restBuy(kind,i);}
   function restHeal(key) {
@@ -2017,7 +2028,7 @@
     selectTavern:b=>{if(S.enc?.tv){S.enc.tv.sel=+b.dataset.i;renderTavernInside();}},
     buyFare:b=>buyFare(b.dataset.item),
     restHeal: b => restHeal(b.dataset.k), openCards: () => { if (S.enc) { S.enc.cardPick = true; renderRest(); } }, closeCards: () => { if (S.enc) { S.enc.cardPick = false; renderRest(); } }, takeCard: b => takeCard(b.dataset.id), buyMead: () => buyMead(), restRecruit: b => restRecruit(+b.dataset.j),
-    chooseGear:b=>chooseGear(b.dataset.kind), assignGear:b=>assignGear(+b.dataset.i), cancelGear:()=>cancelGear(),
+    chooseGear:b=>chooseGear(b.dataset.kind), buyMeterGear:b=>buyMeterGear(b.dataset.id), assignGear:b=>assignGear(+b.dataset.i), cancelGear:()=>cancelGear(),
     restBuyW: b => restBuy("weapon", +b.dataset.i), restBuyA: b => restBuy("armor", +b.dataset.i),
     goInside: () => goInside(), leaveInside: () => leaveInside(),
     leaveRest: () => leaveRest(),
