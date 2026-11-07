@@ -19,8 +19,7 @@ function fresh(n=1,where='goblin'){
 fresh(1,'campsite');
 const ids=()=>K.offer(S).map(c=>c.id);
 for(let i=0;i<20;i++)assert(!ids().includes('embers'));
-g.renderRest();assert.match(nodes.get('panel').innerHTML,/openCards/);
-S.enc.cardPick=true;g.renderRest();assert.match(nodes.get('panel').innerHTML,/takeCard/);
+g.renderRest();assert.match(nodes.get('panel').innerHTML,/takeCard/);
 const pick=S.enc.cardOptions[0];g.takeCard(pick);assert.deepEqual(S.cards,[pick]);assert(S.enc.used.card);
 g.renderRest();assert.doesNotMatch(nodes.get('panel').innerHTML,/openCards/,'one pick per stop');
 // cleave: knights reach a third enemy, knight sums one level harder
@@ -38,6 +37,10 @@ assert.equal(K.levelBonus(S,'firestarter'),2);
 let e=fresh(2);S.cards=['swing_and_a_miss'];const hp=S.hp;e.input=String(e.problem.answer+1);e.tmr.t=e.tmr.secs*.5;g.submitAnswer();advance(3);assert(S.hp<hp,'miss chips the ally');
 // shield wall: clean fight refills armour
 e=fresh(1);S.cards=['shield_wall'];S.party[0].armor=0;S.party[0].armorTop=2;e.lost=0;g.defeatEnemy();assert.equal(S.party[0].armor,2);
-console.log('PASS: upgrade cards offered by party, one pick per stop, cleave reach + harder knight sums, embers burn ticks, swing chip, shield wall refill.');
+// dark wizard cards: lightning hits harder, drawn as plain cards until painted
+S.cards=['storm_surge'];const wiz={id:'w',role:'darkWizard',companionId:'darkWizard'};
+const base=F.plan([wiz],[{hp:50,maxHp:50}],1)[0].amount,up=F.plan([wiz],[{hp:50,maxHp:50}],1,{wizardDamage:K.wizardDamage(S)})[0].amount;
+assert.equal(up-base,3);assert.equal(K.levelBonus(S,'darkWizard'),1);
+console.log('PASS: wizard cards, upgrade cards offered by party, one pick per stop, cleave reach + harder knight sums, embers burn ticks, swing chip, shield wall refill.');
 `;
 const m=new Module(__filename,module);m.filename=__filename;m.paths=module.paths;m._compile(harness+checks,__filename);

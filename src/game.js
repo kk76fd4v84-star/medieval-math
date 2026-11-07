@@ -885,7 +885,7 @@
     if(S.enc!==e || S.dying)return;
     e.phase='busy';if(!failed)hush();
     const foes=living(e),timing=e.answerTiming;
-    const hits=KM.Fellowship.plan(S.party,foes,timing?.multiplier??1,{failed,hp:S.hp,maxHp:maxHp(),heals:e.heals,leader:e.leader?.member,leaderMultiplier:e.leader?.multiplier||1,knightTargets:CARDS?CARDS.knightTargets(S):0,burn:CARDS?CARDS.burn(S):0});
+    const hits=KM.Fellowship.plan(S.party,foes,timing?.multiplier??1,{failed,hp:S.hp,maxHp:maxHp(),heals:e.heals,leader:e.leader?.member,leaderMultiplier:e.leader?.multiplier||1,knightTargets:CARDS?CARDS.knightTargets(S):0,burn:CARDS?CARDS.burn(S):0,wizardDamage:CARDS?CARDS.wizardDamage(S):0});
     if(!hits.length)return;
     const volley=e.fellowshipVolley={hits:hits.length,landed:0,total:0,backfire:0,failed};
     const targets=[...new Set(hits.flatMap(h=>h.impacts.map(i=>i.target)))];
@@ -1773,6 +1773,7 @@
   function renderRest(){
     if(S.view && S.view.id==='tavern-interior')return renderTavernInside();
     const e=S.enc,st=e.st,stop=restT(),g=stop.gear;e.phase='rest';
+    if(CARDS&&isFellowship()&&!e.used.card&&!e.cardOptions){e.cardOptions=CARDS.offer(S).map(c=>c.id);e.cardPick=e.cardOptions.length>0;} // the pick opens on arrival
     if(stop.view==='camp'){
       const cards=[actionCard({label:e.used.H?'Rested':'Make camp',act:'restHeal',icon:MICON.heal,meta:'Rest',detail:T('Full health'),note:'Once per camp',attrs:'data-k="H"',off:!!e.used.H})];
       st.cands.forEach((p,j)=>{if(p)cards.push(recruitCard(p,j,'restRecruit',!canRecruit(st)));});
@@ -1796,8 +1797,11 @@
     if(e.cardOptions.length)cards.push(actionCard({label:'Upgrade card',act:'openCards',icon:'<img src="assets/ui/cards/cleave.png" alt="" style="height:64px">',meta:'Pick one',detail:T('Free')}));
   }
   function cardDialog(e){
-    const opts=e.cardOptions.map(id=>CARDS.byId(id)).map(c=>`<button class="upgrade-card" data-act="takeCard" data-id="${c.id}" aria-label="${c.name}" style="background:none;border:0;padding:0 10px;cursor:pointer"><img src="${c.img}" alt="${c.name}" style="height:min(560px,62vh);display:block"></button>`).join('');
+    const opts=e.cardOptions.map(id=>CARDS.byId(id)).map(c=>`<button class="upgrade-card" data-act="takeCard" data-id="${c.id}" aria-label="${c.name}" style="background:none;border:0;padding:0 10px;cursor:pointer">${c.img?`<img src="${c.img}" alt="${c.name}" style="height:min(560px,62vh);display:block">`:plainCard(c)}</button>`).join('');
     return `<div role="dialog" aria-label="Pick an upgrade card" style="position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(36,28,18,.45)">${opts}${actionCard({label:'Not now',act:'closeCards',icon:'←',meta:'Back'})}</div>`;
+  }
+  function plainCard(c){ // a card with no painting yet: parchment, name, effect, cost
+    return `<div style="height:min(560px,62vh);aspect-ratio:2/3;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:6% 8%;background:#ecdcc4;border:6px double #292018;color:#292018;font-family:Georgia,serif;text-align:center"><strong style="font-size:30px">${c.name}</strong><span style="font-size:15px">${String(c.owner||'').replace('darkWizard','Dark Wizard').toUpperCase()}</span><span style="font-size:22px;line-height:1.3">${c.text||''}</span><span style="font-size:20px;line-height:1.3;background:#292018;color:#ecdcc4;padding:14px">${c.costText||''}</span></div>`;
   }
   function takeCard(id){const e=S.enc;if(!e||!CARDS||e.used.card||!e.cardOptions?.includes(id))return;S.cards=(S.cards||[]).concat(id);e.used.card=true;e.cardPick=false;A.play('buy_gear');save();renderRest();}
   function gearDialog(kind){
