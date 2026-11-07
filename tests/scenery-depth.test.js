@@ -25,7 +25,7 @@ const layerSpeeds=[C.back.find(q=>q.strip==='castle').speed,C.mountains.speed,C.
 assert(layerSpeeds.every((speed,i)=>speed>0 && (!i || speed>layerSpeeds[i-1])), 'Every nearer scenery layer must move faster: '+layerSpeeds.join(' < '));
 function capture(cam, swaps={}) {
   const calls=[];
-  const ctx={canvas:canvas(),drawImage(im,x,y,w,h){if(im.src)calls.push({src:im.src,x,y,w,h});}};
+  const ctx={canvas:canvas(),save(){},restore(){},beginPath(){},rect(){},clip(){},drawImage(im,x,y,w,h){if(im.src)calls.push({src:im.src,x,y,w,h});}};
   S.draw(ctx,cam,0,{seed:1,swaps});S.foreground(ctx,cam,1,500);
   return calls;
 }

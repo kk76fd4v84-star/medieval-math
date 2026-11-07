@@ -2473,7 +2473,7 @@
     const sc = KM.RestView.scene(v.id); if (!sc) return;
     const cands = S.enc && S.enc.st && S.enc.st.cands ? S.enc.st.cands.map((p, j) => p && { p, j }).filter(Boolean) : [];
     ctx.save(); ctx.globalAlpha = v.a; ctx.fillStyle = "#efe3c8"; ctx.fillRect(0, 0, VW, L.artSpaceH); ctx.restore();
-    if (SCN() && v.id !== "tavern-interior") { ctx.save(); ctx.globalAlpha = v.a; KM.Scenery.draw(ctx, S.camX, S.t, { chapter:S.chapter, seed: S.fgSeed, swaps: S.swaps }); ctx.restore(); }
+    if (SCN() && v.id !== "tavern-interior") { ctx.save(); ctx.globalAlpha = v.a; KM.Scenery.draw(ctx, S.camX, S.t, { chapter:S.chapter, seed: S.fgSeed, swaps: S.swaps, flags: { dragonSlain: S.dragonSlain } }); ctx.restore(); }
     KM.RestView.draw(ctx, v.id, {}, v.a);
     ctx.save(); ctx.globalAlpha = v.a;
     if (v.id === "tavern-interior" && KM.RestView.scene(v.id).full) { drawTavernInside(cands); ctx.restore(); exitRect = null; return; } // v12o: draws its own party, after the sign
@@ -2663,7 +2663,7 @@
     } else if (S.view && S.view.a >= 1) drawView();
     else {
       if(arena)KM.Scenery.drawSky(ctx,S.camX,S.t,S.fgSeed);
-      else if (SCN()) KM.Scenery.draw(ctx, S.camX, S.t, { chapter:S.chapter, seed: S.fgSeed, swaps: S.swaps, keepOut: foeHeartsRects().flatMap(r=>r.intent?[r,r.intent]:[r]).concat(partyHeartsRect() ? [partyHeartsRect()] : [], statusRects(), S.mode === "title" ? [{x:440,y:66,w:720,h:134}] : []).map(r => ({ x: r.x / K, y: r.y / K, w: r.w / K, h: r.h / K })), graveLane: drawCompanionGraves, midLane: () => { drawCompanionGraves(1);live.filter(a => (a.distant && a.hill && !dragonPose(a)) || a.riddleVariant===2).forEach(drawActor); } });
+      else if (SCN()) KM.Scenery.draw(ctx, S.camX, S.t, { chapter:S.chapter, seed: S.fgSeed, swaps: S.swaps, flags: { dragonSlain: S.dragonSlain }, keepOut: foeHeartsRects().flatMap(r=>r.intent?[r,r.intent]:[r]).concat(partyHeartsRect() ? [partyHeartsRect()] : [], statusRects(), S.mode === "title" ? [{x:440,y:66,w:720,h:134}] : []).map(r => ({ x: r.x / K, y: r.y / K, w: r.w / K, h: r.h / K })), graveLane: drawCompanionGraves, midLane: () => { drawCompanionGraves(1);live.filter(a => (a.distant && a.hill && !dragonPose(a)) || a.riddleVariant===2).forEach(drawActor); } });
       else { KM_ART.layers.forEach(Ly => KM.World.drawLayer(ctx, Ly, S.camX, S.t)); live.filter(a => (a.distant && a.hill && !dragonPose(a)) || a.riddleVariant===2).forEach(drawActor); }
       KM.DragonApproach.drawHill(ctx, S);
       live.filter(a => a.distant && a.hill && dragonPose(a) && (a.id!=="turd_dragon" || !S.dragonSlain)).forEach(drawActor);

@@ -144,7 +144,14 @@ KM.Scenery = (function () {
   function strip(ctx, name, L, camX) {
     const p = A().parallax[name]; if (!p) return; const im = img(p.img); if (!ok(im)) return;
     const s = terrainScale(), w = p.size[0] * s, h = p.size[1] * s, y = L.bottom - (p.baseline || p.size[1])*s, step = w - terrainOverlap()*s;
-    if (L.once != null) return inked(ctx, [[im, L.once - camX * L.speed - p.size[0]*(s-G())/2, y, w, h]]);
+    if (L.once != null) {
+      const x = L.once - camX * L.speed - p.size[0]*(s-G())/2;
+      if (!L.crop) return inked(ctx, [[im, x, y, w, h]]);
+      const [x0, y0, x1, y1] = L.crop; // source px: only this part of the strip shows (e.g. the dragon off its hill strip)
+      if (x + x1 * s < 0 || x + x0 * s > VW()) return;
+      ctx.save(); ctx.beginPath(); ctx.rect(x + x0 * s, y + y0 * s, (x1 - x0) * s, (y1 - y0) * s); ctx.clip();
+      inked(ctx, [[im, x, y, w, h]]); ctx.restore(); return;
+    }
     const first=Math.floor(camX*L.speed/step)-1, off=camX*L.speed-first*step, draws=[];
     for (let i=first,x=-off;x<VW();i++,x+=step) {const base=(i%2) ? reflected(im) : im;const tile=base;if(tile) draws.push([tile,x,y,w,h]);}
     inked(ctx, draws);
@@ -361,7 +368,7 @@ KM.Scenery = (function () {
     if(c.mountains)distant.push({speed:c.mountains.speed,mountain:true});
     distant.sort((a,b)=>a.speed-b.speed).forEach(q=>{
       if(q.mountain)mountains(ctx,camX,hooks);
-      else strip(ctx,q.layer.strip,q.layer,camX);
+      else if(!(q.layer.hideWhen&&hooks?.flags?.[q.layer.hideWhen]))strip(ctx,q.layer.strip,q.layer,camX);
     });
     mist(ctx, c.rearMist);
     mid(ctx, camX, hooks);
