@@ -238,3 +238,16 @@ Keep current art and historical source files; do not blindly regenerate everythi
 Suggested next work (only when requested): connect the approved tomb test to the
 end of Hollow Wood, then build the beach from its approved concept; tune combat
 through playtests; extend asset/animation coverage. Do not represent these as done.
+
+## Balance switches (all off by default)
+
+`src/data/balance_try.js` holds five switches and their tuning numbers; `src/engine/balance-try.js` reads them.
+Try one for a run with the page address (start a **new** run after changing `halfhearts`):
+
+- `?curve=1`: countryside packs take turns, Fellowship enemy health ramps per battle (x2.0 rising to x2.6), bosses hit for 1 and roar for 2 every 3rd enemy turn.
+- `?halfhearts=1`: hearts are counted in halves; ordinary hits take half a heart, boss roars a full one; heals scale to match.
+- `?camparmour=1`: making camp mends bought armour back to its best level.
+- `?whoacts=1`: Fellowship sums belong to one member (+ knights, − healers, × Timmy, Dark Wizard, Executioner), weighted by the fight (1–2 enemies, 3+, boss, party hurt); that member's strike counts double and Charlie's class cue plays.
+- Combine them: `?curve=1&halfhearts=1&camparmour=1&whoacts=1`. Flip a switch to `true` in the data file to make it the default.
+
+Charlie's heart, crypt and class-cue sounds are in `assets/audio/sfx/` and mapped in `assets/audio_map.json`.

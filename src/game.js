@@ -59,6 +59,8 @@
   // companions die before the hero. Silver armour absorbs damage before any red-heart loss.
   const HPM = () => D.party.heartsPerMember;
   const PA = KM.PartyAbilities;
+  // balance switches; tests that load without src/engine/balance-try.js get the switches-off behaviour
+  const BT = KM.BalanceTry || { on: () => false, unit: () => 1, healthMul: () => null, packRelay: () => false, bossAtk: (e, b) => b, heartsText: String };
   const maxHp = () => PA.maxHp(S.party);
   const roleMembers = role => PA.members(S.party, role);
   const priests = () => roleMembers('priest');
@@ -645,7 +647,7 @@
       let heroStep=false;
       if(fr){const n=fr.s.frames.length;heroStep=fr.i!==S.stepFrame&&(fr.i===0||fr.i===n/2);S.stepFrame=fr.i;}
       else {S.stepT+=dt;if(S.stepT>.35){S.stepT=0;heroStep=true;}}
-      if(heroStep){A.play('step');S.compStepT=0;}
+      if(heroStep){A.play(inTomb()?'step_stone':'step');S.compStepT=0;}
       S.party.forEach(m=>{if(m.id==='hero')return;const id=artId(m),cs=KM_ART.entities[id]?.seq?.walk;if(!cs)return;
         const f=KM.Assets.seqFrame(cs,(S.walkT||0)*(KM_ART.walkRate?.(id)||1));if(!f)return;
         if(f.i!==S.stepFr[m.id]&&(f.i===0||f.i===f.s.frames.length/2)&&S.compStepT>=.32){A.play('step_companion');S.compStepT=0;}
@@ -741,16 +743,19 @@
     heroSay(e.st.type === "math" ? "Something lurks in the mist..." : "It blocks the whole road. No way around!", inPhase("approach"));
     showPanel(actionRow([actionCard({label:'Fight',act:'commit',icon:MICON.hard}),...(can?[actionCard({label:'Avoid',act:'avoid',icon:'→',note:'Hunters advance'})]:[])]),'info action-panel');
   }
+  // Balance switches (src/data/balance_try.js): Fellowship health ramps per battle when the curve switch is on
+  function foeHealth(hp){const k=BT.healthMul(S);return k?Math.ceil(hp*k):KM.Fellowship.health(hp);}
   function commit() {
     const e = S.enc; if (!e || (e.phase !== "approach" && e.phase !== "frank")) return;
     if (e.st.id === "frank" && !e.depth) { beginDragonApproach(); return; }
     const id = e.act.id, E = D.enemies[id] || {}, cs = e.act.combat || C.enemies[id] || { hp: 6, atk: 1 };
     e.lost=Math.max(0,maxHp()-S.hp);
-    e.phase = "busy"; e.hp = e.maxHp = isFellowship()?KM.Fellowship.health(cs.hp):cs.hp; e.atk = cs.atk; e.heals = C.healsPerFight; e.fireUses = IT.usesPerBattle; e.fallen=[]; e.resurrected=false; e.revealed = true;
+    e.phase = "busy"; e.hp = e.maxHp = isFellowship()?foeHealth(cs.hp):cs.hp; e.atk = cs.atk; e.heals = C.healsPerFight; e.fireUses = IT.usesPerBattle; e.fallen=[]; e.resurrected=false; e.revealed = true;
     // every foe of this stop (a group = several), each with its own hearts; e.act / e.hp mirror the FRONT one
     e.foes = S.actors.filter(a => a.stop === S.stop && a.foe && !a.dead).sort((a, b) => a.x - b.x);
-    e.foes.forEach(a => { const c2 = a.combat || C.enemies[a.id] || { hp: 6, atk: 1 }; a.hp = a.maxHp = isFellowship()?KM.Fellowship.health(c2.hp):c2.hp; a.atk = c2.atk; if (a !== e.act) { a.distant = false; a.closing = { t: 0, dur: 0.7 }; } });
+    e.foes.forEach(a => { const c2 = a.combat || C.enemies[a.id] || { hp: 6, atk: 1 }; a.hp = a.maxHp = isFellowship()?foeHealth(c2.hp):c2.hp; a.atk = c2.atk; if (a !== e.act) { a.distant = false; a.closing = { t: 0, dur: 0.7 }; } });
     e.act.hp = e.hp; e.act.maxHp = e.maxHp; e.act.atk = e.atk;
+    if(BT.packRelay(e))e.st.relay=true; // curve switch: countryside packs take turns
     if(e.st.relay) planPackTurn(e);
     if (S.mead === 1) { S.mead = 2; e.mead = true; renderHUD(); } // v11b tavern mead: THIS battle's sums are all stupid
     if ((KM_ART.entities[id] || {}).onHill && S.swaps) Object.values(S.swaps).forEach(q => (q.on = false)); // v19: it comes down from its hill
@@ -840,8 +845,8 @@
     if(!candidates.includes(target)||!KM.Knight.commit(e.deck,slot))return;
     e.activeCard=c;e.action='card';const caster=S.party.find(m=>m.id===c.owners[0])||S.party[0];
     const right=()=>{
-      if(c.heal){const before=S.hp;hearts(c.heal);e.lost=Math.max(0,(e.lost||0)-(S.hp-before));}
-      if(c.revive&&canResurrect()){const m=e.fallen.pop();unburyCompanion(m);delete m.dying;delete m.eaten;delete m.act;m.sp=null;m.hopY=0;S.party.push(m);m.sx=slotX(S.party.length-1);e.resurrected=true;hearts(1);e.lost=(e.lost||0)+PA.life(m)-1;}
+      if(c.heal){const before=S.hp;hearts(c.heal*BT.unit());e.lost=Math.max(0,(e.lost||0)-(S.hp-before));}
+      if(c.revive&&canResurrect()){const m=e.fallen.pop();unburyCompanion(m);delete m.dying;delete m.eaten;delete m.act;m.sp=null;m.hopY=0;S.party.push(m);m.sx=slotX(S.party.length-1);e.resurrected=true;hearts(BT.unit());e.lost=(e.lost||0)+PA.life(m)-BT.unit();}
       e.cardGuard=c.block||0;const targets=c.all?living(e):[target],timing=e.answerTiming;
       act(caster,'attack',STRIKE.dur,lungeReach(caster,target),target);A.play(c.level==='easy'?'swing_weak':'swing_hard');
       if(c.risk==='lightning')S.lightning={t:0,targets:targets.map(a=>({x:centreX(a),y:W.groundY-tallOf(a.id)*.5}))};
@@ -860,7 +865,9 @@
   function fellowshipQuestion(e) {
     if(S.enc!==e || S.dying || e.hp<=0)return;
     e.action='fellowship';e.answerTiming=null;e.fellowshipVolley=null;
-    const level=KM.Progression.stage(e.st,S.stops)===0?'easy':'normal';
+    let level=KM.Progression.stage(e.st,S.stops)===0?'easy':'normal';
+    e.leader=BT.on('whoActs')?BT.pickLeader(S.party.filter(PA.alive),{foes:living(e).length,boss:['boss','mega'].includes(e.st.type),hurt:S.hp<maxHp()/2}):null;
+    if(e.leader){level=e.leader.level;if(e.leader.cue)A.play(e.leader.cue);const p=partyPose(e.leader.member);float(e.leader.sign,p.x,W.groundY-tallOf(artId(e.leader.member))-40,'#ecdcc4');}
     ask(level,()=>fellowshipVolley(e),()=>fellowshipWrong(e),null,undefined,'fellowship');
   }
   function fellowshipWrong(e) {
@@ -875,7 +882,7 @@
     if(S.enc!==e || S.dying)return;
     e.phase='busy';if(!failed)hush();
     const foes=living(e),timing=e.answerTiming;
-    const hits=KM.Fellowship.plan(S.party,foes,timing?.multiplier??1,{failed,hp:S.hp,maxHp:maxHp(),heals:e.heals});
+    const hits=KM.Fellowship.plan(S.party,foes,timing?.multiplier??1,{failed,hp:S.hp,maxHp:maxHp(),heals:e.heals,leader:e.leader?.member,leaderMultiplier:e.leader?.multiplier||1});
     if(!hits.length)return;
     const volley=e.fellowshipVolley={hits:hits.length,landed:0,total:0,backfire:0,failed};
     const targets=[...new Set(hits.flatMap(h=>h.impacts.map(i=>i.target)))];
@@ -906,7 +913,7 @@
       later(impactAt,()=>{
         if(!valid()||!PA.alive(member))return;
         if(hit.heal){
-          const before=S.hp;hearts(hit.heal);const healed=S.hp-before;e.heals--;e.lost=Math.max(0,(e.lost||0)-healed);A.play('heal');
+          const before=S.hp;hearts(hit.heal*BT.unit());const healed=S.hp-before;e.heals--;e.lost=Math.max(0,(e.lost||0)-healed);A.play('heal');
           const p=partyPose(member);float('+'+healed+' ♥',p.x,p.y-tallOf(artId(member))*.5,'#ac5c24');
         }
         for(const {target:a,amount} of hit.impacts){enemyHit(a);a.hp=Math.max(0,a.hp-amount);}
@@ -1053,7 +1060,7 @@
     if(kind==='resurrect'){
       if(!canResurrect())return renderChoice();
       const m=e.fallen.pop();unburyCompanion(m);delete m.dying;delete m.eaten;delete m.act;m.sp=null;m.hopY=0;
-      S.party.push(m);m.sx=slotX(S.party.length-1);e.resurrected=true;hearts(1);e.lost=(e.lost||0)+PA.life(m)-1;A.play('heal');
+      S.party.push(m);m.sx=slotX(S.party.length-1);e.resurrected=true;hearts(BT.unit());e.lost=(e.lost||0)+PA.life(m)-BT.unit();A.play('heal');
       act(priests()[0],'bless',.7);speak(priests()[0],'You are not excused yet. Get up.');save();return later(.6,enemyTurn);
     }
     if (kind === "heal") { if (!canHeal()) return renderChoice(); act(priests()[0],"bless",.7); speak(priests()[0], "Hold still. This is probably a blessing."); e.heals--; const hb = S.hp; hearts(PA.heal(S.party)); e.lost = Math.max(0, (e.lost || 0) - (S.hp - hb)); /* healed hearts are not "lost" */ A.play("heal"); float(`+${S.hp-hb} ♥`, slotX(0), W.groundY - tallOf("hero") + 70, "#9be28a"); return later(0.6, enemyTurn); }
@@ -1174,7 +1181,7 @@
     e.packAttacker=null;
     for(let i=0;i<n;i++){const f=slots[(start+i)%n];if(f.hp>0&&!f.gone){e.packAttacker=f;break;}}
   }
-  function intentDamage(e,f){return (e.st.relay && e.packAttacker!==f)||f.stunned ? 0 : (f.atk??e.atk);}
+  function intentDamage(e,f){return (e.st.relay && e.packAttacker!==f)||f.stunned ? 0 : BT.bossAtk(e,f.atk??e.atk);}
   function intentLabel(e,f){
     if(f.stunned)return T('Stunned');
     const dmg=intentDamage(e,f);if(!dmg)return T('Circling');
@@ -1184,7 +1191,7 @@
   }
   function returnToHand(e){
     if(S.enc!==e||S.dying)return;
-    e.resolvingEnemyTurn=false;
+    e.resolvingEnemyTurn=false;e.turns=(e.turns||0)+1;
     if(e.st.relay)planPackTurn(e);
     renderChoice();
   }
@@ -1219,7 +1226,8 @@
       A.play(hit.blocked?'hit_blocked':['boss','mega'].includes(e.st.type)?'hit_boss':'hit_party');
       partyAct('hurt',hit.hearts?.5:.2);
       if(hit.blocked)float('blocked!',slotX(0),W.groundY-tallOf('hero')+70,'#bcc0c3');
-      if(hit.hearts){hearts(-hit.hearts);e.lost=(e.lost||0)+hit.hearts;float(`−${hit.hearts} ♥`,slotX(0),W.groundY-tallOf('hero')+(hit.blocked?130:70),'#b3321f');}
+      if(hit.blocked&&!PA.armour(S.party))A.play('shield_break');
+      if(hit.hearts){A.play(['boss','mega'].includes(e.st.type)?'heart_break':'heart_crack');hearts(-hit.hearts);e.lost=(e.lost||0)+hit.hearts;float(`−${BT.heartsText(hit.hearts)} ♥`,slotX(0),W.groundY-tallOf('hero')+(hit.blocked?130:70),'#b3321f');}
       renderHUD();save();
     });
     if (last) later(0.5, () => afterHits(f.id, () => returnToHand(e)));
@@ -1789,8 +1797,8 @@
     const e = S.enc, T = restT(), h = T.heals.find(x => x.key === key);
     if (h && T.limits && fareLeft("stew") <= 0) return keeperSay(T.limits.lot);
     if (!h || S.gold < h.cost || (!h.full && S.hp >= maxHp()) || (h.once && e.used[key])) return;
-    const gained=h.full?maxHp()-S.hp:Math.min(h.hearts,maxHp()-S.hp);
-    S.gold -= h.cost; hearts(gained); e.used[key] = true; if (T.limits) fareUse("stew"); A.play("heal"); save();
+    const gained=h.full?maxHp()-S.hp:Math.min(h.hearts*BT.unit(),maxHp()-S.hp);
+    S.gold -= h.cost; hearts(gained); if(h.full&&BT.on('campArmour'))S.party.forEach(m=>m.armor=Math.max(m.armor||0,m.armorTop||0)); e.used[key] = true; if (T.limits) fareUse("stew"); A.play(h.full?"heart_mend":"heal"); save();
     if (T.limits && fareLeft("stew") <= 0) later(1.2, () => keeperSay(T.limits.lot));
     float(`+${gained} ♥`, slotX(0), W.groundY - tallOf("hero") + 70, "#9be28a"); renderRest();
   }
@@ -1821,7 +1829,7 @@
   function restBuy(kind, i) {
     const g = restT().gear, m = S.party[i]; if (!m || !g) return;
     if (kind === "weapon" && m.weapon < PA.gearCap("weapon",g.maxWeapon) && S.gold >= g.weaponCost) { S.gold -= g.weaponCost; m.weapon++; }
-    else if (kind === "armor" && m.armor < PA.gearCap("armor",g.maxArmor) && S.gold >= g.armorCost) { S.gold -= g.armorCost; m.armor=Math.min(PA.gearCap("armor",g.maxArmor),m.armor+1);
+    else if (kind === "armor" && m.armor < PA.gearCap("armor",g.maxArmor) && S.gold >= g.armorCost) { S.gold -= g.armorCost; m.armor=Math.min(PA.gearCap("armor",g.maxArmor),m.armor+1);m.armorTop=Math.max(m.armorTop||0,m.armor);
       if(PA.villager(m))m.armorTrained=true; // outfit progression only
     }
     else return;
@@ -1910,7 +1918,7 @@
   }
   function enterChapter(){
     if(S.mode!=='chapter')return;const next=S.nextChapter||'hollowwood';S.mode='chapterLoading';showPanel('','info');
-    if(next==='tomb')KM.Tomb.preload();
+    if(next==='tomb'){KM.Tomb.preload();A.play('crypt_door');}
     inkTransition(()=>{
       hush();S.chapter=next;S.nextChapter=null;S.stop=0;S.camX=0;S.winT=0;S.enc=null;S.view=null;
       S.loot=[];S.restUses={};S.tavernRecruits={};S.timers=[];S.floats=[];S.dice=[];S.respect=null;
@@ -2219,7 +2227,7 @@
   const HS = 34, HG = 6, PG = 14; // party heart size, gap, extra gap between members (stage px)
   const showHearts = () => !["title", "intro", "name"].includes(S.mode);
   const armourOverhang = () => Math.max(0, Math.ceil(PA.armour(S.party) / Math.max(1,maxHp())) - 1) * 7;
-  const partyHeartsRect = () => { if (inTomb() || !showHearts()) return null; return { x:18, y:16, w:maxHp()*(HS+HG)+armourOverhang()+Math.max(0,S.party.length-1)*PG, h:HS }; };
+  const partyHeartsRect = () => { if (inTomb() || !showHearts()) return null; return { x:18, y:16, w:maxHp()/BT.unit()*(HS+HG)+armourOverhang()+Math.max(0,S.party.length-1)*PG, h:HS }; };
   function heartPath(x, y, s) { // top-left x,y, size s
     ctx.beginPath(); ctx.moveTo(x + s / 2, y + s * 0.95);
     ctx.bezierCurveTo(x - s * 0.05, y + s * 0.55, x - s * 0.02, y + s * 0.05, x + s * 0.27, y + s * 0.06);
@@ -2228,12 +2236,13 @@
     ctx.bezierCurveTo(x + s * 1.02, y + s * 0.05, x + s * 1.05, y + s * 0.55, x + s / 2, y + s * 0.95); ctx.closePath();
   }
   function heart(x, y, s, full, col) { heartPath(x, y, s); ctx.fillStyle = full ? col : "rgba(239,224,192,.85)"; ctx.fill(); ctx.lineWidth = Math.max(2, s / 12); ctx.strokeStyle = "#2a1d12"; ctx.stroke(); }
+  function halfHeart(x,y,s,col){ctx.save();ctx.beginPath();ctx.rect(x-4,y-4,s/2+4,s+8);ctx.clip();heart(x,y,s,true,col);ctx.restore();}
   function drawHearts() {
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.lineJoin = "round";
     const r = partyHeartsRect();
     if(r){let x=r.x,i=0;const slots=[];
       S.party.forEach((m,j)=>{if(j)x+=PG;
-        for(let h=0;h<PA.life(m);h++){slots.push(x);heart(x,r.y,HS,i++<S.hp,'#b3321f');x+=HS+HG;}
+        const u=BT.unit();for(let h=0;h<PA.life(m)/u;h++){slots.push(x);const lit=Math.max(0,Math.min(u,S.hp-i*u));i++;heart(x,r.y,HS,lit===u,'#b3321f');if(lit&&lit<u)halfHeart(x,r.y,HS,'#b3321f');x+=HS+HG;}
       });
       // Armour is one shared visual pool: cover hearts from the far left, regardless of who owns the gear.
       if(slots.length)for(let h=PA.armour(S.party)-1;h>=0;h--)

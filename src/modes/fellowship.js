@@ -9,7 +9,7 @@ KM.Fellowship = (() => {
   const health = hp => Math.ceil(hp * rules.enemyHealth);
   // Reserve in party order: knights cleave two, casters hit all, executioners finish
   // wounded foes. Priests reserve a limited heal before any later priest chooses.
-  function plan(party, foes, multiplier = 1, {failed=false,hp=0,maxHp=hp,heals=0}={}) {
+  function plan(party, foes, multiplier = 1, {failed=false,hp=0,maxHp=hp,heals=0,leader=null,leaderMultiplier=1}={}) {
     const remaining = foes.map(f => f.hp), last = foes.length - 1;
     if (last < 0) return [];
     let wounds=Math.max(0,maxHp-hp), charges=heals;
@@ -25,7 +25,7 @@ KM.Fellowship = (() => {
       else ids=live.slice(0,1);
       const impacts=ids.map(i=>{
         const execution=r==='executioner'&&remaining[i]>0&&remaining[i]<=foes[i].maxHp/2;
-        const amount=damage(member)*(execution?2:1)*(failed?1:multiplier);
+        const amount=damage(member)*(execution?2:1)*(failed?1:multiplier*(member===leader?leaderMultiplier:1));
         remaining[i]=Math.max(0,remaining[i]-amount);
         return {target:foes[i],amount};
       });

@@ -82,8 +82,11 @@ window.KM_AUDIO_MAP = {
     "vol": 1.0
   },
   "dragon_roar": {
-    "files": ["sfx/boss_roar_31.wav"],
-    "vol": 0.7
+    "files": [
+      "sfx/boss_roar_31.wav"
+    ],
+    "vol": 0.7,
+    "_note": "Short original synthesized growl; non-looping boss entrance cue."
   },
   "gameover": {
     "files": [],
@@ -444,5 +447,99 @@ window.KM_AUDIO_MAP = {
       "sfx/_masters/sfx_correct_03.wav"
     ],
     "vol": 0.8
+  },
+  "heart_crack": {
+    "files": [
+      "sfx/heart_crack_1.ogg",
+      "sfx/heart_crack_2.ogg"
+    ],
+    "vol": 0.9,
+    "_note": "Charlie: a heart is lost to an ordinary hit"
+  },
+  "heart_break": {
+    "files": [
+      "sfx/heart_break_1.ogg",
+      "sfx/heart_break_2.ogg"
+    ],
+    "vol": 0.9,
+    "_note": "Charlie: a boss blow breaks hearts"
+  },
+  "shield_break": {
+    "files": [
+      "sfx/shield_break_1.ogg"
+    ],
+    "vol": 0.9,
+    "_note": "Charlie: the party's last armour is used up"
+  },
+  "heart_mend": {
+    "files": [
+      "sfx/heart_mend_1.ogg"
+    ],
+    "vol": 0.8,
+    "_note": "Charlie: resting at camp"
+  },
+  "crypt_door": {
+    "files": [
+      "sfx/crypt_door_open.ogg"
+    ],
+    "vol": 0.9,
+    "_note": "Charlie: the crypt gate grinds open"
+  },
+  "step_stone": {
+    "files": [
+      "sfx/step_stone_01.ogg",
+      "sfx/step_stone_02.ogg",
+      "sfx/step_stone_03.ogg",
+      "sfx/step_stone_04.ogg"
+    ],
+    "vol": 0.5,
+    "_note": "Charlie: footsteps inside the crypt"
+  },
+  "cue_knight": {
+    "files": [
+      "sfx/cue_knight_1.ogg",
+      "sfx/cue_knight_2.ogg"
+    ],
+    "vol": 0.8,
+    "_note": "Charlie: this class's sum is next (who-acts switch)"
+  },
+  "cue_healer": {
+    "files": [
+      "sfx/cue_healer_1.ogg",
+      "sfx/cue_healer_2.ogg"
+    ],
+    "vol": 0.8,
+    "_note": "Charlie: this class's sum is next (who-acts switch)"
+  },
+  "cue_fire": {
+    "files": [
+      "sfx/cue_fire_1.ogg",
+      "sfx/cue_fire_2.ogg"
+    ],
+    "vol": 0.8,
+    "_note": "Charlie: this class's sum is next (who-acts switch)"
+  },
+  "cue_wizard": {
+    "files": [
+      "sfx/cue_wizard_1.ogg",
+      "sfx/cue_wizard_2.ogg"
+    ],
+    "vol": 0.8,
+    "_note": "Charlie: this class's sum is next (who-acts switch)"
+  },
+  "cue_executioner": {
+    "files": [
+      "sfx/cue_executioner_1.ogg",
+      "sfx/cue_executioner_2.ogg"
+    ],
+    "vol": 0.8,
+    "_note": "Charlie: this class's sum is next (who-acts switch)"
+  },
+  "combo_sting": {
+    "files": [
+      "sfx/combo_sting_1.ogg"
+    ],
+    "vol": 0.9,
+    "_note": "Charlie: first time a combo banner fires (upgrade cards)"
   }
 };
