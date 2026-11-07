@@ -9,7 +9,7 @@ KM.Assets = (function () {
     im._ok = false;
     im.onload = () => { im._ok = true; };
     im.onerror = () => { im._bad = true; console.info("[art] missing image, using box:", src); };
-    imgCache[src] = im;
+    imgCache[src] = im; im._src = src;
     if (!(KM.Loader && KM.Loader.gate(im, src))) im.src = src; // v12f: off the first set = loads after the bar
     return im;
   }
@@ -194,8 +194,29 @@ KM.Assets = (function () {
     }).join("");
   }
   // Preload glyph images that are direct paths so they are ready by the first sum.
-  function preloadGlyphs() { for (const g of Object.values(Object.assign({}, KM_ART.glyphs, KM_ART.ui))) if (g && g.img) loadImg(g.img); if (window.KM_ART10) Object.values(KM_ART10.glyphInk).forEach(loadImg); }
+  // Load AND decode them with the loading bar (KM.Loader.hold), plus the fire bottle's alphabet and the fight UI pictures.
+  const decoded = new Set();
+  function decode(im) {
+    const done = () => { if (ok(im)) decoded.add(im.src); };
+    const p = new Promise(res => { const go = () => (im.decode ? im.decode().catch(() => {}) : Promise.resolve()).then(done).then(res);
+      if (im.complete && (im.naturalWidth || im._bad)) go(); else { im.addEventListener("load", go, { once: true }); im.addEventListener("error", res, { once: true }); } });
+    return KM.Loader ? KM.Loader.hold(p, im._src) : p;
+  }
+  const glyphFiles = () => [...Object.values(Object.assign({}, KM_ART.glyphs, KM_ART.ui)).filter(g => g && g.img).map(g => g.img),
+    ...(window.KM_ART10 ? Object.values(KM_ART10.glyphInk) : []),
+    ...(window.KM_ALPHABET ? Object.keys(KM_ALPHABET.w).map(ch => KM_ALPHABET.dir + ch + ".png") : []),
+    ...((KM_DATA.preload && KM_DATA.preload.images) || [])];
+  function preloadGlyphs() { return Promise.all(glyphFiles().map(src => decode(loadImg(src)))); }
+  // the sum's glyph pictures (slice + ink copy) are loaded and decoded; anything missing starts loading now
+  function sumReady(text) {
+    return String(text).split("").every(ch => {
+      const slot = /\d/.test(ch) ? "digit_" + ch : GLYPH_OF[ch], g = slot && (KM_ART.glyphs || {})[slot];
+      if (!g || !g.img) return true; const im = loadImg(g.img); if (im._bad) return true; if (!ok(im)) return false;
+      const ink = glyphInk(im); if (!ink || ink.startsWith("data:")) return decoded.has(im.src) || (decode(im), false);
+      const ii = loadImg(ink); if (ii._bad) return true; if (!ok(ii)) return false; return decoded.has(ii.src) || (decode(ii), false);
+    });
+  }
   function background(ref) { const b = ref && reg.bg[ref]; return b && ok(b.img) ? b : null; }
   const hasArt = id => (/^grave/.test(id) && !KM_DATA.enemies[id]) || !!pick(id, "idle", 0);
-  return { hasArt, colorToAlpha, seqDur, seqFrame, seqPick, loadPacks, register, drawEntity, entityHeight, entitySize, hasAnim, artScale, glyphHTML, glyphImg, uiSrc, preloadGlyphs, background, reg, loadImg };
+  return { hasArt, colorToAlpha, seqDur, seqFrame, seqPick, loadPacks, register, drawEntity, entityHeight, entitySize, hasAnim, artScale, glyphHTML, glyphImg, uiSrc, preloadGlyphs, sumReady, glyphFiles, background, reg, loadImg };
 })();
