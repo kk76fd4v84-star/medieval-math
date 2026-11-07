@@ -29,6 +29,8 @@
   // Every transition resolves music against the current chapter, including resumed runs.
   const musicScene = name => MU.setScene(name, S.chapter);
   const inTomb = () => !!KM.Tomb?.active(S);
+  const tombTest = () => inTomb() && !!KM.Tomb?.requested(); // the standalone ?preview=tomb test, not the campaign crypt
+  function syncChapterFlag(){const st=$("stage");if(!st)return;if(S.chapter==='tomb'){st.dataset.tomb='true';$("sky-title").hidden=true;}else delete st.dataset.tomb;}
   const isKnight = () => S.challengeMode === 'knight';
   const isFellowship = () => S.challengeMode === 'fellowship';
   const modeName = () => isFellowship()?'The Fellowship':isKnight()?'The Knight':'The Village Idiot';
@@ -289,7 +291,7 @@
   function save() { if (sketch || PREVIEW) return; KM.Save.write(Object.assign(core(), { checkpoint: S.checkpoint })); }
   function setCheckpoint() { S.checkpoint = core(); save(); }
   function applyCore(c) {
-    S.chapter=c.chapter==="tomb"&&KM.Tomb?.requested()?"tomb":c.chapter==="hollowwood"?"hollowwood":"village";
+    S.chapter=c.chapter==="tomb"?"tomb":c.chapter==="hollowwood"?"hollowwood":"village";syncChapterFlag();
     setChallengeMode(c.challengeMode || "math");
     S.pendingDismissal=c.pendingDismissal&&c.pendingDismissal.stop===c.stop?JSON.parse(JSON.stringify(c.pendingDismissal)):null;
     S.loot=(c.loot||[]).filter(q=>Number.isFinite(q.x)&&q.amount>0).map(q=>({...q}));
@@ -542,7 +544,7 @@
   function startRunBookkeeping() { const b = KM.Save.best(); S.bestAtStart = b ? b.leagues : 0; S.toast = null; }
   function newGame() {
     if(KM.Tomb?.requested())return startTomb();
-    S.chapter=KM.HollowWood?.requested()?"hollowwood":"village";
+    S.chapter=KM.HollowWood?.requested()?"hollowwood":"village";syncChapterFlag();
     hush(); S.deathDepth = null; S.dragonSlain = false;
     S.name = "Nobody"; S.hp = D.party.heartsPerMember; S.gold = 5; S.loot = []; S.score = 0; S.scoreLedger = KM.Score.empty(); S.riddleSolved=[];S.wizardUnlocked=false;S.lightning=null; S.stop = 0; S.dist = 0; S.fid = 0; S.hunters = 0; S.spells = 0; S.spellLeft = 0; S.mead = 0; S.bottles = 0; S.runId = "run-" + Date.now(); S.fgSeed = seedOf(S.runId);
     S.stats = { correct: 0, wrong: 0, riddles: 0, sacrificed: 0 }; S.usedRiddles = []; S.pendingDismissal=null; S.tavernRecruits = {}; S.restUses={}; S.routeVersion=3;
@@ -988,11 +990,14 @@
   }
   const NOTIMER = /[?&]debug\b/.test(location.search) && /[?&]notimer\b/.test(location.search);
   let tmrHold = 0;
+  const sumDrawn = () => [...panel.querySelectorAll(".sum img")].every(i => i.complete && i.naturalWidth > 0); // the on-screen glyphs have painted
   function startAnswerTimer(secs) {
     const e = S.enc; if (!e) return null;
     e.tmr = null; e.answerTiming = null; tmrHold = 0; dividerFill(0);
     if (!(secs > 0) || NOTIMER || !e.q) return null;
-    return (e.tmr = { t: 0, q: e.q, secs, held: 0,windows:e.revealed?combatWindows():KM.Timing.windows() });
+    // the timer starts only once the sum's glyphs are loaded + decoded and the sum has been drawn (wait: true -> 1 -> 0)
+    const wait = !!(e.phase === "math" && e.problem && KM.Assets.sumReady && !(KM.Assets.sumReady(e.problem.text) && sumDrawn()));
+    return (e.tmr = { t: 0, q: e.q, secs, held: 0, wait, windows:e.revealed?combatWindows():KM.Timing.windows() });
   }
   function tickAnswerTimer(dt) {
     paintTimingLegend();
@@ -1000,6 +1005,7 @@
     const e = S.enc, T = e && e.tmr;
     if(e?.deadlineBusy)return dividerFill(1);
     if (!T || !["math", "spell", "riddle"].includes(e.phase) || e.q !== T.q || S.mode !== "encounter") { if (e && T && e.q !== T.q) e.tmr = null; tmrHold = Math.max(0, tmrHold - dt); return dividerFill(e?.answerTiming?.fraction??(tmrHold > 0 ? 1 : 0)); }
+    if (T.wait) { if (T.wait === true && KM.Assets.sumReady(e.problem.text)) { T.wait = 1; if (e.phase === "math") renderMath(); } else if (T.wait === 1 && sumDrawn()) T.wait = 0; return dividerFill(0); }
     // a hold (strike, toast, a foe stepping up) is short; a stale one (an act on a dead / inactive foe, a stuck walk-in)
     // must never freeze the bar, so after C.answerPauseMax s of continuous hold it runs anyway
     const paused = timerPause(e); T.held = paused ? (T.held || 0) + dt : 0;
@@ -1015,15 +1021,17 @@
     const struck=e.deadlineStruck||(e.deadlineStruck=new Set());
     const foes=living(e).filter(f=>KM.Timing.pattern(f.id).deadline&&intentDamage(e,f)>0&&!struck.has(f));
     if(!foes.length)return;
-    const phase=e.phase;e.phase='deadline';e.deadlineBusy=true;
+    const phase=e.phase;e.phase='deadline';e.deadlineBusy=true;e.deadlineFrom=phase; // typing keeps working during the strike (typeKey)
     foes.forEach(f=>struck.add(f));
-    const resume=()=>{if(S.enc!==e||S.dying)return;e.deadlineBusy=false;
+    const resume=()=>{if(S.enc!==e||S.dying)return;e.deadlineBusy=false;e.deadlineFrom=null;
+      const enter=e.enterQueued;e.enterQueued=false;
       // A dead card owner cannot cast from the grave. The committed card stays spent.
       if(e.activeCard?.owners.some(id=>!S.party.some(m=>m.id===id&&PA.alive(m)))){
         if(e.problem?.scrollAssisted)spellTick();
         e.q=null;e.tmr=null;return returnToHand(e);
       }
       e.phase=phase;
+      if(phase==='math'){const el=$("answer");if(el)el.innerHTML=G(e.input)||"&nbsp;";if(enter)submitAnswer();} // Enter pressed mid-strike
     };
     foes.forEach((f,i)=>later(i*.6,()=>{if(S.enc===e&&!S.dying)foeStrike(e,f,false,{deadline:true});}));
     later((foes.length-1)*.6+.6,()=>{if(S.enc===e&&!S.dying)afterHits(foes[foes.length-1].id,resume);});
@@ -1306,7 +1314,7 @@
 
   // ---- generic maths question (combat actions, recruits, Frank)
   function ask(level, onRight, onWrong, back, secs, kind="recruit") {
-    const e = S.enc; e.phase = "math"; e.input = ""; e.tmr = null;
+    const e = S.enc; e.phase = "math"; e.input = ""; e.tmr = null; e.enterQueued = false;
     if(isFellowship() && S.spells>0 && !S.spellLeft && !meadNow()){S.spells--;S.spellLeft=SPL.problems;A.play(SPL.sfx.cast);renderHUD();}
     const mead = meadNow(), stupid = mead || S.spellLeft > 0; // Scroll: the next maths problem only. Mead: all sums in this battle.
     const grade=KM.Progression.level(level,e.st,S.stops),stage=KM.Progression.stage(e.st,S.stops);
@@ -1368,10 +1376,11 @@
       </div>`, "math"); // v11: only the carved sum (no title, hint or key captions; Esc still goes back)
   }
   function typeKey(k) {
-    const e = S.enc; if (!e || e.phase !== "math" || e.sub) return;
+    const e = S.enc, striking = e && e.phase === "deadline" && e.deadlineFrom === "math"; // a deadline strike must not eat keystrokes
+    if (!e || (e.phase !== "math" && !striking) || e.sub) return;
     A.play("key_tap");
     if (k === "back") e.input = e.input.slice(0, -1);
-    else if (k === "enter") return submitAnswer();
+    else if (k === "enter") { if (striking) { e.enterQueued = true; return; } return submitAnswer(); }
     else if (/^\d$/.test(k) && e.input.length < 6) e.input += k;
     const el = $("answer"); if (el) el.innerHTML = G(e.input) || "&nbsp;";
   }
@@ -1853,7 +1862,7 @@
     later(Math.max(1.2, dur + 0.9), () => gameOver(killer, st));
   }
   function gameOver(killer, st) {
-    if(inTomb())return tombEnd(false);
+    if(tombTest())return tombEnd(false);
     if(sketch)return sketchPage("sketchLoss");
     S.mode = "gameover"; S.enc = null; A.play("gameover"); musicScene("gameover");
     if(!PREVIEW && S.routeVersion) KM.Save.clear();
@@ -1870,8 +1879,9 @@
     showRunScore();
   }
   function showWin(finalize=false) {
-    if(inTomb())return tombEnd(true);
-    if(!finalize && !sketch && S.chapter!=="hollowwood" && S.routeVersion && PREVIEW!=="score-win")return chapterGate();
+    if(tombTest())return tombEnd(true);
+    const next=!finalize && !sketch && S.routeVersion && PREVIEW!=="score-win" && D.chapters.next[S.chapter];
+    if(next)return chapterGate(next);
     if(sketch)return sketchPage("sketchWin");
     S.mode = "win"; A.play("victory"); musicScene("win"); if (!PREVIEW) KM.Save.clear();
     const isBest = !PREVIEW && KM.Save.recordBest(+leagues(), S.name);
@@ -1898,20 +1908,27 @@
     hush();S.enc=null;S.mode=won?'win':'gameover';S.timers=[];KM.FireFx.stop();musicScene(won?'win':'gameover');
     showPanel('<div class="chapter-gate"><h2>'+T(won?'The passage is clear.':'The tomb keeps its guests.')+'</h2><div class="opts">'+big('Enter','Try the passage again','tombRestart')+'<a class="tomb-return" href="./?mode='+S.challengeMode+'&v=chapter-music-44">'+T('Return to the road')+'</a></div></div>','info');
   }
-  function chapterGate(){
+  // Chapter gates read their words and order from D.chapters (src/data/chapters.js).
+  function chapterGate(next=D.chapters.next[S.chapter]||'hollowwood'){
     if(S.mode==='chapter')return;
-    S.mode='chapter';S.enc=null;hush();musicScene('walk');if(!PREVIEW)KM.HollowWood.unlock();save();
-    showPanel('<div class="chapter-gate"><h2>'+T('The Hollow Wood')+'</h2><p>'+T('Beyond the village, the graves have begun to stir.')+'</p><div class="opts">'+big('Enter','Enter the wood','enterWood')+big('','Finish this run','finishRun')+'</div></div>','info');
+    const g=D.chapters.gates[next];if(!g)return showWin(true);
+    S.mode='chapter';S.nextChapter=next;S.enc=null;hush();musicScene('walk');if(!PREVIEW&&next==='hollowwood')KM.HollowWood.unlock();save();
+    showPanel('<div class="chapter-gate"><h2>'+T(g.title)+'</h2><p>'+T(g.line)+'</p><div class="opts">'+big('Enter',g.enter,'enterChapter')+big('','Finish this run','finishRun')+'</div></div>','info');
   }
-  function enterWood(){
-    if(S.mode!=='chapter')return;S.mode='chapterLoading';showPanel('','info');
+  function enterChapter(){
+    if(S.mode!=='chapter')return;const next=S.nextChapter||'hollowwood';S.mode='chapterLoading';showPanel('','info');
+    if(next==='tomb')KM.Tomb.preload();
     inkTransition(()=>{
-      hush();S.chapter='hollowwood';S.stop=0;S.camX=0;S.winT=0;S.enc=null;S.view=null;
+      hush();S.chapter=next;S.nextChapter=null;S.stop=0;S.camX=0;S.winT=0;S.enc=null;S.view=null;
       S.loot=[];S.restUses={};S.tavernRecruits={};S.timers=[];S.floats=[];S.dice=[];S.respect=null;
       S.party.forEach((m,i)=>{m.act=null;m.sp=null;m.hopY=0;m.sx=slotX(i);});
-      buildWorld(0);setCheckpoint();S.mode='walk';musicScene('walk');renderWalk();
+      syncChapterFlag();
+      if(inTomb()){S.tombRoster=S.party.slice();S.tombBodies=[];KM.TombMemorials.reset(S);}
+      buildWorld(0);if(inTomb())S.camX=haltCam(S.stops[0])-2000;
+      setCheckpoint();S.mode='walk';musicScene('walk');hudCache='';renderWalk();renderHUD();
     });
   }
+  const enterWood = enterChapter; // older name kept for tests and saved links
   function showRunScore(){
     const summary=scoreSummary(),entry={mode:S.challengeMode,id:S.runId||('legacy-'+S.name+'-'+S.dist),name:S.name,score:summary.total,earned:summary.earned,survivors:summary.survivors,leagues:+leagues(),victory:S.mode==='win',at:Date.now()};
     const eligible=!PREVIEW&&!/[?&](debug|notimer)(?:[=&]|$)/.test(location.search);
@@ -1936,7 +1953,7 @@
     n.x = S.camX + 1320; n.state = "idle"; n.active = true; n.dead = false; const md = S.mode; speak(n, text, { keep: () => S.mode === md });
   }
   function retry() {
-    if(inTomb())return startTomb();
+    if(tombTest())return startTomb();
     if(S.routeVersion){const name=S.name;newGame();hush();S.name=name;S.intro=null;S.actors=S.actors.filter(a=>!a.narrator);S.mode='walk';musicScene('walk');setCheckpoint();renderWalk();return;}
     const c = S.checkpoint; if (!c) return newGame();
     hush(); applyCore(c); startRunBookkeeping(); S.hp = maxHp(); S.mode = "walk"; musicScene("walk"); S.floats = []; save(); renderWalk();
@@ -1945,7 +1962,7 @@
   // ---------- input ----------
   const actions = {
     replaceMember:b=>replaceMember(b.dataset.id), keepParty:keepParty,
-    tombRestart:startTomb, enterWood, finishRun:()=>{if(S.mode==="chapter")showWin(true);}, awakenBell, leaveBell,
+    tombRestart:startTomb, enterChapter, enterWood, finishRun:()=>{if(S.mode==="chapter")showWin(true);}, awakenBell, leaveBell,
     sketchStart, sketchExit:()=>location.assign('./?mode='+S.challengeMode),
     leaderboard:()=>KM.ScoreBanner?.showBoard({mode:S.challengeMode}),
     knightPlay:b=>playKnight(+b.dataset.knightSlot,null),knightScroll:()=>armKnightScroll(),
@@ -2033,7 +2050,7 @@
     if (S.mode === "intro") { if (k === " " || k === "Enter") advanceIntro(); if (k === "Escape") skipIntro(); return; }
     if (S.mode === "gameover") { if (k === "Enter") retry(); else if (K1 === "N") newGame(); return; }
     if (S.mode === "win") { if (k === "Enter") newGame(); return; }
-    if (S.mode === "chapter") { if(k === "Enter")enterWood();return; }
+    if (S.mode === "chapter") { if(k === "Enter")enterChapter();return; }
     if (K1 === SPL.key && !S.dying && !isFellowship()) { // Spell of Stupidity: on the road, on your turn, or mid-sum (buy it at a tavern / shop)
       const ph = S.enc && S.enc.phase;
       if (S.mode === "encounter" && ph === "cards") return armKnightScroll();
@@ -2052,7 +2069,7 @@
     const canSac = priests().length > 0;
     switch (e.phase) {
       case 'replace': if(k==='Escape')keepParty();else if(/^[1-3]$/.test(k)){const m=knights()[+k-1];if(m)replaceMember(m.id);}return;
-      case "math":
+      case "math": case "deadline":
         if (/^\d$/.test(k)) typeKey(k); else if (k === "Backspace") typeKey("back"); else if (k === "Enter") typeKey("enter");
         else if (k === "Escape" && e.q && e.q.back) press("mathBack");
         return;
@@ -2691,7 +2708,7 @@
   }
 
   window.__km = { completeRecruit, replaceMember, keepParty, beginDismissalBattle, finishDismissalBattle,
-    startTomb,tombEnd,chapterGate,enterWood,showWin,
+    startTomb,tombEnd,chapterGate,enterChapter,enterWood,showWin,
     S, L, chooseMode, strength, maxHp, leagues, roleMembers, firestarter, executioner, canHeal, canResurrect, frankMember, partyPose, lungeDbg: () => [lungeReach(S.party[0], S.enc && S.enc.act), S.party[0].sx, S.enc && screenX(S.enc.act.x), wideOf(artId(S.party[0])), S.enc && wideOf(S.enc.act.id)], partyFull, weakDmg, hardDmg, rerenderMath: () => S.enc && S.enc.phase === "math" && renderMath(), rerenderRest: () => S.enc && S.enc.phase === "rest" && renderRest(), rerenderChoice: () => S.enc && S.enc.phase === "choose" && renderChoice(), setSpeed: k => (S.speedMul = k), audioLog: A.log, audioCounts: A.counts, forceRoll: 0, forceContest: null, props: () => S.props,
     answer: () => (S.enc && S.enc.phase === "math" && S.enc.problem ? S.enc.problem.answer : null), phase: () => S.enc && S.enc.phase, mode: () => S.mode,
     voLog: A.voLog, music: () => MU.state(), musicLog: MU.log,
@@ -2740,7 +2757,8 @@
       } finally { KM.Loader.finish();skinStrip(); }
       return;
     }
-    KM.Assets.preloadGlyphs(); KM.DragonApproach.preload();
+    KM.Assets.preloadGlyphs(); KM.Assets.preloadAll?.(); KM.DragonApproach.preload();
+    if(KM.Loader&&document.fonts&&document.fonts.ready)KM.Loader.hold(document.fonts.ready); // the bar waits for the fonts too
     KM.Palette.preload().forEach(im=>KM.Loader&&KM.Loader.want(im));
     for(const file of ["v22/villager-walk.png","v22/villager_sword-walk.png","v22/villager_armour-walk.png"]){const starterArt=KM.Assets.loadImg("assets/villager-start/"+file);if(KM.Loader)KM.Loader.want(starterArt);} applyLayout();
     const ms = KM.Save.musicSettings(); MU.settings({ volume: ms.volume == null ? D.music.volume : ms.volume, muted: ms.muted });
@@ -2755,6 +2773,7 @@
     if (ART7) KM.Scenery.preload(); // v12f: road / title art first (KM.Loader); the rest views stream in after the bar
     MU.preload(); // v12r: the title + first road music load with the bar (KM_DATA.music.preload)
     await Promise.all([KM.Assets.loadPacks(KM_ART.packs), KM.Audio.init()]);
+    if(KM.Loader&&A.warm)KM.Loader.hold((D.preload?.all&&A.preloadAll?A.preloadAll():Promise.resolve()).then(()=>A.warm((D.preload||{}).sfx||[],(D.preload||{}).sfxWaitMs))); // sounds load with the bar (all: every sfx file, played from memory)
     skinStrip(); setTimeout(skinStrip, 600);
     if(KM.Tomb?.requested()){
       await KM.Loader.ready();startTomb();requestAnimationFrame(frame);KM.Loader.finish();skinStrip();return;

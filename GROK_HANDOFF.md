@@ -139,7 +139,7 @@ do not revive it or claim all artwork is a finished production rig.
 | --- | --- |
 | Countryside / The Village Idiot | Playable starting chapter. Castle and meadows first, brief villages, camps and sparse trees; do not rush into canyons. |
 | The Hollow Wood | Playable second chapter carrying party, gear, wounds and score. Graveyard, zombies, skeletons, spiders, roots, Parish Collector boss and optional distant Bell Beneath. Collector must have **no belly/shoulder faces**. Balance is provisional; some monsters use static cutout/lunge motion. |
-| Tomb | **Separate playable test**, not yet joined to the campaign. Three encounters, first-person hollow sections, enemies emerging with the world. |
+| Tomb / Crypt | Joined to the campaign (branch `crypt-and-balance`): finishing the Hollow Wood opens a "The Crypt" gate; entering carries party, gear, wounds and score into the tomb level (still the three placeholder encounters: two Tomb Sentries and The Last Watch). Order lives in `src/data/chapters.js`. Winning it ends the run with the normal Victory screen. The standalone `?preview=tomb` test is unchanged. New crypt enemies and boss still to design. |
 | Moonlit beach | Approved concept, intended after the tomb. **Not playable or separated into production layers.** |
 | Swamp, including walk-tunnel version | Concepts only. Campaign position and implementation are undecided. Its timer artwork was adopted globally. |
 | Sketchbook | Isolated experimental biome using Magnus’s scanned drawings. Not the replacement main art direction. |
