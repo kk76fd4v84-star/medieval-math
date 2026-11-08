@@ -50,6 +50,10 @@ KM.Scenery = (function () {
       const w = im.naturalWidth, h = im.naturalHeight, c = document.createElement("canvas"); c.width = w; c.height = h;
       const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(im, 0, 0);
       const d = g.getImageData(0, 0, w, h), p = d.data;
+      // Safari: an image can report loaded while drawImage still reads it as fully transparent (not decoded yet). Caching
+      // that empty read hid the whole background for good; read nothing -> try again on a later frame instead.
+      let any = false; for (let i = 3; i < p.length; i += 4096) if (p[i]) { any = true; break; }
+      if (!any) { for (let i = 3; i < p.length; i += 4) if (p[i]) { any = true; break; } if (!any) return WAIT; }
       // the paper white: per-channel high percentile of the near-opaque, bright (paper) pixels of THIS image
       const hist = [new Uint32Array(256), new Uint32Array(256), new Uint32Array(256)]; let n = 0;
       for (let i = 0; i < p.length; i += 4) if (p[i + 3] >= 240 && p[i] + p[i + 1] + p[i + 2] >= 660) { hist[0][p[i]]++; hist[1][p[i + 1]]++; hist[2][p[i + 2]]++; n++; }
