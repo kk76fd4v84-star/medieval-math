@@ -47,7 +47,7 @@ KM_DATA.brawl = {
   // party chatter ({ghost} = the ghost's name). Own jokes only.
   lines: {
     sighting: [
-      "Is that {ghost} up ahead? He looks rather see-through today.",
+      "Is that {ghost} up ahead? Dressed for his own funeral, by the look of it.",
       "A ghost party! They're counting on their fingers. All of them.",
       "{ghost}'s ghost. Still doing sums. Death is no excuse, apparently.",
       "That lot are waving. Or adding. Hard to tell with spectres."
