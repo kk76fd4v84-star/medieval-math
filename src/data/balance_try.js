@@ -13,6 +13,7 @@ KM_DATA.balanceTry = {
   whoActs: false,
   knightStart: false, // a new run starts as the covered-face knight (Maggi's starter art, chipped sword) instead of the villager
   brawl: false,       // ghosts of recorded runs on the road: sightings + ambushes (src/data/brawl.js, src/brawl.js)
+  pauseMenu: false,  // music on/off lives in a pause menu (P or the top-right pause button; the world stops); the stage's music button and distance flag hide (Magnus 2026-11-08)
   toughFoes: false,   // stronger foes take more blows: Fellowship health x `tough` below, on top of the curve (Magnus 2026-11-08)
   chestCards: false,  // upgrade cards only from chests behind stronger foes, none in shops (src/data/chest_cards.js); turns on cards
   castBar: false,     // looks only: the timing meter always on screen; moved band ends shake + slide with a green / red trail (src/data/cast_bar.js)     // Fellowship: each sum belongs to one member (+ knights, − healers, × fire / wizard / executioner); their strike counts double

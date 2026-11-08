@@ -495,7 +495,7 @@
   const SKULL = `<svg class="skull" viewBox="0 0 32 32" aria-label="hunters"><path d="M16 3c-7 0-11 4.6-11 10.4 0 3.6 1.7 6 4 7.4V25h3v-2.4h1.6V25h4.8v-2.4H20V25h3v-4.2c2.3-1.4 4-3.8 4-7.4C27 7.6 23 3 16 3z" fill="#efe0c0" stroke="#2a1d12" stroke-width="2.2" stroke-linejoin="round"/><path d="M8.6 13.6c1-2.2 4.4-2.4 5.4-.4.7 1.6-.6 3.6-2.6 3.6-2.2 0-3.4-1.6-2.8-3.2zM23.4 13.6c-1-2.2-4.4-2.4-5.4-.4-.7 1.6.6 3.6 2.6 3.6 2.2 0 3.4-1.6 2.8-3.2zM16 17.2l-1.8 3h3.6z" fill="#2a1d12"/><path d="M11 28.5h10" stroke="#2a1d12" stroke-width="2"/></svg>`;
   const HELM = `<svg class="helm" viewBox="0 0 32 32" aria-label="you"><path d="M6 29V12C6 6.5 10.5 3 16 3s10 3.5 10 9v17z" fill="#efe0c0" stroke="#2a1d12" stroke-width="2.2" stroke-linejoin="round"/><path d="M7 14.5h18" stroke="#2a1d12" stroke-width="3.2"/><path d="M16 18v9M12.5 22.5h7" stroke="#d16f19" stroke-width="2.6"/><path d="M9 20.5h2M9 24h2M21 20.5h2M21 24h2" stroke="#2a1d12" stroke-width="1.6"/></svg>`;
   function renderHUD() {
-    const ms = MU.settings(), mute = `<button class="music-toggle" data-act="toggleMusic" aria-label="${ms.muted?'Unmute music':'Mute music'}" aria-pressed="${ms.muted}" title="${ms.muted?'Unmute music':'Mute music'} (M)"><span aria-hidden="true">${ms.muted?'♩':'♫'}</span> Music ${ms.muted?'off':'on'}</button>`;
+    const ms = MU.settings(), pm = BT.on('pauseMenu'), mute = pm ? `<button class="pause-btn" data-act="openPause" aria-label="${T('Pause')}" title="${T('Pause')} (P)"><span aria-hidden="true">❚❚</span></button>` : `<button class="music-toggle" data-act="toggleMusic" aria-label="${ms.muted?'Unmute music':'Mute music'}" aria-pressed="${ms.muted}" title="${ms.muted?'Unmute music':'Mute music'} (M)"><span aria-hidden="true">${ms.muted?'♩':'♫'}</span> Music ${ms.muted?'off':'on'}</button>`;
     if(inTomb()){
       const h='<span class="tomb-label">'+T('The Tomb Passage')+' <small>'+Math.min(S.stop+1,S.stops.length)+' / '+S.stops.length+'</small></span>'+mute;
       if(h!==hudCache){$("hud").innerHTML=KM.I18n?.html(h)||h;hudCache=h;}return;
@@ -510,7 +510,7 @@
       // v11b (mockup): purse + number under the party hearts (top left), the meter top centre, distance top right.
       // The spell shows as the "Stupidity" move while you hold a scroll and as the rolled-scroll countdown while active.
       const ph = partyHeartsRect();
-      h = `<span class="purse-at" style="top:${(ph ? ph.y + ph.h : 50) + 10}px">${purse(S.gold)}</span>${track}<span class="dist" title="leagues travelled"><i class="mile">⚐</i>${leagues()}</span>${mute}`;
+      h = `<span class="purse-at" style="top:${(ph ? ph.y + ph.h : 50) + 10}px">${purse(S.gold)}</span>${track}${pm ? '' : `<span class="dist" title="leagues travelled"><i class="mile">⚐</i>${leagues()}</span>`}${mute}`;
     }
     if (h !== hudCache) { $("hud").innerHTML = KM.I18n?.html(h)||h; hudCache = h; }
   }
@@ -1859,6 +1859,16 @@
     showPanel('', 'info'); document.getElementById('tut-layer')?.remove();
     document.getElementById('stage').insertAdjacentHTML('beforeend', `<div id="tut-layer" class="tut-shade"><div class="tut-dialog" role="dialog" aria-modal="true" aria-labelledby="tut-title"><div id="tut-title" class="tut-title">${esc(T(t.title))}</div><div class="tut-intro">${esc(T(t.intro))}</div>${bar}<div class="tut-rows">${rows}</div>${small(t.strike)}${tricks}${small(t.trail)}<button type="button" class="opt plaque tut-go" data-act="closeTutorial">${esc(T(t.button))}</button></div></div>`);
   }
+  // pause menu (switch pauseMenu): P or the top-right button; the world stops (no update), the music setting lives here
+  let paused = false;
+  function openPause() { if (paused || S.mode === "title") return; paused = true; renderPause(); }
+  function renderPause() {
+    const off = MU.settings().muted, go = (act, label) => `<button type="button" class="opt plaque tut-go" data-act="${act}">${esc(T(label))}</button>`;
+    document.getElementById('pause-layer')?.remove();
+    document.getElementById('stage').insertAdjacentHTML('beforeend', `<div id="pause-layer" class="tut-shade"><div class="tut-dialog pause-dialog" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div id="pause-title" class="tut-title">${esc(T('Paused'))}</div>${go('pauseMusic', off ? 'Music: Off' : 'Music: On')}${go('closePause', 'Resume')}</div></div>`);
+    document.querySelector('#pause-layer [data-act="closePause"]')?.focus();
+  }
+  function closePause() { paused = false; document.getElementById('pause-layer')?.remove(); }
   function closeTutorial() { const e = S.enc; if (!e || e.phase !== 'tutorial') return; TUT.done(); document.getElementById('tut-layer')?.remove(); const then = e.tutorialThen; e.tutorialThen = null; then(); }
   function gearDialog(kind){
     const g=restT().gear,key=kind==='weapon'?'maxWeapon':'maxArmor',cost=kind==='weapon'?g.weaponCost:g.armorCost;
@@ -2079,7 +2089,8 @@
     goInside: () => goInside(), leaveInside: () => leaveInside(),
     leaveRest: () => leaveRest(),
     retry: () => retry(),
-    toggleMusic: () => { MU.toggleMute(); renderHUD(); }
+    toggleMusic: () => { MU.toggleMute(); renderHUD(); },
+    openPause, closePause, pauseMusic: () => { MU.toggleMute(); renderHUD(); renderPause(); }
   };
   Object.assign(actions, BR.actions);
   BR.init({ S, say, T, esc, showPanel, actionCard, shortName, artId, renderHUD, loseCompanion, commit: () => commit(), finish: () => finishEncounter() });
@@ -2112,13 +2123,14 @@
       return;
     }
     if (b.disabled) return;
-    if(S.enc?.gearChoice && !["assignGear","cancelGear","toggleMusic"].includes(b.dataset.act))return;
+    if(S.enc?.gearChoice && !["assignGear","cancelGear","toggleMusic","openPause","closePause","pauseMusic"].includes(b.dataset.act))return;
     if (b.dataset.key) return typeKey(b.dataset.key);
     if (b.dataset.act && actions[b.dataset.act]) { A.play("ui_click"); actions[b.dataset.act](b); }
   });
   // Keyboard is THE input. Every prompt shows its key; clicking the option lines also works.
   document.addEventListener("keydown", ev => {
     const k = ev.key, K1 = k.length === 1 ? k.toUpperCase() : k;
+    if (paused) { if (K1 === "M") actions.pauseMusic(); else if (k === "Escape" || K1 === "P") closePause(); else if (k === "Enter" || k === " ") document.activeElement?.click?.(); ev.preventDefault(); return; }
     if(S.enc?.gearChoice){
       if(k==='Escape'){ev.preventDefault();cancelGear();}
       else if(/^[1-4]$/.test(k)){ev.preventDefault();assignGear(+k-1);}
@@ -2129,6 +2141,7 @@
     if (S.mode === "encounter" && S.enc && S.enc.phase === "spell") { // v12k fire bottle word: letters only (M, Z... are letters here); v12m: Backspace does nothing
       if (k === "Backspace") ev.preventDefault(); else if (/^[a-z]$/i.test(k)) spellKey(k.toUpperCase()); return; }
     if (K1 === "M") { MU.toggleMute(); renderHUD(); return; }
+    if (K1 === "P" && BT.on('pauseMenu')) { openPause(); return; }
     if (k === "[" || k === "]") { MU.setVolume(MU.settings().volume + (k === "]" ? 1 : -1) * D.music.volumeStep); renderHUD(); return; }
     if ([" ", "Enter", "Backspace"].includes(k)) ev.preventDefault();
     if (sketch && ['sketchTitle','sketchWin','sketchLoss'].includes(S.mode)) {
@@ -2808,7 +2821,7 @@
   let last = performance.now();
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000) * S.speedMul; last = now;
-    update(dt); draw(); requestAnimationFrame(frame);
+    if (!paused) update(dt); draw(); requestAnimationFrame(frame);
   }
 
   window.__km = { completeRecruit, replaceMember, keepParty, beginDismissalBattle, finishDismissalBattle,
