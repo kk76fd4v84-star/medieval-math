@@ -32,12 +32,12 @@ KM.TimingBar=(()=>{
     for(const good of [true,false])if(moved.some(m=>m.good===good))setTimeout(()=>play(cb.sfx[good?'good':'bad']),still?0:cb.shakeMs);
     for(const m of moved){
       const b=root.querySelector(`[data-outcome="${m.id}"]`);
-      ink.querySelector(`.cb-trail[data-id="${m.id}"]`)?.remove();
+      rail.querySelector(`.cb-trail[data-id="${m.id}"]`)?.remove();
       const t=document.createElement('div');t.className='cb-trail';t.dataset.id=m.id;t.dataset.good=String(m.good);
       const c=KM.CastBar.colour(m.good),img=KM.CastBar.tint(c);
       if(img)t.style.borderImageSource=`url("${img}")`;else{t.style.borderImage='none';t.style.background=c;}
       const lo=Math.min(m.from,m.to),span=Math.abs(m.to-m.from);
-      ink.append(t);
+      rail.insertBefore(t,root); // over the track and the timer fill, under the icons, not cut by the icon gaps
       if(still){b.style.transition='none';t.style.left=pc(lo);t.style.width=pc(span);
         setTimeout(()=>{t.style.transition=`opacity ${cb.shrinkMs}ms`;t.style.opacity='0';},cb.holdMs);
         setTimeout(()=>t.remove(),cb.holdMs+cb.shrinkMs);continue;}
