@@ -19,9 +19,6 @@ KM_DATA.scenery = {
   // Depth increases toward the road: castle .08, cliffs .12, hills .16, woods .22, near .30, ground 1.0.
   back: [
     { strip: "castle", speed: 0.08, bottom: 730, once: 1150 },   // landmark, placed once (layer-stack back = 0.08)
-    // Magnus: the dragon shows early, like the castle (back layer, placed once; crop = the dragon off Cobra's hill strip).
-    // Gone after the turd dragon is slain; Frank's own hill (mid.swap) is unchanged.
-    { strip: "dragon-hill", speed: 0.08, bottom: 728, once: 330, crop: [1380, 300, 1820, 480], hideWhen: "dragonSlain" },
     { strip: "hills", speed: 0.16, bottom: 790 },
     { strip: "distant-woods", speed: 0.22, bottom: 830 }
   ],
