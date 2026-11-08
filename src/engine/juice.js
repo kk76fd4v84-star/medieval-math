@@ -49,10 +49,13 @@ KM.Juice = (() => {
       try { const q = ac.createBufferSource(); q.buffer = ac.createBuffer(1, 1, 22050); q.connect(ac.destination); q.start(); } catch (e) {} }; // Safari: a silent tick inside the gesture
     for (const ev of ['keydown', 'pointerdown', 'touchstart']) window.addEventListener(ev, resume, { capture: true, passive: true });
     resume(); // already unlocked if the page had a gesture; else the first key / tap does it (that key's hit plays once it runs)
+    // Safari may say it plays Vorbis yet fail to decode it: any failed .ogg falls back to its .mp3 twin; callback form for older Safari
+    const dec = a => new Promise((ok, no) => { const p = ac.decodeAudioData(a, ok, no); if (p && p.catch) p.catch(no); });
+    const get = (f, ext) => fetch(`assets/audio/sfx/${f}.${ext}`).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then(dec);
     const files = {};
     for (const [id, s] of Object.entries(D().sounds)) {
       const g = amp[id] = ac.createGain(); g.gain.value = s.vol ?? 1; g.connect(ac.destination);
-      (files[s.file] ||= fetch(`assets/audio/sfx/${s.file}.${ogg ? 'ogg' : 'mp3'}`).then(r => r.arrayBuffer()).then(a => ac.decodeAudioData(a)))
+      (files[s.file] ||= (ogg ? get(s.file, 'ogg').catch(() => get(s.file, 'mp3')) : get(s.file, 'mp3')))
         .then(b => { buf[id] = b; }, e => console.warn('[juice] sound failed:', s.file, e));
     }
   }
