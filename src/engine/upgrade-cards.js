@@ -12,6 +12,6 @@ KM.Cards = (() => {
   const sum = (S, key) => held(S).reduce((n, c) => n + (c.effect[key] || 0), 0);
   const levelBonus = (S, role) => held(S).reduce((n, c) => n + ((c.cost.level || {})[role] || 0), 0);
   const missChip = S => held(S).reduce((n, c) => n + (c.cost.missChip || 0), 0);
-  return { list: C.list, byId, has, offer, knightTargets: S => sum(S, 'knightTargets'), burn: S => sum(S, 'burn'),
+  return { list: C.list, byId, has, offer, knightTargets: S => sum(S, 'knightTargets'), burn: S => sum(S, 'burn'), wizardDamage: S => sum(S, 'wizardDamage'),
     cleanRefill: S => held(S).some(c => c.effect.cleanRefill), levelBonus, missChip };
 })();

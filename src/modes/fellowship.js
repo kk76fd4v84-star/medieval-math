@@ -9,7 +9,7 @@ KM.Fellowship = (() => {
   const health = hp => Math.ceil(hp * rules.enemyHealth);
   // Reserve in party order: knights cleave two, casters hit all, executioners finish
   // wounded foes. Priests reserve a limited heal before any later priest chooses.
-  function plan(party, foes, multiplier = 1, {failed=false,hp=0,maxHp=hp,heals=0,leader=null,leaderMultiplier=1,knightTargets=0,burn=0}={}) {
+  function plan(party, foes, multiplier = 1, {failed=false,hp=0,maxHp=hp,heals=0,leader=null,leaderMultiplier=1,knightTargets=0,burn=0,wizardDamage=0}={}) {
     const remaining = foes.map(f => f.hp), last = foes.length - 1;
     if (last < 0) return [];
     let wounds=Math.max(0,maxHp-hp), charges=heals;
@@ -28,7 +28,7 @@ KM.Fellowship = (() => {
       if(embersTick&&r==='firestarter'){embersTick=false;foes.forEach((f,i)=>{if(f.burning&&remaining[i]>0){const amount=Math.min(remaining[i],f.burning);remaining[i]-=amount;ticks.push({target:f,amount,burn:true});}});} // Embers: burning foes take their burn first
       const impacts=ids.map(i=>{
         const execution=r==='executioner'&&remaining[i]>0&&remaining[i]<=foes[i].maxHp/2;
-        const amount=damage(member)*(execution?2:1)*(failed?1:multiplier*(member===leader?leaderMultiplier:1));
+        const amount=(damage(member)+(r==='darkWizard'?wizardDamage:0))*(execution?2:1)*(failed?1:multiplier*(member===leader?leaderMultiplier:1));
         remaining[i]=Math.max(0,remaining[i]-amount);
         return {target:foes[i],amount};
       });
