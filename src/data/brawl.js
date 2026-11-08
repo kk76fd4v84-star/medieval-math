@@ -9,7 +9,7 @@ KM_DATA.brawl = {
   // a ghost team looks like a real party: a recorded run keeps each member's art; seeds (and old records) draw by role.
   // The leader is the knight; plain knights take the follower looks in turn. They stand on the right, facing the party.
   art: { leader: "hero", knight: ["follower_1", "follower_2", "follower_3"], priest: "frank", firestarter: "timmy", executioner: "executioner", darkWizard: "dark_wizard" },
-  hud: { top: 70, right: 18 },               // the ghost team's hearts: top right (stage px), under the distance / music buttons
+  hud: { top: 112, right: 18 },               // the ghost team's hearts: top right (stage px), under the distance / music buttons
   foe: { hpPerAnswer: 3, atk: 1 },          // a ghost's health = hpPerAnswer x its rank step (+ the run's usual health rules)
   replay: { minSecs: 1.5, maxSecs: 12 },     // a ghost answers at its recorded time, kept inside these bounds
   flee: { chance: 0.6, cost: 2 },            // Flee: chance to get away; it costs this many coins (or what you have)
