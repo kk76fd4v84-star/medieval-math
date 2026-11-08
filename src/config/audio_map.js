@@ -1,6 +1,13 @@
 // GENERATED from assets/audio_map.json
 window.KM_AUDIO_MAP = {
   "_comment": "event -> { files: [names in assets/audio/], vol }. Empty files = silent hook. Engine calls KM.Audio.play(event). vo_* entries are voice-over clips (KM.Audio.voice): put files in assets/audio/vo/ and list them, e.g. \"files\": [\"vo/vo_intro_01.ogg\"]. Music is not here: see src/data/music.js. v12r: a vo_* id plays only the file listed here; an id with no files (or no entry) is silent (no by-name probing, no 404s).",
+  "meter_tick": {
+    "files": [
+      "sfx/meter_tick.ogg"
+    ],
+    "vol": 0.8,
+    "_src": "first click of Charlie's pressure_quick (wooden clock ratchet, incoming/sfx_meter); cast bar slide ticks"
+  },
   "ui_click": {
     "files": [],
     "vol": 0.7
