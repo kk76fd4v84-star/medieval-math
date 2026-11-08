@@ -14,11 +14,13 @@ const E=engine('?castbar=1&meterpressure=1'),CB=E.KM.CastBar,CD=E.KM_DATA.castBa
 assert.equal(engine('').KM.CastBar.on(),false,'off by default');assert.equal(E.KM_DATA.balanceTry.castBar,false);assert.equal(CB.on(),true);
 for(const k of ['shakeMs','slideMs','holdMs','shrinkMs','inkFadeMs'])assert(CD[k]>=0,k+' in data');
 assert.deepEqual([CD.shakeMs,CD.slideMs,CD.shrinkMs],[1000,1000,1000],'Magnus: a full second shake, slide, catch-up');assert.equal(CD.holdMs,0,'strictly one after the other');
-assert.deepEqual({...CD.sfx},{shake:'meter_shake',good:'meter_tick_up',bad:'meter_tock_down'});
+assert.deepEqual({...CD.sfx},{shake:'meter_shake',good:'meter_tick_up',bad:'meter_tock_down',roar:'dragon_roar'});
+assert.equal(CD.shiftBy.join(),'boss,mega','only bosses shift the icons');
+const G=fs.readFileSync(path.join(root,'src/game.js'),'utf8');assert.match(G,/e\.pressureReady!==false&&\(!KM\.CastBar\?\.on\(\)\|\|D\.castBar\.shiftBy\.includes/,'non-boss pressure off with the cast bar');
 // Charlie's 1 s sounds: mapped, both formats in assets/audio/sfx, the placeholder tick gone
 const map=JSON.parse(fs.readFileSync(path.join(root,'assets/audio_map.json'),'utf8'));
-for(const id of Object.values(CD.sfx)){assert.deepEqual(map[id].files,['sfx/'+id+'.ogg'],id);for(const f of ['ogg','mp3'])assert(fs.existsSync(path.join(root,'assets/audio/sfx/'+id+'.'+f)),id+'.'+f);}
-assert.equal(map.meter_shake.vol,0.55);assert.equal(map.meter_tick_up.vol,0.8);assert.equal(map.meter_tock_down.vol,0.8);assert(!map.meter_tick&&!CD.ticks,'placeholder tick dropped');
+for(const id of [CD.sfx.shake,CD.sfx.good,CD.sfx.bad]){assert.deepEqual(map[id].files,['sfx/'+id+'.ogg'],id);for(const f of ['ogg','mp3'])assert(fs.existsSync(path.join(root,'assets/audio/sfx/'+id+'.'+f)),id+'.'+f);}
+assert.equal(map.meter_shake.vol,0.55);assert.equal(map.meter_tick_up.vol,0.8);assert.equal(map.meter_tock_down.vol,0.8);assert(!map.meter_tick&&!CD.ticks,'placeholder tick dropped');assert.deepEqual(map.dragon_roar.files,['sfx/boss_roar_31.wav']);
 assert.notEqual(CB.colour(true),CB.colour(false));assert.equal(CB.colour(true),CD.colours.good);assert.equal(CB.colour(false),CD.colours.bad);
 const pos=w=>({block:w.block,crit:w.crit,normal:w.normal,weak:1});
 const plain=x=>JSON.parse(JSON.stringify(x));
@@ -51,14 +53,15 @@ S.routeVersion=3;g.buildWorld(0);const i=S.stops.findIndex(s=>s.rest==='shop');S
 g.engage(st,S.actors.find(a=>a.stop===i&&a.main));flush(3);if(S.enc.phase!=='rest')g.renderRest();S.enc.cardPick=false;S.gold=99;g.renderRest();
 const shop0=paint();g.chooseGear('weapon');g.assignGear(0);const shop1=paint();g.chooseGear('armor');g.assignGear(0);const shop2=paint();
 // fight start against a HEAVY foe, then the fight over
-reset();const calm=paint();at('goblin');flush(1);const e=S.enc;e.act.id='skeleton_knight';e.foes=[e.act];const fight=paint();
+reset();const calm=paint();at('goblin');flush(1);{const g0=S.enc;g0.revealed=true;g0.pressureReady=true;g0.act.hp=g0.act.maxHp=20;g0.act.state='idle';g0.act.active=true;}const gob=paint();reset();at('skeleton_knight');for(let i=0;i<400;i++)flush(.02);const e=S.enc;e.revealed=true;e.pressureReady=true;e.act.hp=e.act.maxHp=20;e.act.state='idle';e.act.active=true;const fight=paint();
 S.enc=null;S.mode='walk';const after=paint();
-module.exports={walk,shop0,shop1,shop2,calm,fight,after,c:(a,b)=>JSON.parse(JSON.stringify(CB?CB.changes(a.w,b.w):[]))};`;
+module.exports={walk,shop0,shop1,shop2,calm,gob,fight,after,c:(a,b)=>JSON.parse(JSON.stringify(CB?CB.changes(a.w,b.w):[]))};`;
 const on=exec(withCB('?debug&castbar=1&meterpressure=1')+probe);
 assert.equal(on.walk.visible,true,'switch on: meter on screen while walking');assert.equal(on.shop0.visible,true,'and at the shop');
 assert.deepEqual(on.c(on.shop0,on.shop1).map(x=>[x.id,x.good]),[['crit',true]],'weapon buy: crit icon right, green');
 assert.deepEqual(on.c(on.shop1,on.shop2).map(x=>[x.id,x.good]),[['block',true]],'armour buy: block icon right, green');
-const hit=on.c(on.calm,on.fight);assert(hit.length&&hit.every(x=>!x.good)&&hit.some(x=>x.id==='block'),'heavy foe at the fight start: red');
+assert.deepEqual(on.c(on.calm,on.gob),[],'a goblin (not a boss) never moves the icons');
+const hit=on.c(on.calm,on.fight);assert(hit.length&&hit.every(x=>!x.good)&&hit.some(x=>x.id==='block'),'boss at the fight start: red');
 assert(on.c(on.fight,on.after).every(x=>x.good)&&on.c(on.fight,on.after).length,'pressure gone after the fight: green');
 const off=exec(withCB('?debug&meterpressure=1')+probe);
 assert.equal(off.walk.visible,false,'switch off: meter only in fights, as before');assert.equal(off.fight.visible,true);
