@@ -493,7 +493,7 @@
   const SKULL = `<svg class="skull" viewBox="0 0 32 32" aria-label="hunters"><path d="M16 3c-7 0-11 4.6-11 10.4 0 3.6 1.7 6 4 7.4V25h3v-2.4h1.6V25h4.8v-2.4H20V25h3v-4.2c2.3-1.4 4-3.8 4-7.4C27 7.6 23 3 16 3z" fill="#efe0c0" stroke="#2a1d12" stroke-width="2.2" stroke-linejoin="round"/><path d="M8.6 13.6c1-2.2 4.4-2.4 5.4-.4.7 1.6-.6 3.6-2.6 3.6-2.2 0-3.4-1.6-2.8-3.2zM23.4 13.6c-1-2.2-4.4-2.4-5.4-.4-.7 1.6.6 3.6 2.6 3.6 2.2 0 3.4-1.6 2.8-3.2zM16 17.2l-1.8 3h3.6z" fill="#2a1d12"/><path d="M11 28.5h10" stroke="#2a1d12" stroke-width="2"/></svg>`;
   const HELM = `<svg class="helm" viewBox="0 0 32 32" aria-label="you"><path d="M6 29V12C6 6.5 10.5 3 16 3s10 3.5 10 9v17z" fill="#efe0c0" stroke="#2a1d12" stroke-width="2.2" stroke-linejoin="round"/><path d="M7 14.5h18" stroke="#2a1d12" stroke-width="3.2"/><path d="M16 18v9M12.5 22.5h7" stroke="#d16f19" stroke-width="2.6"/><path d="M9 20.5h2M9 24h2M21 20.5h2M21 24h2" stroke="#2a1d12" stroke-width="1.6"/></svg>`;
   function renderHUD() {
-    const ms = MU.settings(), mute = `<button class="music-toggle" data-act="toggleMusic" aria-label="${ms.muted?'Unmute music':'Mute music'}" aria-pressed="${ms.muted}" title="${ms.muted?'Unmute music':'Mute music'} (M)"><span aria-hidden="true">${ms.muted?'♩':'♫'}</span> Music ${ms.muted?'off':'on'}</button>`;
+    const ms = MU.settings(), pm = BT.on('pauseMenu'), mute = pm ? '' : `<button class="music-toggle" data-act="toggleMusic" aria-label="${ms.muted?'Unmute music':'Mute music'}" aria-pressed="${ms.muted}" title="${ms.muted?'Unmute music':'Mute music'} (M)"><span aria-hidden="true">${ms.muted?'♩':'♫'}</span> Music ${ms.muted?'off':'on'}</button>`;
     if(inTomb()){
       const h='<span class="tomb-label">'+T('The Tomb Passage')+' <small>'+Math.min(S.stop+1,S.stops.length)+' / '+S.stops.length+'</small></span>'+mute;
       if(h!==hudCache){$("hud").innerHTML=KM.I18n?.html(h)||h;hudCache=h;}return;
@@ -508,7 +508,7 @@
       // v11b (mockup): purse + number under the party hearts (top left), the meter top centre, distance top right.
       // The spell shows as the "Stupidity" move while you hold a scroll and as the rolled-scroll countdown while active.
       const ph = partyHeartsRect();
-      h = `<span class="purse-at" style="top:${(ph ? ph.y + ph.h : 50) + 10}px">${purse(S.gold)}</span>${track}<span class="dist" title="leagues travelled"><i class="mile">⚐</i>${leagues()}</span>${mute}`;
+      h = `<span class="purse-at" style="top:${(ph ? ph.y + ph.h : 50) + 10}px">${purse(S.gold)}</span>${track}${pm ? '' : `<span class="dist" title="leagues travelled"><i class="mile">⚐</i>${leagues()}</span>`}${mute}`;
     }
     if (h !== hudCache) { $("hud").innerHTML = KM.I18n?.html(h)||h; hudCache = h; }
   }
@@ -1001,7 +1001,7 @@
   function paintTimingLegend() {
     const e=S.enc,w=e?.tmr?.windows||e?.answerTiming?.windows||combatWindows();
     const foes=e?.revealed?living(e):[];
-    KM.TimingBar?.update(w,{visible:KM.CastBar?.on()||S.mode==='encounter'&&!!e?.revealed, // cast bar switch: always on screen
+    KM.TimingBar?.update(w,{visible:!(KM.CastBar?.on()&&D.castBar.plainIn.includes(S.view?.id))&&(KM.CastBar?.on()||S.mode==='encounter'&&!!e?.revealed), // cast bar switch: always on screen, except plainIn screens
       timed:S.mode==='encounter'&&!!(e?.tmr||e?.answerTiming),jp:!!KM.I18n?.jp(),forgiving:foes.length>0&&foes.every(f=>KM.Timing.pattern(f.id).forgiving),deadline:foes.some(f=>KM.Timing.pattern(f.id).deadline),hit:e?.answerTiming?.fraction??null,roar:!!(e?.revealed&&KM.CastBar?.on()&&D.castBar.shiftBy.includes(e.st?.type)),ink:w.ink||null,tags:w.tags||[]});
   }
   const NOTIMER = /[?&]debug\b/.test(location.search) && /[?&]notimer\b/.test(location.search);
@@ -1352,6 +1352,7 @@
 
   // ---- generic maths question (combat actions, recruits, Frank)
   function ask(level, onRight, onWrong, back, secs, kind="recruit") {
+    if (TUT && !TUT.seen()) return tutorial(() => ask(level, onRight, onWrong, back, secs, kind));
     const e = S.enc; e.phase = "math"; e.input = ""; e.tmr = null; e.enterQueued = false;
     if(isFellowship() && S.spells>0 && !S.spellLeft && !meadNow()){S.spells--;S.spellLeft=SPL.problems;A.play(SPL.sfx.cast);renderHUD();}
     const mead = meadNow(), stupid = mead || S.spellLeft > 0; // Scroll: the next maths problem only. Mead: all sums in this battle.
@@ -1771,7 +1772,7 @@
   }
   function renderTavernOut() {
     S.enc.phase = "tavernOut";
-    showPanel(`<div class="center"><div class="opts big3 moves${S.view && S.view.id === "tavern-arrival" && S.view.a < 1 ? " arrive" : ""}">${big("I", "Go in", "goInside")}${big("Enter", "Walk on", "leaveRest")}</div></div>`, "info");
+    showPanel(`<div class="center"><div class="opts big3 moves${S.view && S.view.id === "tavern-arrival" && S.view.a < 1 ? " arrive" : ""}">${big("I", "Enter the Tavern", "goInside")}${big("Enter", "Keep on walking", "leaveRest")}</div></div>`, "info");
   }
   let roomChanging = false;
   async function changeRoom(change) {
@@ -1839,6 +1840,29 @@
     return `<div style="height:min(560px,62vh);aspect-ratio:2/3;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:6% 8%;background:#ecdcc4;border:6px double #292018;color:#292018;font-family:Georgia,serif;text-align:center"><strong style="font-size:30px">${c.name}</strong><span style="font-size:15px">${String(c.owner||'').replace('darkWizard','Dark Wizard').toUpperCase()}</span><span style="font-size:22px;line-height:1.3">${c.text||''}</span><span style="font-size:20px;line-height:1.3;background:#292018;color:#ecdcc4;padding:14px">${c.costText||''}</span></div>`;
   }
   function takeCard(id){const e=S.enc;if(!e||!CARDS||e.used?.card||!e.cardOptions?.includes(id))return;S.cards=(S.cards||[]).concat(id);(e.used=e.used||{}).card=true;e.cardPick=false;A.play('buy_gear');save();if(e.chest)return finishEncounter();renderRest();}
+  // cast bar tutorial (switch castBar; text KM_DATA.tutorial.castBar): once per save, before the first sum
+  const TUT = KM.CastBar && KM.CastBar.on() && KM_DATA.tutorial && (() => { const t = KM_DATA.tutorial.castBar;
+    return { t, seen: () => { try { return localStorage.getItem(t.saveKey) === '1'; } catch (_) { return true; } }, done: () => { try { localStorage.setItem(t.saveKey, '1'); } catch (_) {} } }; })();
+  function tutorial(then) {
+    const e = S.enc, t = TUT.t, w = 'assets/timing-woodcut/', img = id => `<img src="${w}${id}.png" alt="" draggable="false">`; e.phase = 'tutorial'; e.tutorialThen = then;
+    const bar = `<div class="tut-bar" aria-hidden="true"><img class="tut-track" src="${w}track.png" alt=""><img class="tut-fill" src="${w}fill.png" alt="">${t.icons.map(r => `<span class="tut-mark" style="left:${r.at * 100}%">${img(r.icon)}</span>`).join('')}</div><div class="tut-ends"><span>${esc(T(t.ends[0]))}</span><span>${esc(T(t.ends[1]))}</span></div>`;
+    const rows = t.icons.map(r => `<div class="tut-row"><span class="tut-icon">${img(r.icon)}</span><span>${esc(T(r.text))}</span></div>`).join('');
+    const small = s => s ? `<div class="tut-small">${esc(T(s))}</div>` : '';
+    const tricks = BT.on('meterPressure') && t.tricks ? `<div class="tut-small"><b>${esc(T(t.tricks.title))}</b>${t.tricks.lines.map(l => `<br>${esc(T(l))}`).join('')}</div>` : '';
+    showPanel('', 'info'); document.getElementById('tut-layer')?.remove();
+    document.getElementById('stage').insertAdjacentHTML('beforeend', `<div id="tut-layer" class="tut-shade"><div class="tut-dialog" role="dialog" aria-modal="true" aria-labelledby="tut-title"><div id="tut-title" class="tut-title">${esc(T(t.title))}</div><div class="tut-intro">${esc(T(t.intro))}</div>${bar}<div class="tut-rows">${rows}</div>${small(t.strike)}${tricks}${small(t.trail)}<button type="button" class="opt plaque tut-go" data-act="closeTutorial">${esc(T(t.button))}</button></div></div>`);
+  }
+  // pause menu (switch pauseMenu): P opens, P / Esc close; the world stops (no update), the music setting lives here
+  let paused = false;
+  function openPause() { if (paused || S.mode === "title") return; paused = true; renderPause(); }
+  function renderPause() {
+    const off = MU.settings().muted, go = (act, label) => `<button type="button" class="opt plaque tut-go" data-act="${act}">${esc(T(label))}</button>`;
+    document.getElementById('pause-layer')?.remove();
+    document.getElementById('stage').insertAdjacentHTML('beforeend', `<div id="pause-layer" class="tut-shade"><div class="tut-dialog pause-dialog" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div id="pause-title" class="tut-title">${esc(T('Paused'))}</div>${go('pauseMusic', off ? 'Music: Off' : 'Music: On')}${go('closePause', 'Resume')}</div></div>`);
+    document.querySelector('#pause-layer [data-act="closePause"]')?.focus();
+  }
+  function closePause() { paused = false; document.getElementById('pause-layer')?.remove(); }
+  function closeTutorial() { const e = S.enc; if (!e || e.phase !== 'tutorial') return; TUT.done(); document.getElementById('tut-layer')?.remove(); const then = e.tutorialThen; e.tutorialThen = null; then(); }
   function gearDialog(kind){
     const g=restT().gear,key=kind==='weapon'?'maxWeapon':'maxArmor',cost=kind==='weapon'?g.weaponCost:g.armorCost;
     const icon=`<img src="assets/ui/shop/${kind==='weapon'?'sword':'armour'}-cutout.png" alt="">`;
@@ -2053,12 +2077,13 @@
     selectTavern:b=>{if(S.enc?.tv){S.enc.tv.sel=+b.dataset.i;renderTavernInside();}},
     buyFare:b=>buyFare(b.dataset.item),
     restHeal: b => restHeal(b.dataset.k), openCards: () => { if (S.enc) { S.enc.cardPick = true; renderRest(); } }, closeCards: () => { if (S.enc) { S.enc.cardPick = false; if (S.enc.chest) return finishEncounter(); renderRest(); } }, takeCard: b => takeCard(b.dataset.id), buyMead: () => buyMead(), restRecruit: b => restRecruit(+b.dataset.j),
-    chooseGear:b=>chooseGear(b.dataset.kind), buyMeterGear:b=>buyMeterGear(b.dataset.id), assignGear:b=>assignGear(+b.dataset.i), cancelGear:()=>cancelGear(),
+    chooseGear:b=>chooseGear(b.dataset.kind), buyMeterGear:b=>buyMeterGear(b.dataset.id), assignGear:b=>assignGear(+b.dataset.i), cancelGear:()=>cancelGear(), closeTutorial:()=>closeTutorial(),
     restBuyW: b => restBuy("weapon", +b.dataset.i), restBuyA: b => restBuy("armor", +b.dataset.i),
     goInside: () => goInside(), leaveInside: () => leaveInside(),
     leaveRest: () => leaveRest(),
     retry: () => retry(),
-    toggleMusic: () => { MU.toggleMute(); renderHUD(); }
+    toggleMusic: () => { MU.toggleMute(); renderHUD(); },
+    openPause, closePause, pauseMusic: () => { MU.toggleMute(); renderHUD(); renderPause(); }
   };
   // v11b (Magnus): scene hotspots work with the mouse too: pointer cursor + the ink highlight on hover, click = use
   // (exterior doorway = go in; inside: sign = swing it / its plaques, recruit = "Join my party?", door = go outside).
@@ -2088,13 +2113,14 @@
       return;
     }
     if (b.disabled) return;
-    if(S.enc?.gearChoice && !["assignGear","cancelGear","toggleMusic"].includes(b.dataset.act))return;
+    if(S.enc?.gearChoice && !["assignGear","cancelGear","toggleMusic","openPause","closePause","pauseMusic"].includes(b.dataset.act))return;
     if (b.dataset.key) return typeKey(b.dataset.key);
     if (b.dataset.act && actions[b.dataset.act]) { A.play("ui_click"); actions[b.dataset.act](b); }
   });
   // Keyboard is THE input. Every prompt shows its key; clicking the option lines also works.
   document.addEventListener("keydown", ev => {
     const k = ev.key, K1 = k.length === 1 ? k.toUpperCase() : k;
+    if (paused) { if (K1 === "M") actions.pauseMusic(); else if (k === "Escape" || K1 === "P") closePause(); else if (k === "Enter" || k === " ") document.activeElement?.click?.(); ev.preventDefault(); return; }
     if(S.enc?.gearChoice){
       if(k==='Escape'){ev.preventDefault();cancelGear();}
       else if(/^[1-4]$/.test(k)){ev.preventDefault();assignGear(+k-1);}
@@ -2105,6 +2131,7 @@
     if (S.mode === "encounter" && S.enc && S.enc.phase === "spell") { // v12k fire bottle word: letters only (M, Z... are letters here); v12m: Backspace does nothing
       if (k === "Backspace") ev.preventDefault(); else if (/^[a-z]$/i.test(k)) spellKey(k.toUpperCase()); return; }
     if (K1 === "M") { MU.toggleMute(); renderHUD(); return; }
+    if (K1 === "P" && BT.on('pauseMenu')) { openPause(); return; }
     if (k === "[" || k === "]") { MU.setVolume(MU.settings().volume + (k === "]" ? 1 : -1) * D.music.volumeStep); renderHUD(); return; }
     if ([" ", "Enter", "Backspace"].includes(k)) ev.preventDefault();
     if (sketch && ['sketchTitle','sketchWin','sketchLoss'].includes(S.mode)) {
@@ -2148,6 +2175,7 @@
       case "recruit": if (k === "Enter") press("recruitSum"); else if (K1 === "N") press("noRecruit"); return;
       case "contestOffer": if (K1 === "D" || k === "Enter") press("contest"); else if (K1 === "N" || k === "Escape") press("noContest"); return;
       case "frank": if (k === "1") press("frankAgree"); else if (k === "2") press("frankNo"); return;
+      case "tutorial": if (k === "Enter" || k === " " || k === "Escape") press("closeTutorial"); return;
       case "tavernOut": if (K1 === "I") press("goInside"); else if (k === "Enter") press("leaveRest"); return;
       case "rest": {
         if (S.view && S.view.id === "tavern-interior" && e.tv) { // v11b tavern: pick a thing, then its options
@@ -2779,7 +2807,7 @@
   let last = performance.now();
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000) * S.speedMul; last = now;
-    update(dt); draw(); requestAnimationFrame(frame);
+    if (!paused) update(dt); draw(); requestAnimationFrame(frame);
   }
 
   window.__km = { completeRecruit, replaceMember, keepParty, beginDismissalBattle, finishDismissalBattle,
