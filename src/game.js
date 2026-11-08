@@ -3110,7 +3110,7 @@
     }
     if(PREVIEW === "start")newGame();
     requestAnimationFrame(frame);
-    if (KM.Loader) { await KM.Loader.ready(); KM.Loader.finish(); skinStrip(); }
+    if (KM.Loader) { await KM.Loader.ready(); await Promise.race([KM.Assets.warm(), new Promise(r => setTimeout(r, 3000))]); KM.Loader.finish(); skinStrip(); }
     KM.RoadCamp.preload(); KM.TavernPOV.preload();
     KM.FireFx.preload(); KM.Spelling.preload(); // v12k: after the bar
   })();

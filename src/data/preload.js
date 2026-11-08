@@ -14,5 +14,8 @@ KM_DATA.preload = {
   // tools/preload_capture.js) loads + decodes with the bar, nothing is held back for after it; every sound effect is
   // fetched once with the bar too (played from memory). Music keeps streaming. false = the old first set only.
   all: true,
+  // Magnus 2026-11-09: the narrator and the knight popped in after the bar in Safari (it drops decoded pictures).
+  // Images matching these are decoded again and drawn once off-screen right before the bar closes.
+  warm: ["narrator_skeleton", "/walks/hero", "starter-knight/"],
   skip: []          // path parts left out of `all` (e.g. "/dice/roll-to-" if the dice sheets make loading too long)
 };
