@@ -627,7 +627,7 @@
     let halt = haltCam(st);
     // graves: halt in front of the next one we have not passed yet (ones behind us, e.g. after a load, are skipped)
     S.graves.forEach(g => { if (!g.done && S.camX > g.cam + 1) g.done = true; });
-    const g = S.graves.find(g => !g.done && g.cam <= halt);
+    const g = GR.stopToRespect ? S.graves.find(g => !g.done && g.cam <= halt) : null; // off: walk straight past crosses
     if (g && S.camX >= g.cam) return startRespects(g);
     if (act && !act.active && S.camX >= halt - 900) {
       act.active = true; act.state = inTomb() ? "idle" : "walkin";
@@ -2788,7 +2788,8 @@
     KM.Palette.preload().forEach(im=>KM.Loader&&KM.Loader.want(im));
     for(const file of ["v22/villager-walk.png","v22/villager_sword-walk.png","v22/villager_armour-walk.png"]){const starterArt=KM.Assets.loadImg("assets/villager-start/"+file);if(KM.Loader)KM.Loader.want(starterArt);} applyLayout();
     const ms = KM.Save.musicSettings(); MU.settings({ volume: ms.volume == null ? D.music.volume : ms.volume, muted: ms.muted });
-    KM.Save.saveMusic(MU.settings()); // every page starts silent, even if an older profile enabled music
+    if (D.music.startOn) MU.setMuted(false); // Magnus 2026-11-08: music plays from the start (browsers wait for the first click/key)
+    KM.Save.saveMusic(MU.settings()); // remember the start state
     MU.onChange(m => { KM.Save.saveMusic(m); renderHUD(); });
     if (ART7) { const ext=KM_ART7.scenes["tavern-exterior"];
       [ext.facadeCrop.img,ext.doorBackingCrop.img].forEach(p=>{const im=KM.RestView.img(p); if(KM.Loader) KM.Loader.want(im);});

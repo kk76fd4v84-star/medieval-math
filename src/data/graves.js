@@ -7,6 +7,7 @@ KM_DATA.graves = {
   respectAt: 520,       // v12g: the party halts this far before the grave to pay respects (grave just in front of the hero)
   merge: 240,           // deaths closer than this share one grave stop (stacked stones)
   respectsSecs: 2.4,    // how long the party stops to pay respects
+  stopToRespect: false, // Magnus 2026-11-08: the party no longer stops and bows at crosses (true brings it back)
   // {name} = the fallen player's name, {d} = leagues. Bark is one line in the scene; full text goes to the strip.
   epitaphs: [
     "Here lies Sir {name}. Died at {d} leagues. Probably doing long division.",
