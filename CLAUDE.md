@@ -1,3 +1,5 @@
+CURRENT ENTRY POINT (9 November 2026): read CLAUDE_HANDOFF.md first. Everything below is older history.
+
 CURRENT ENTRY POINT (7 November 2026): read GROK_HANDOFF.md first for the
 consolidated current state. Historical notes below remain useful but may be superseded.
 
