@@ -1015,7 +1015,7 @@
     const e = S.enc; if (!e) return null; secs = BR.secs(e, secs); // brawl: a ghost answers at its recorded time
     e.tmr = null; e.answerTiming = null; tmrHold = 0; dividerFill(0);
     if (!(secs > 0) || NOTIMER || !e.q) return null;
-    const windows=e.revealed?combatWindows():KM.Timing.windows();
+    const windows=combatWindows(); // the party's current windows (foe pressure only once revealed): riddle / recruit sums never move the cast bar icons
     // the timer starts only once the sum's glyphs are loaded + decoded and the sum has been drawn (wait: true -> 1 -> 0)
     const wait = !!(e.phase === "math" && e.problem && KM.Assets.sumReady && !(KM.Assets.sumReady(e.problem.text) && sumDrawn()));
     return (e.tmr = { t: 0, q: e.q, secs: MP.seconds(secs, windows), held: 0, wait, windows }); // meter pressure: a Quick foe shortens the time

@@ -14,7 +14,7 @@ const CB=ctx.KM.CastBar,A={block:.25,crit:.5,normal:.75,weak:1},B={block:.15,cri
 // ---- 2) the game: every scene's meter paint, folded through motion exactly as timing-bar.js does
 const trail=read('tests/cast-bar-trail.test.js');
 const base=read('tests/party-roles.test.js').split('const PA=')[0].replace("search:'?debug&notimer'","search:'?debug&castbar=1&meterpressure=1'")
- .replace('submitAnswer};','submitAnswer,paintTimingLegend,renderRest,chooseGear,assignGear};')
+ .replace('submitAnswer};','submitAnswer,paintTimingLegend,renderRest,chooseGear,assignGear,startAnswerTimer};')
  .replace("'src/modes/spelling.js'])run(f);","'src/modes/spelling.js','src/engine/balance-try.js','src/engine/meter-pressure.js','src/engine/cast-bar.js'])run(f);");
 assert(trail.includes("submitAnswer,paintTimingLegend"),'harness as in cast-bar-trail');
 const probe=`
@@ -26,10 +26,10 @@ const stopAt=f=>{const i=S.stops.findIndex(f);S.stop=i;const s=S.stops[i];S.camX
 const fight=(f,l)=>{stopAt(f);for(let i=0;i<200;i++)flush(.02);const e=S.enc;e.revealed=true;e.pressureReady=true;e.act.hp=e.act.maxHp=20;e.act.state='idle';e.act.active=true;paint(l+' start');return e;};
 reset();S.routeVersion=3;g.buildWorld(0);paint('walk');
 S.view={id:'tavern-interior'};paint('tavern inside');S.party.push(g.followerFrom(D.recruitPool[0],700,1));paint('tavern recruit');S.view=null;paint('tavern exit');
-S.party.push(g.followerFrom(D.recruitPool[1],760,2));paint('road: another companion');
+S.party.push(g.followerFrom(D.recruitPool[1],760,2));paint('road: another companion');S.enc={q:'r',phase:'recruit',revealed:false};g.startAnswerTimer(5);paint('recruit sum');S.enc=null;
 stopAt(s=>s.rest==='campsite');if(S.enc.phase!=='rest')g.renderRest();paint('camp');S.enc=null;S.mode='walk';paint('camp left');
 stopAt(s=>s.rest==='shop');if(S.enc.phase!=='rest')g.renderRest();S.enc.cardPick=false;S.gold=99;g.renderRest();paint('shop');g.chooseGear('weapon');g.assignGear(0);paint('shop weapon');g.chooseGear('armor');g.assignGear(0);paint('shop armour');S.enc=null;S.mode='walk';paint('shop left');
-stopAt(s=>s.type==='riddle');paint('riddle');if(S.enc)S.enc.revealed=true;paint('riddle revealed');S.enc=null;S.mode='walk';paint('riddle left');
+stopAt(s=>s.type==='riddle');paint('riddle');if(S.enc){S.enc.q='q';S.enc.phase='riddle';g.startAnswerTimer(5);}paint('riddle sum');if(S.enc)S.enc.revealed=true;paint('riddle revealed');S.enc=null;S.mode='walk';paint('riddle left');
 fight(s=>s.enemy==='goblin','goblin');S.enc=null;S.mode='walk';paint('goblin over');
 S.party.pop();paint('a companion leaves');
 const e=fight(s=>s.type==='boss','boss');e.act.hp=0;paint('boss dies');S.enc=null;S.mode='walk';paint('boss over');
@@ -37,6 +37,7 @@ module.exports=log;`;
 const m=new Module(__filename,module);m.filename=__filename;m.paths=module.paths;m._compile(base+probe,__filename);const log=m.exports;
 const moving=log.filter(r=>r[1]!=='snap').map(r=>r[0]+': '+r[1]);
 assert.deepEqual(moving,['boss start: roar','boss dies: restore'],'only the boss slides the icons: '+JSON.stringify(log));
+for(const l of ['recruit sum','riddle sum']){const r=log.find(r=>r[0]===l);assert(r&&r[2]===0,l+': the icons do not move at all: '+JSON.stringify(r));}
 assert(log.some(r=>r[1]==='snap'&&r[2]>0),'some non-boss paints did change the windows (they snap): '+JSON.stringify(log.filter(r=>r[2])));
 // ---- 3) looks: trail + band = #dvfill geometry and picture, colour swapped; snapping by default
 const css=read('style.css'),rule=sel=>(css.match(new RegExp(sel.replace(/[.#[\]"=]/g,'\\$&')+'\\{([^}]*)\\}'))||[])[1]||'';
