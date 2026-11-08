@@ -570,36 +570,36 @@ window.KM_AUDIO_MAP = {
       "sfx/key_cling_3.ogg",
       "sfx/key_cling_4.ogg"
     ],
-    "vol": 0.6,
-    "_src": "Charlie, incoming/sfx_keys v2 (README): number entry, sword battle / blacksmith forge (juice switch): each digit"
+    "vol": 1.0,
+    "_src": "Charlie, incoming/sfx_keys v3 (README): number entry, sword battle / blacksmith forge (juice switch): each digit; volume in src/data/juice.js"
   },
   "key_enter_kosh": {
     "files": [
       "sfx/key_enter_kosh_1.ogg",
       "sfx/key_enter_kosh_2.ogg"
     ],
-    "vol": 0.9,
-    "_src": "Charlie, incoming/sfx_keys v2 (README): number entry, sword battle / blacksmith forge (juice switch): a right Enter"
+    "vol": 1.0,
+    "_src": "Charlie, incoming/sfx_keys v3 (README): number entry, sword battle / blacksmith forge (juice switch): a right Enter; volume in src/data/juice.js"
   },
   "enter_wrong": {
     "files": [
       "sfx/enter_wrong.ogg"
     ],
-    "vol": 0.7,
-    "_src": "Charlie, incoming/sfx_keys v2 (README): number entry, sword battle / blacksmith forge (juice switch): a wrong Enter (blocked ka-tunk)"
+    "vol": 1.0,
+    "_src": "Charlie, incoming/sfx_keys v3 (README): number entry, sword battle / blacksmith forge (juice switch): a wrong Enter (blocked ka-tunk); volume in src/data/juice.js"
   },
   "enter_miss_whoosh": {
     "files": [
       "sfx/enter_miss_whoosh.ogg"
     ],
-    "vol": 0.7,
-    "_src": "Charlie, incoming/sfx_keys v2 (README): number entry, sword battle / blacksmith forge (juice switch): optional, a blade swishing past"
+    "vol": 1.0,
+    "_src": "Charlie, incoming/sfx_keys v3 (README): number entry, sword battle / blacksmith forge (juice switch): optional, a blade swishing past; volume in src/data/juice.js"
   },
   "key_backspace": {
     "files": [
       "sfx/key_backspace.ogg"
     ],
-    "vol": 0.5,
-    "_src": "Charlie, incoming/sfx_keys v2 (README): number entry, sword battle / blacksmith forge (juice switch): Backspace (soft wooden tick)"
+    "vol": 1.0,
+    "_src": "Charlie, incoming/sfx_keys v3 (README): number entry, sword battle / blacksmith forge (juice switch): Backspace (soft wooden tick); volume in src/data/juice.js"
   }
 };
