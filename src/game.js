@@ -2633,12 +2633,11 @@
     const chosen=tavernRecruit(e.st);
     const note=chosen ? `${esc(shortName(chosen))} joined you. One recruit per tavern.` : RC.title;
     const div=TAV_ORN;
-    showPanel(`<div class="action-deck tavern-deck"><div class="action-heading tavern-heading tavern-lift">${div}<span>${T(note)}</span>${div}</div><div class="action-row">${cards.join('')}</div>${pl.length?`<div class="tavern-options">${pl.join('')}</div>`:''}</div>`,'rest action-panel');
+    showPanel(`<div class="action-deck tavern-deck"><div class="action-heading tavern-heading tavern-under">${div}<span>${T(note)}</span>${div}</div><div class="action-row">${cards.join('')}</div>${pl.length?`<div class="tavern-options">${pl.join('')}</div>`:''}</div>`,'rest action-panel');
   }
   function tavernCard(p,j){ // a tavern companion in the same ink action card as attacks / shop items (data: KM_DATA.recruitCards)
-    const RC=D.recruitCards,role=KM.PartyAbilities.role(p),r=RC.roles[role]||RC.roles.knight;
-    const dmg=KM.Fellowship?` · ⚔ ${KM.Fellowship.damage(p)}`:'';
-    return actionCard({label:shortName(p.name),act:'tvAsk',meta:r.title,detail:`${'❤'.repeat(KM.PartyAbilities.life(p))}${dmg}`,note:r.attack,title:p.trait||'',attrs:`data-j="${j}"`,off:!canRecruit(S.enc.st)});
+    const RC=D.recruitCards,role=KM.PartyAbilities.role(p),line=RC.lines[role]||RC.lines.knight;
+    return actionCard({label:shortName(p.name),act:'tvAsk',detail:esc(T(line)),attrs:`data-j="${j}"`,off:!canRecruit(S.enc.st)});
   }
   function tavernAsk(e,j){ // confirm popup: the same box as the sword / armour picker
     const RC=D.recruitCards,p=e.st.cands[j],others=e.st.cands.filter((q,k)=>q&&k!==j).map(q=>shortName(q.name));
