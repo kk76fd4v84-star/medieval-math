@@ -1870,6 +1870,14 @@
     document.getElementById('stage').insertAdjacentHTML('beforeend', `<div id="pause-layer" class="tut-shade"><div class="tut-dialog pause-dialog" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div id="pause-title" class="tut-title">${esc(T('Paused'))}</div>${go('pauseMusic', off ? 'Music: Off' : 'Music: On')}${go('closePause', 'Resume')}</div></div>`);
     document.querySelector('#pause-layer [data-act="closePause"]')?.focus();
   }
+  // Escape opens the pause menu unless the screen already uses it (skip intro, back, cancel, leave, close) (Magnus 2026-11-08)
+  function escapeHasJob() {
+    if (S.mode === "intro") return true;
+    const e = S.enc; if (S.mode !== "encounter" || !e) return false;
+    if (e.phase === "optional" || e.sub === "sacrifice" || ["replace", "contestOffer", "tutorial"].includes(e.phase)) return true;
+    if ((e.phase === "math" || e.phase === "deadline") && e.q && e.q.back) return true;
+    return e.phase === "rest" && !!S.view && S.view.id === "tavern-interior";
+  }
   function closePause() { paused = false; document.getElementById('pause-layer')?.remove(); }
   function closeTutorial() { const e = S.enc; if (!e || e.phase !== 'tutorial') return; TUT.done(); document.getElementById('tut-layer')?.remove(); const then = e.tutorialThen; e.tutorialThen = null; then(); }
   function gearDialog(kind){
@@ -2148,7 +2156,7 @@
     if (S.mode === "encounter" && S.enc && S.enc.phase === "spell") { // v12k fire bottle word: letters only (M, Z... are letters here); v12m: Backspace does nothing
       if (k === "Backspace") ev.preventDefault(); else if (/^[a-z]$/i.test(k)) spellKey(k.toUpperCase()); return; }
     if (K1 === "M") { MU.toggleMute(); renderHUD(); return; }
-    if (K1 === "P" && BT.on('pauseMenu')) { openPause(); return; }
+    if (BT.on('pauseMenu') && (K1 === "P" || (k === "Escape" && !escapeHasJob()))) { openPause(); return; }
     if (k === "[" || k === "]") { MU.setVolume(MU.settings().volume + (k === "]" ? 1 : -1) * D.music.volumeStep); renderHUD(); return; }
     if ([" ", "Enter", "Backspace"].includes(k)) ev.preventDefault();
     if (sketch && ['sketchTitle','sketchWin','sketchLoss'].includes(S.mode)) {
