@@ -100,23 +100,29 @@ KM.Brawl = (() => {
   }
   const inside = (v, [lo, hi]) => v >= lo && v <= hi;
   const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
-  function holes(kind, w, h, reach) { // dark pixels with dye on all four sides within reach (an emblem sewn on the dye)
-    const near = new Uint8Array(w * h), scan = (n, step, start, len) => { let last = -1e9;
+  function holes(kind, w, h, reach, r) { // solid ink with dye on all four sides within reach (an emblem sewn on the dye)
+    const near = new Uint8Array(w * h), scan = (step, start, len) => { let last = -1e9;
       for (let k = 0; k < len; k++) { const i = start + k * step; if (kind[i] === 2) last = k; else if (kind[i] === 3 && k - last <= reach) near[i]++; } };
-    for (let y = 0; y < h; y++) { scan(0, 1, y * w, w); scan(0, -1, y * w + w - 1, w); }
-    for (let x = 0; x < w; x++) { scan(0, w, x, h); scan(0, -w, x + (h - 1) * w, h); }
-    near.forEach((n, i) => { if (n === 4) kind[i] = 4; });
+    for (let y = 0; y < h; y++) { scan(1, y * w, w); scan(-1, y * w + w - 1, w); }
+    for (let x = 0; x < w; x++) { scan(w, x, h); scan(-w, x + (h - 1) * w, h); }
+    const sum = new Uint32Array((w + 1) * (h + 1)); // ink count table: hatching lines are thin, an emblem is solid
+    for (let y = 0; y < h; y++) for (let x = 0, row = 0; x < w; x++) { row += kind[y * w + x] === 3; sum[(y + 1) * (w + 1) + x + 1] = sum[y * (w + 1) + x + 1] + row; }
+    const box = (x0, y0, x1, y1) => sum[y1 * (w + 1) + x1] - sum[y0 * (w + 1) + x1] - sum[y1 * (w + 1) + x0] + sum[y0 * (w + 1) + x0];
+    for (let i = 0; i < near.length; i++) { if (near[i] !== 4) continue; const x = i % w, y = (i / w) | 0;
+      if (x >= r && y >= r && x + r < w && y + r < h && box(x - r, y - r, x + r + 1, y + r + 1) === (2 * r + 1) ** 2) kind[i] = 4; }
   }
   function paint(img, art) {
-    const P = D().paint, look = P.sprites[art] || P.sprites.default, key = JSON.stringify(look);
+    const P = D().paint, look = P.sprites[art] || P.sprites.default, key = JSON.stringify(look), rg = look.range || {};
+    const cloth = { ...P.cloth, ...rg.cloth }, dye = { ...P.dye, ...rg.dye };
     const memo = looks.get(key) || looks.set(key, new WeakMap()).get(key); if (memo.has(img)) return memo.get(img);
     const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height; if (!w || !h) return null;
     const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0);
     let d; try { d = g.getImageData(0, 0, w, h); } catch (_) { memo.set(img, null); return null; } // a tainted image (file://) keeps its colours
-    const px = d.data, kind = new Uint8Array(w * h), L = new Float32Array(w * h); // kind: 1 cloth, 2 dye, 3 ink, 4 emblem
-    for (let i = 0; i < kind.length; i++) { if (!px[i * 4 + 3]) continue; const [hh, ss, ll] = hsl(px[i * 4], px[i * 4 + 1], px[i * 4 + 2]); L[i] = ll;
-      kind[i] = ll < P.ink ? 3 : inside(hh, P.dye.h) && inside(ss, P.dye.s) && inside(ll, P.dye.l) ? 2 : inside(hh, P.cloth.h) && inside(ss, P.cloth.s) && inside(ll, P.cloth.l) ? 1 : 0; }
-    if (look.holes) holes(kind, w, h, P.holes);
+    const px = d.data, kind = new Uint8Array(w * h), L = new Float32Array(w * h), S = new Float32Array(w * h); // kind: 1 cloth, 2 dye, 3 ink, 4 emblem
+    for (let i = 0; i < kind.length; i++) { if (!px[i * 4 + 3]) continue; const [hh, ss, ll] = hsl(px[i * 4], px[i * 4 + 1], px[i * 4 + 2]); L[i] = ll; S[i] = ss;
+      kind[i] = ll < P.ink ? 3 : inside(hh, dye.h) && inside(ss, dye.s) && inside(ll, dye.l) ? 2 : inside(hh, cloth.h) && inside(ss, cloth.s) && inside(ll, cloth.l) ? 1 : 0; }
+    if (look.holes) holes(kind, w, h, P.holes, P.solid);
+    if (look.head) for (let i = 0; i < w * Math.round(h * look.head.top); i++) if (kind[i] === 1 && S[i] >= look.head.s) kind[i] = 0; // the face keeps its colours
     const to = { cloth: look.cloth, dye: look.dye, ink: 'keep', emblem: look.holes || 'keep' }, names = [null, 'cloth', 'dye', 'ink', 'emblem'];
     const ends = { black: P.black.map(rgb), orange: P.orange.map(rgb) };
     for (let i = 0; i < kind.length; i++) { const tgt = kind[i] && ends[to[names[kind[i]]]]; if (!tgt) continue;
@@ -168,5 +174,5 @@ KM.Brawl = (() => {
   const artIds = () => Object.values(D().art).flat();
   const init = c => { ctx = c; if (!on()) return; artIds().forEach(id => { KM_DATA.combat.patterns[id] ||= { deadline: true }; }); }; // ghosts strike when their bar fills
 
-  return { on, init, route, dress, meet, team: teamHud, secs, answered, won, runEnd, actions, pool, opponent, replay, skill, seedRecord, members: team };
+  return { on, init, route, dress, meet, team: teamHud, paint, secs, answered, won, runEnd, actions, pool, opponent, replay, skill, seedRecord, members: team };
 })();
