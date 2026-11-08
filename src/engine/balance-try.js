@@ -3,7 +3,7 @@ window.KM = window.KM || {};
 KM.BalanceTry = (() => {
   const B = KM_DATA.balanceTry, q = new URLSearchParams(location.search);
   const flag = (key, param) => q.has(param) ? q.get(param) !== '0' : !!B[key];
-  const sw = { curve: flag('curve', 'curve'), halfHearts: flag('halfHearts', 'halfhearts'), campArmour: flag('campArmour', 'camparmour'), whoActs: flag('whoActs', 'whoacts'), cards: flag('cards', 'cards'), gradual: flag('gradual', 'gradual'), meterPressure: flag('meterPressure', 'meterpressure'), castBar: flag('castBar', 'castbar'), knightStart: flag('knightStart', 'knightstart'), chestCards: flag('chestCards', 'chestcards') };
+  const sw = { curve: flag('curve', 'curve'), halfHearts: flag('halfHearts', 'halfhearts'), campArmour: flag('campArmour', 'camparmour'), whoActs: flag('whoActs', 'whoacts'), cards: flag('cards', 'cards'), gradual: flag('gradual', 'gradual'), meterPressure: flag('meterPressure', 'meterpressure'), castBar: flag('castBar', 'castbar'), knightStart: flag('knightStart', 'knightstart'), chestCards: flag('chestCards', 'chestcards'), toughFoes: flag('toughFoes', 'toughfoes') };
   if (sw.chestCards) sw.cards = true;
   if (sw.cards || sw.gradual) sw.whoActs = true;
 
@@ -16,6 +16,7 @@ KM.BalanceTry = (() => {
     const done = S.stops.slice(0, S.stop).filter(fights).length + (B.battlesBefore[S.chapter] || 0);
     return Math.min(B.health.max, B.health.start + B.health.step * done);
   }
+  const tough = id => sw.toughFoes ? (B.tough && B.tough[id]) || 1 : 1; // Fellowship health x this per foe
   const packRelay = e => sw.curve && B.packsTakeTurns && e.foes && e.foes.length > 1;
   function bossAtk(e, base) { // per enemy turn; e.turns counts finished enemy turns
     if (!sw.curve || !['boss', 'mega'].includes(e.st.type)) return base;
@@ -39,5 +40,5 @@ KM.BalanceTry = (() => {
     const level = sw.gradual ? L[Math.min(L.length - 1, step)] : B.sums[sign][lvl(pick.m) - 1];
     return { member: pick.m, sign, cue: B.roles[role(pick.m)].cue, level, multiplier: B.leaderMultiplier };
   }
-  return { on, unit, healthMul, packRelay, bossAtk, heartsText, pickLeader };
+  return { on, unit, healthMul, tough, packRelay, bossAtk, heartsText, pickLeader };
 })();

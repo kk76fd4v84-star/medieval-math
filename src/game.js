@@ -748,16 +748,16 @@
     showPanel(actionRow([actionCard({label:'Fight',act:'commit',icon:MICON.hard}),...(can?[actionCard({label:'Avoid',act:'avoid',icon:'→',note:'Hunters advance'})]:[])]),'info action-panel');
   }
   // Balance switches (src/data/balance_try.js): Fellowship health ramps per battle when the curve switch is on
-  function foeHealth(hp){const k=BT.healthMul(S);return k?Math.ceil(hp*k):KM.Fellowship.health(hp);}
+  function foeHealth(hp,id){const k=BT.healthMul(S),t=BT.tough(id);return k?Math.ceil(hp*k*t):Math.ceil(KM.Fellowship.health(hp)*t);}
   function commit() {
     const e = S.enc; if (!e || (e.phase !== "approach" && e.phase !== "frank")) return;
     if (e.st.id === "frank" && !e.depth) { beginDragonApproach(); return; }
     const id = e.act.id, E = D.enemies[id] || {}, cs = e.act.combat || C.enemies[id] || { hp: 6, atk: 1 };
     e.lost=Math.max(0,maxHp()-S.hp);
-    e.phase = "busy"; e.hp = e.maxHp = isFellowship()?foeHealth(cs.hp):cs.hp; e.atk = cs.atk; e.heals = C.healsPerFight; e.fireUses = IT.usesPerBattle; e.fallen=[]; e.resurrected=false; e.revealed = true;
+    e.phase = "busy"; e.hp = e.maxHp = isFellowship()?foeHealth(cs.hp,id):cs.hp; e.atk = cs.atk; e.heals = C.healsPerFight; e.fireUses = IT.usesPerBattle; e.fallen=[]; e.resurrected=false; e.revealed = true;
     // every foe of this stop (a group = several), each with its own hearts; e.act / e.hp mirror the FRONT one
     e.foes = S.actors.filter(a => a.stop === S.stop && a.foe && !a.dead).sort((a, b) => a.x - b.x);
-    e.foes.forEach(a => { const c2 = a.combat || C.enemies[a.id] || { hp: 6, atk: 1 }; a.hp = a.maxHp = isFellowship()?foeHealth(c2.hp):c2.hp; a.atk = c2.atk; if (a !== e.act) { a.distant = false; a.closing = { t: 0, dur: 0.7 }; } });
+    e.foes.forEach(a => { const c2 = a.combat || C.enemies[a.id] || { hp: 6, atk: 1 }; a.hp = a.maxHp = isFellowship()?foeHealth(c2.hp,a.id):c2.hp; a.atk = c2.atk; if (a !== e.act) { a.distant = false; a.closing = { t: 0, dur: 0.7 }; } });
     e.act.hp = e.hp; e.act.maxHp = e.maxHp; e.act.atk = e.atk;
     if(BT.packRelay(e))e.st.relay=true; // curve switch: countryside packs take turns
     if(e.st.relay) planPackTurn(e);
