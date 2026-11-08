@@ -293,7 +293,7 @@
   // v10: the frontGround run seed (choose-strip.js: "store/reuse the run seed") = a hash of the saved runId, also saved
   const seedOf = id => { let h = 2166136261; for (const ch of String(id)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; return h & 0x7fffffff; };
   const fgSeed = () => (S.fgSeed != null ? S.fgSeed : (S.fgSeed = seedOf(S.runId)));
-  const core = () => ({ chapter:S.chapter, challengeMode:S.challengeMode, name: S.name, hp: S.hp, gold: S.gold, score: S.score, scoreLedger: KM.Score.copy(S.scoreLedger), cards:(S.cards||[]).slice(), ...(S.meterGear&&Object.keys(S.meterGear).length?{meterGear:{...S.meterGear}}:{}), riddleSolved:S.riddleSolved.slice(),wizardUnlocked:S.wizardUnlocked, stop: S.stop, dist: Math.round(S.dist), fid: S.fid, further: S.furtherDone, hunters: S.hunters, spells: S.spells, spellLeft: S.spellLeft, mead: S.mead ? 1 : 0, bottles: S.bottles, runId: S.runId, fgSeed: fgSeed(),
+  const core = () => ({ chapter:S.chapter, challengeMode:S.challengeMode, name: S.name, hp: S.hp, gold: S.gold, score: S.score, scoreLedger: KM.Score.copy(S.scoreLedger), cards:(S.cards||[]).slice(),...(S.swingUsed?{swingUsed:true}:{}), ...(S.meterGear&&Object.keys(S.meterGear).length?{meterGear:{...S.meterGear}}:{}), riddleSolved:S.riddleSolved.slice(),wizardUnlocked:S.wizardUnlocked, stop: S.stop, dist: Math.round(S.dist), fid: S.fid, further: S.furtherDone, hunters: S.hunters, spells: S.spells, spellLeft: S.spellLeft, mead: S.mead ? 1 : 0, bottles: S.bottles, runId: S.runId, fgSeed: fgSeed(),
     pendingDismissal:S.pendingDismissal?JSON.parse(JSON.stringify(S.pendingDismissal)):null,loot:S.loot.map(q=>({...q})),routeVersion:S.routeVersion,restUses:JSON.parse(JSON.stringify(S.restUses)),rolesVersion: 3, dragonSlain: !!S.dragonSlain, tavernRecruits: {...S.tavernRecruits},
     party: S.party.map(m => { const { sx, hopY, act, hopping, dying, ...rec } = m; return rec; }), stats: Object.assign({}, S.stats), usedRiddles: S.usedRiddles.slice() });
   function save() { if (sketch || PREVIEW) return; KM.Save.write(Object.assign(core(), { checkpoint: S.checkpoint })); }
@@ -304,7 +304,7 @@
     S.pendingDismissal=c.pendingDismissal&&c.pendingDismissal.stop===c.stop?JSON.parse(JSON.stringify(c.pendingDismissal)):null;
     S.loot=(c.loot||[]).filter(q=>Number.isFinite(q.x)&&q.amount>0).map(q=>({...q}));
     S.routeVersion=c.routeVersion||0;S.restUses=JSON.parse(JSON.stringify(c.restUses||{}));
-    S.riddleSolved=(c.riddleSolved||[]).slice();S.cards=(c.cards||[]).slice();S.meterGear={...(c.meterGear||{})};S.wizardUnlocked=!!c.wizardUnlocked;
+    S.riddleSolved=(c.riddleSolved||[]).slice();S.cards=(c.cards||[]).slice();S.swingUsed=!!c.swingUsed;S.meterGear={...(c.meterGear||{})};S.wizardUnlocked=!!c.wizardUnlocked;
     S.enc = null; S.deathDepth = null; S.dragonSlain = !!c.dragonSlain; S.tavernRecruits = {...(c.tavernRecruits || {})};
     S.name = c.name; S.hp = c.hp; S.gold = c.gold; S.score = Number.isFinite(c.score) ? Math.trunc(c.score) : 0; S.scoreLedger = KM.Score.copy(c.scoreLedger); S.stop = c.stop; S.stats = Object.assign({ correct: 0, wrong: 0, riddles: 0, sacrificed: 0 }, c.stats); S.usedRiddles = (c.usedRiddles || []).slice();
     S.dist = c.dist || 0; S.furtherDone = !!c.further; S.hunters = c.hunters || 0; S.spells = c.spells != null ? c.spells : SPL.start; S.spellLeft = Math.min(SPL.problems, Math.max(0, c.spellLeft || 0)); S.mead = c.mead ? 1 : 0; S.bottles = c.bottles || 0; S.runId = c.runId || "run-" + Date.now(); S.fgSeed = c.fgSeed != null ? c.fgSeed : seedOf(S.runId);
@@ -554,7 +554,7 @@
     if(KM.Tomb?.requested())return startTomb();
     S.chapter=KM.HollowWood?.requested()?"hollowwood":"village";syncChapterFlag();
     hush(); S.deathDepth = null; S.dragonSlain = false;
-    S.cards = []; S.meterGear = {};
+    S.cards = []; S.meterGear = {}; S.swingUsed = false;
     S.name = "Nobody"; S.hp = D.party.heartsPerMember; S.gold = 5; S.loot = []; S.score = 0; S.scoreLedger = KM.Score.empty(); S.riddleSolved=[];S.wizardUnlocked=false;S.lightning=null; S.stop = 0; S.dist = 0; S.fid = 0; S.hunters = 0; S.spells = 0; S.spellLeft = 0; S.mead = 0; S.bottles = 0; S.runId = "run-" + Date.now(); S.fgSeed = seedOf(S.runId);
     S.stats = { correct: 0, wrong: 0, riddles: 0, sacrificed: 0 }; S.usedRiddles = []; S.pendingDismissal=null; S.tavernRecruits = {}; S.restUses={}; S.routeVersion=3;
     S.party = [newMember("hero", slotX(0), BT.on("knightStart") ? "starter" : true)]; S.hp = maxHp(); buildWorld(0); S.camX = 0; addNarrator(); S.floats = []; S.dice = []; S.enc = null; S.timers = []; S.view = null; S.dying = null; S.entering = null; S.voices = [];
@@ -880,6 +880,7 @@
     ask(level,()=>fellowshipVolley(e),()=>fellowshipWrong(e),null,undefined,'fellowship');
   }
   function fellowshipWrong(e) {
+    cardsV2Miss(e);
     if(CARDS&&CARDS.missChip(S)&&S.party.filter(PA.alive).length>1&&S.hp>1){const ally=S.party.filter(PA.alive)[1],n=Math.min(CARDS.missChip(S),S.hp-1);hearts(-n);e.lost=(e.lost||0)+n;float(`−${BT.heartsText(n)} ♥`,partyPose(ally).x,W.groundY-tallOf(artId(ally))+60,'#b3321f');renderHUD();} // Swing and a Miss
     if(!S.party.some(m=>PA.alive(m)&&KM.Fellowship.risky(m)))return turnWrong('fellowship');
     showCorrected(e.problem);huntersStep(1);
@@ -888,11 +889,42 @@
     if(witness)speak(witness,'The OTHER side!');
     fellowshipVolley(e,true);
   }
-  function fellowshipVolley(e,failed=false) {
+  // ---- cards v2 (switch cardsV2; data KM_DATA.upgradeCardsV2): per-run card levels feed the volley plan and a few hooks
+  const CV = id => CARDS && CARDS.v2 && CARDS.lv(S, id) > 0, CA = (id, key) => CARDS.at(S, id, key);
+  function cardsV2Plan(e, failed) {
+    if (!CARDS || !CARDS.v2) return null;
+    return { cleave: CV('cleave') ? CA('cleave', 'cleave') : [1, CARDS.data.knightSecondHit], knight: CA('swing_and_a_miss', 'knightDamage'),
+      fire: CA('embers', 'fireDamage'), axe: CV('weighted_axe') ? { under: CA('weighted_axe', 'lowHealth'), bonus: CA('weighted_axe', 'axeBonus') } : null,
+      skip: !failed && e.axeStuck ? e.axeStuck : null };
+  }
+  const memberFloat = (m, text, colour) => { const p = partyPose(m); float(text, p.x, W.groundY - tallOf(artId(m)) + 60, colour); };
+  function chipAlly(e, m, n, text) { // a card's cost hurts one ally: never the last heart
+    n = Math.min(n, S.hp - 1); if (!m || n <= 0) return; hearts(-n); e.lost = (e.lost || 0) + n; act(m, 'hurt', .3); A.play('hit_party');
+    memberFloat(m, `${text} −${BT.heartsText(n)} ♥`, '#b3321f'); renderHUD();
+  }
+  function cardsV2Miss(e) { // Swing and a Miss backswing (once a run), Embers friendly fire, Weighted Axe stuck
+    if (!CARDS || !CARDS.v2) return;
+    const alive = S.party.filter(PA.alive), D2 = id => CARDS.byId(id);
+    if (CV('swing_and_a_miss') && !S.swingUsed && alive.some(m => PA.role(m) === 'knight') && alive.length > 1) {
+      S.swingUsed = true; const b = D2('swing_and_a_miss').backswing; chipAlly(e, alive[1], Math.max(1, Math.round(2 * BT.unit() * b.share)), T('Backswing!'));
+    }
+    if (CV('embers') && alive.some(m => PA.role(m) === 'firestarter') && Math.random() < CA('embers', 'friendlyFire')) {
+      const others = alive.filter(m => PA.role(m) !== 'firestarter'); chipAlly(e, others[Math.floor(Math.random() * others.length)] || alive[0], D2('embers').friendlyFireUnits, T('Singed!'));
+    }
+    if (CV('weighted_axe')) { const ex = alive.filter(m => PA.role(m) === 'executioner'); if (ex.length) { e.axeStuck = new Set(ex); ex.forEach(m => memberFloat(m, T('Axe stuck!'), '#ecdcc4')); } }
+  }
+  function cardsV2Right(e, again) { // after a right answer's volley: Thunder Fist stuns; Rallying Cry may strike again (true = it does)
+    if (!CARDS || !CARDS.v2) return false;
+    if (!again && CV('thunder_fist') && S.party.some(m => PA.alive(m) && PA.role(m) === 'darkWizard') && Math.random() < CA('thunder_fist', 'stunChance'))
+      living(e).filter(f => !f.stunned).slice(0, CA('thunder_fist', 'stuns')).forEach(f => { f.stunned = true; float(T('Thunder Fist!'), centreX(f), W.groundY - tallOf(f.id) + 60, '#ef9139'); });
+    return !again && CV('rallying_cry') && living(e).length > 0 && Math.random() < CA('rallying_cry', 'strikeAgain');
+  }
+  function fellowshipVolley(e,failed=false,again=false) {
     if(S.enc!==e || S.dying)return;
     e.phase='busy';if(!failed)hush();
     const foes=living(e),timing=e.answerTiming;
-    const hits=KM.Fellowship.plan(S.party,foes,timing?.multiplier??1,{failed,hp:S.hp,maxHp:maxHp(),heals:e.heals,leader:e.leader?.member,leaderMultiplier:e.leader?.multiplier||1,knightTargets:CARDS?CARDS.knightTargets(S):0,burn:CARDS?CARDS.burn(S):0,wizardDamage:CARDS?CARDS.wizardDamage(S):0});
+    const hits=KM.Fellowship.plan(S.party,foes,timing?.multiplier??1,{failed,hp:S.hp,maxHp:maxHp(),heals:e.heals,leader:e.leader?.member,leaderMultiplier:e.leader?.multiplier||1,knightTargets:CARDS?CARDS.knightTargets(S):0,burn:CARDS?CARDS.burn(S):0,wizardDamage:CARDS?CARDS.wizardDamage(S):0,v2:cardsV2Plan(e,failed)});
+    if(!failed&&e.axeStuck)e.axeStuck=null; // the stuck axe costs exactly one volley
     if(!hits.length)return;
     const volley=e.fellowshipVolley={hits:hits.length,landed:0,total:0,backfire:0,failed};
     const targets=[...new Set(hits.flatMap(h=>h.impacts.map(i=>i.target)))];
@@ -948,6 +980,10 @@
         S.floats=S.floats.filter(f=>!f.fellowship);
         const x=Math.max(VW*.65,Math.min(VW-300,targets.reduce((sum,a)=>sum+centreX(a),0)/targets.length));
         S.floats.push({fellowship:true,total:true,text:Number(volley.total.toFixed(2)),caption:T('PARTY DAMAGE'),crit:!!timing?.crit,index:0,x,y:130,t:0,life:1.1});
+      }
+      if(!failed&&cardsV2Right(e,again)){ // Rallying Cry: the fallen fall, then the party swings once more
+        targets.filter(a=>a.hp<=0&&!a.gone).forEach(a=>{a.gone=true;say(a,(D.enemies[a.id]||{}).defeat);enemyDeath(a);});stepUp(e);syncFront(e);
+        heroSay(T('Again!'));return later(.8,()=>{if(valid())fellowshipVolley(e,false,true);});
       }
       const settle=()=>{if(valid()){if(targets.length)settleHits(e,targets);else enemyTurn();}};
       // Resolve self-inflicted casualties even when the same spell killed the last foe.
@@ -1010,7 +1046,7 @@
     const role={fire:'firestarter',execute:'executioner',lightning:'darkWizard',heal:'priest',resurrect:'priest'}[kind]||'knight';
     const owners=isFellowship()?S.party.filter(PA.alive):isKnight()&&e?.activeCard ? S.party.filter(m=>e.activeCard.owners.includes(m.id)) : PA.members(S.party,role);
     const ready=e?.revealed&&e.pressureReady!==false&&(!KM.CastBar?.on()||LV||D.castBar.shiftBy.includes(e.st?.type)),weapon=Math.max(0,...owners.filter(PA.alive).map(m=>m.weapon||0)),armour=PA.armour(S.party.filter(PA.alive)),companions=S.party.filter(m=>m.id!=='hero'&&PA.alive(m)).length;
-    if(MP.on())return MP.windows({weapon,armour,companions,helm:MP.level(S,'helm'),lantern:MP.level(S,'lantern'),foes:ready?living(e):[],extra:LV?PL.foes:undefined,courage:LV?courage():0});
+    if(MP.on())return MP.windows({weapon,armour,companions,helm:MP.level(S,'helm'),lantern:MP.level(S,'lantern'),foes:ready?living(e):[],extra:LV?PL.foes:undefined,courage:LV?courage():0,shrink:CARDS&&CARDS.v2?CARDS.shrink(S):undefined});
     const pressure=ready?KM.Timing.pressure(living(e)):{};
     return KM.Timing.windows({weapon:Math.max(0,...owners.filter(PA.alive).map(m=>m.weapon||0)),armour:PA.armour(S.party.filter(PA.alive)),
       companions:S.party.filter(m=>m.id!=='hero'&&PA.alive(m)).length,pressure});
@@ -1031,7 +1067,8 @@
     const windows=combatWindows(); // the party's current windows (foe pressure only once revealed): riddle / recruit sums never move the cast bar icons
     // the timer starts only once the sum's glyphs are loaded + decoded and the sum has been drawn (wait: true -> 1 -> 0)
     const wait = !!(e.phase === "math" && e.problem && KM.Assets.sumReady && !(KM.Assets.sumReady(e.problem.text) && sumDrawn()));
-    return (e.tmr = { t: 0, q: e.q, secs: MP.seconds(secs, windows), held: 0, wait, windows }); // meter pressure: a Quick foe shortens the time
+    const anger = e.action === 'fellowship' && CV('rallying_cry') && Math.random() < CA('rallying_cry', 'angerChance'); // Rallying Cry's cost
+    return (e.tmr = { t: 0, q: e.q, secs: MP.seconds(secs, windows), held: 0, wait, windows, anger }); // meter pressure: a Quick foe shortens the time
   }
   function tickAnswerTimer(dt) {
     paintTimingLegend();
@@ -1053,7 +1090,7 @@
     if(S.enc!==e||S.dying||!e.revealed||!e.q||clock.deadlineFired||e.deadlineBusy)return;
     clock.deadlineFired=true;
     const struck=e.deadlineStruck||(e.deadlineStruck=new Set());
-    const foes=living(e).filter(f=>KM.Timing.pattern(f.id).deadline&&intentDamage(e,f)>0&&!struck.has(f));
+    const foes=living(e).filter(f=>(KM.Timing.pattern(f.id).deadline||clock.anger)&&intentDamage(e,f)>0&&!struck.has(f));
     if(!foes.length)return;
     const phase=e.phase;e.phase='deadline';e.deadlineBusy=true;e.deadlineFrom=phase; // typing keeps working during the strike (typeKey)
     foes.forEach(f=>struck.add(f));
@@ -1252,7 +1289,9 @@
     const atk=intentDamage(e,f);
     later(STRIKE.impact,()=>{
       if(S.enc!==e||S.dying)return;
-      const protectedHit=!deadline&&(e.timingBlock||(e.answerTiming&&KM.Timing.pattern(f.id).forgiving));
+      let walled=false; // Shield Wall (cards v2): a chance to block the very first enemy attack of each fight
+      if(CV('shield_wall')&&!e.wallTried){e.wallTried=true;walled=Math.random()<CA('shield_wall','firstBlock');if(walled)float(T('Shield Wall!'),slotX(0),W.groundY-tallOf('hero')+20,'#bcc0c3');}
+      const protectedHit=walled||(!deadline&&(e.timingBlock||(e.answerTiming&&KM.Timing.pattern(f.id).forgiving)));
       S.shake=.25;const guard=protectedHit?atk:Math.min(e.cardGuard||0,atk);
       if(!protectedHit)e.cardGuard=(e.cardGuard||0)-guard;
       const hit=PA.absorb(S.party,atk-guard);hit.blocked+=guard;
@@ -1860,11 +1899,11 @@
     if(e.cardOptions.length)cards.push(actionCard({label:'Upgrade card',act:'openCards',icon:'<img src="assets/ui/cards/cleave.png" alt="" style="height:64px">',meta:'Pick one',detail:T('Free')}));
   }
   function cardDialog(e){
-    const opts=e.cardOptions.map(id=>CARDS.byId(id)).map(c=>`<button class="upgrade-card" data-act="takeCard" data-id="${c.id}" aria-label="${c.name}" style="background:none;border:0;padding:0 10px;cursor:pointer">${c.img?`<img src="${c.img}" alt="${c.name}" style="height:min(560px,62vh);display:block">`:plainCard(c)}</button>`).join('');
+    const opts=e.cardOptions.map(id=>CARDS.byId(id)).map(c=>`<button class="upgrade-card" data-act="takeCard" data-id="${c.id}" aria-label="${c.name}" style="background:none;border:0;padding:0 10px;cursor:pointer"> ${c.img&&!CARDS.v2?`<img src="${c.img}" alt="${c.name}" style="height:min(560px,62vh);display:block">`:plainCard(c)}</button>`).join('');
     return `<div role="dialog" aria-label="Pick an upgrade card" style="position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(36,28,18,.45)">${opts}${actionCard({label:'Not now',act:'closeCards',icon:'←',meta:'Back'})}</div>`;
   }
   function plainCard(c){ // a card with no painting yet: parchment, name, effect, cost
-    return `<div style="height:min(560px,62vh);aspect-ratio:2/3;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:6% 8%;background:#ecdcc4;border:6px double #292018;color:#292018;font-family:Georgia,serif;text-align:center"><strong style="font-size:30px">${c.name}</strong><span style="font-size:15px">${String(c.owner||'').replace('darkWizard','Dark Wizard').toUpperCase()}</span><span style="font-size:22px;line-height:1.3">${c.text||''}</span><span style="font-size:20px;line-height:1.3;background:#292018;color:#ecdcc4;padding:14px">${c.costText||''}</span></div>`;
+    return `<div style="height:min(560px,62vh);aspect-ratio:2/3;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:6% 8%;background:#ecdcc4;border:6px double #292018;color:#292018;font-family:Georgia,serif;text-align:center"><strong style="font-size:30px">${c.name}</strong><span style="font-size:15px">${String(c.owner||'').replace('darkWizard','Dark Wizard').toUpperCase()}${CARDS.v2&&(c.max||1)>1?` · ${T('LEVEL')} ${CARDS.lv(S,c.id)+1}/${c.max}`:''}</span><span style="font-size:22px;line-height:1.3">${c.text||''}</span><span style="font-size:20px;line-height:1.3;background:#292018;color:#ecdcc4;padding:14px">${c.costText||''}</span></div>`;
   }
   function takeCard(id){const e=S.enc;if(!e||!CARDS||e.used?.card||!e.cardOptions?.includes(id))return;S.cards=(S.cards||[]).concat(id);(e.used=e.used||{}).card=true;e.cardPick=false;A.play('buy_gear');save();if(e.chest)return finishEncounter();renderRest();}
   // cast bar tutorial (switch castBar; text KM_DATA.tutorial.castBar): once per save, before the first sum
@@ -2908,11 +2947,11 @@
 
   // v19 debug hook, OFF unless the page is opened with ?debug (screenshots / quick checks): jump the road to the first stop
   // matching `want` (a type, enemy, npc or id, e.g. "mega", "frank", "toad") with `looks` = follower skins (1-5) in the party.
-  if (/[?&]debug\b/.test(location.search)) window.__km.debugJump = (want, looks = []) => {
+  if (/[?&]debug\b/.test(location.search)) window.__km.debugJump = (want, looks = [], cards) => { // cards: debug-only held card ids
     const i = S.stops.findIndex(st => [st.type, st.enemy, st.npc, st.id, st.rest].includes(want)); if (i < 0) return false;
     hush(); S.runId = S.runId || "run-debug"; S.name = S.name === "Nobody" ? "Magnus" : S.name;
     const party = [newMember("hero", slotX(0))].concat(looks.map((k, j) => Object.assign(followerFrom(D.recruitPool[j % D.recruitPool.length], slotX(j + 1), k), { skin: k })));
-    applyCore(Object.assign(core(), { stop: i, party, hp: HPM() * party.length, hunters: 0 })); S.mode = "walk"; musicScene("walk"); renderWalk(); return S.stops[i];
+    applyCore(Object.assign(core(), { stop: i, party, hp: HPM() * party.length, hunters: 0 }, cards ? { cards } : {})); S.mode = "walk"; musicScene("walk"); renderWalk(); return S.stops[i];
   };
 
   (async function boot() {

@@ -9,26 +9,29 @@ KM.Fellowship = (() => {
   const health = hp => Math.ceil(hp * rules.enemyHealth);
   // Reserve in party order: knights cleave two, casters hit all, executioners finish
   // wounded foes. Priests reserve a limited heal before any later priest chooses.
-  function plan(party, foes, multiplier = 1, {failed=false,hp=0,maxHp=hp,heals=0,leader=null,leaderMultiplier=1,knightTargets=0,burn=0,wizardDamage=0}={}) {
+  function plan(party, foes, multiplier = 1, {failed=false,hp=0,maxHp=hp,heals=0,leader=null,leaderMultiplier=1,knightTargets=0,burn=0,wizardDamage=0,v2=null}={}) {
+    // v2 (cards v2): {cleave:[shares per knight target], knight, fire: extra damage, axe:{under, bonus}, skip:Set of members}
     const remaining = foes.map(f => f.hp), last = foes.length - 1;
     if (last < 0) return [];
     let wounds=Math.max(0,maxHp-hp), charges=heals;
     let embersTick=burn&&!failed;
-    return party.filter(m=>KM.PartyAbilities.alive(m)&&(!failed||risky(m))).map((member,index) => {
+    return party.filter(m=>KM.PartyAbilities.alive(m)&&(!failed||risky(m))&&!(v2&&v2.skip&&v2.skip.has(m))).map((member,index) => {
       const r=role(member), available=remaining.map((hp,i)=>hp>0?i:-1).filter(i=>i>=0);
       const live=available.length?available:[last];
       let kind=r==='darkWizard'?'lightning':r==='firestarter'?'fire':r==='priest'?'staff':r==='executioner'?'execute':'sword';
       let heal=0, ids;
       if(r==='priest'&&wounds>0&&charges>0){kind='heal';heal=Math.min(1,wounds);wounds-=heal;charges--;ids=[];}
       else if(risky(member))ids=live;
-      else if(r==='knight')ids=live.slice(0,2+knightTargets);
+      else if(r==='knight')ids=live.slice(0,v2?v2.cleave.length:2+knightTargets);
       else if(r==='executioner')ids=[live.find(i=>remaining[i]>0&&remaining[i]<=foes[i].maxHp/2)??live[0]];
       else ids=live.slice(0,1);
       const ticks=[];
       if(embersTick&&r==='firestarter'){embersTick=false;foes.forEach((f,i)=>{if(f.burning&&remaining[i]>0){const amount=Math.min(remaining[i],f.burning);remaining[i]-=amount;ticks.push({target:f,amount,burn:true});}});} // Embers: burning foes take their burn first
       const impacts=ids.map(i=>{
         const execution=r==='executioner'&&remaining[i]>0&&remaining[i]<=foes[i].maxHp/2;
-        const amount=(damage(member)+(r==='darkWizard'?wizardDamage:0))*(execution?2:1)*(failed?1:multiplier*(member===leader?leaderMultiplier:1));
+        const extra=r==='darkWizard'?wizardDamage:v2&&r==='knight'?v2.knight:v2&&r==='firestarter'?v2.fire:0;
+        const share=v2&&r==='knight'?v2.cleave[ids.indexOf(i)]:1, axe=v2&&r==='executioner'&&v2.axe&&remaining[i]>0&&remaining[i]<foes[i].maxHp*v2.axe.under?1+v2.axe.bonus:1;
+        const amount=(damage(member)+extra)*share*axe*(execution?2:1)*(failed?1:multiplier*(member===leader?leaderMultiplier:1));
         remaining[i]=Math.max(0,remaining[i]-amount);
         return {target:foes[i],amount};
       });

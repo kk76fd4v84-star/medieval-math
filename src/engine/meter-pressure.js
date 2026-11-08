@@ -13,8 +13,9 @@ KM.MeterPressure = (() => {
     for (const f of foes || []) { const id = f.id || f, p = D().foes[id] || extra[id] || {}; for (const k of TYPES) out[k] = Math.max(out[k], snap((p[k] || 0) * keep)); }
     return out;
   }
+  // shrink = { crit, block } taken off the bands by cards (cards v2)
   // gear first cancels its pressure (never beyond clean); leftover weapon / armour widens the bands as before
-  function windows({ weapon = 0, armour = 0, companions = 0, helm = 0, lantern = 0, foes = [], extra, courage = 0 } = {}) {
+  function windows({ weapon = 0, armour = 0, companions = 0, helm = 0, lantern = 0, foes = [], extra, courage = 0, shrink } = {}) {
     const r = R(), L = D().limits, G = D().gear, p = strongest(foes, extra, courage);
     const use = (levels, step, need) => { const got = Math.min(need, Math.max(0, levels) * step); return [need - got, Math.max(0, levels - got / step)]; };
     const [slip, wLeft] = use(weapon, r.weaponStep, p.slippery);
@@ -24,8 +25,9 @@ KM.MeterPressure = (() => {
     const unpressured = { crit: snap(Math.min(r.critCap, r.critBefore + Math.max(0, weapon) * r.weaponStep)),
       block: snap(Math.min(r.blockCap, r.blockThrough + Math.max(0, armour) * r.armourStep)), normal: r.normalThrough };
     const critBase = Math.min(r.critCap, r.critBefore + wLeft * r.weaponStep), blockBase = Math.min(r.blockCap, r.blockThrough + aRest * r.armourStep);
-    const crit = snap(Math.max(L.critMin, critBase - party - slip));
-    const block = snap(Math.min(crit - L.bandGap, Math.max(L.blockMin, blockBase - partyBlock - heavy)));
+    const sc = (shrink && shrink.crit) || 0, sb = (shrink && shrink.block) || 0; // cards v2: Cleave / Shield Wall narrow a band
+    const crit = snap(Math.max(L.critMin, critBase - party - slip - sc));
+    const block = snap(Math.min(crit - L.bandGap, Math.max(L.blockMin, blockBase - partyBlock - heavy - sb)));
     const quick = snap(clamp(p.quick - Math.max(0, helm) * G.helm.step, 0, L.quickMax));
     const ink = snap(clamp(p.shroud - Math.max(0, lantern) * G.lantern.step, 0, L.inkMax));
     return { crit, block, normal: r.normalThrough, unpressured, meter: true,
