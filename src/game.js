@@ -63,7 +63,7 @@
   const CARDS = KM.Cards && KM.BalanceTry?.on('cards') ? KM.Cards : null; // upgrade cards switch
   const CHEST = CARDS && KM.ChestCards?.on() ? KM.ChestCards : null; // chest cards switch: cards only from guarded chests
   const BT = KM.BalanceTry || { on: () => false, unit: () => 1, healthMul: () => null, packRelay: () => false, bossAtk: (e, b) => b, heartsText: String };
-  const BR = KM.Brawl?.on() ? KM.Brawl : { route: r => r, dress() {}, sighting: () => false, ambush: () => false, secs: (e, s) => s, answered() {}, won() {}, runEnd() {}, actions: {}, init() {} }; // brawl switch (src/brawl.js)
+  const BR = KM.Brawl?.on() ? KM.Brawl : { route: r => r, dress() {}, meet: () => false, team: () => null, secs: (e, s) => s, answered() {}, won() {}, runEnd() {}, actions: {}, init() {} }; // brawl switch (src/brawl.js)
   const MP = KM.MeterPressure || { on: () => false, seconds: s => s, sells: () => [], level: () => 0, cost: () => null, image: () => null }; // meter pressure switch
   const maxHp = () => PA.maxHp(S.party);
   const roleMembers = role => PA.members(S.party, role);
@@ -730,7 +730,6 @@
   }
   function optionalBoss(){
     const e=S.enc;if(!e||e.st.type!=='optional')return;
-    if(BR.sighting(e))return; // brawl: a ghost party on the hill
     e.phase='optional';heroSay('Something is listening beyond the graves.',inPhase('optional'));
     showPanel(actionRow([
       actionCard({label:'Awaken the bell',act:'awakenBell',icon:MICON.hard,meta:'Optional boss',note:'A dangerous detour'}),
@@ -745,7 +744,7 @@
   // ---- hidden strength: commit or avoid
   function approach() {
     const e = S.enc; e.phase = "approach";
-    if (BR.ambush(e)) return; // brawl: walked into a ghost team
+    if (BR.meet(e)) return; // brawl: a ghost team on the road
     if(isFellowship())return commit();
     const can = C.avoidable[e.st.type];
     heroSay(e.st.type === "math" ? "Something lurks in the mist..." : "It blocks the whole road. No way around!", inPhase("approach"));
@@ -2082,7 +2081,7 @@
     toggleMusic: () => { MU.toggleMute(); renderHUD(); }
   };
   Object.assign(actions, BR.actions);
-  BR.init({ S, say, T, esc, showPanel, actionCard, shortName, renderHUD, loseCompanion, commit: () => commit(), finish: () => finishEncounter() });
+  BR.init({ S, say, T, esc, showPanel, actionCard, shortName, artId, renderHUD, loseCompanion, commit: () => commit(), finish: () => finishEncounter() });
 
   // v11b (Magnus): scene hotspots work with the mouse too: pointer cursor + the ink highlight on hover, click = use
   // (exterior doorway = go in; inside: sign = swing it / its plaques, recruit = "Join my party?", door = go outside).
@@ -2325,20 +2324,23 @@
   }
   function heart(x, y, s, full, col) { heartPath(x, y, s); ctx.fillStyle = full ? col : "rgba(239,224,192,.85)"; ctx.fill(); ctx.lineWidth = Math.max(2, s / 12); ctx.strokeStyle = "#2a1d12"; ctx.stroke(); }
   function halfHeart(x,y,s,col){ctx.save();ctx.beginPath();ctx.rect(x-4,y-4,s/2+4,s+8);ctx.clip();heart(x,y,s,true,col);ctx.restore();}
+  // one team's hearts in pairs (one pair per member), from x outwards (dir 1 = rightwards: the party; -1 = leftwards)
+  function teamHearts(team,hp,armour,x0,y,dir){
+    const u=BT.unit(),slots=[];let x=x0,i=0;
+    team.forEach((m,j)=>{if(j)x+=PG*dir;
+      for(let h=0;h<PA.life(m)/u;h++){slots.push(x);const lit=Math.max(0,Math.min(u,hp-i*u));i++;heart(x,y,HS,lit===u,'#b3321f');if(lit&&lit<u)halfHeart(x,y,HS,'#b3321f');x+=(HS+HG)*dir;}
+    });
+    // Armour is one shared visual pool: cover hearts from the team's outer end, regardless of who owns the gear.
+    if(slots.length)for(let h=armour-1;h>=0;h--)heart(slots[h%slots.length]+Math.floor(h/slots.length)*7*dir,y,HS,true,'#b8b9b4');
+  }
   function drawHearts() {
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.lineJoin = "round";
     const r = partyHeartsRect();
-    if(r){let x=r.x,i=0;const slots=[];
-      S.party.forEach((m,j)=>{if(j)x+=PG;
-        const u=BT.unit();for(let h=0;h<PA.life(m)/u;h++){slots.push(x);const lit=Math.max(0,Math.min(u,S.hp-i*u));i++;heart(x,r.y,HS,lit===u,'#b3321f');if(lit&&lit<u)halfHeart(x,r.y,HS,'#b3321f');x+=HS+HG;}
-      });
-      // Armour is one shared visual pool: cover hearts from the far left, regardless of who owns the gear.
-      if(slots.length)for(let h=PA.armour(S.party)-1;h>=0;h--)
-        heart(slots[h%slots.length]+Math.floor(h/slots.length)*7,r.y,HS,true,'#b8b9b4');
-    }
-    // every living foe: its own small hearts above its head
+    if(r)teamHearts(S.party,S.hp,PA.armour(S.party),r.x,r.y,1);
+    const g=BR.team();if(g)teamHearts(g.members,g.hp,g.armour,L.scene.w-g.right-HS,g.top,-1); // brawl: the ghost team's hearts, mirrored top right
+    // every living foe: its own small hearts above its head (a ghost team member's are in its team row)
     foeHeartsRects().forEach(fr => {
-      for (let i=0;i<fr.shown;i++)heart(fr.x+i*(FS+3),fr.y,FS,i<fr.full,"#7a1f14");
+      if(!fr.owner.ghost)for (let i=0;i<fr.shown;i++)heart(fr.x+i*(FS+3),fr.y,FS,i<fr.full,"#7a1f14");
       const box=fr.intent;if(!box)return;
       ctx.fillStyle='#efe1c7';ctx.strokeStyle=box.attacking?'#884821':'#776958';ctx.lineWidth=1.6;
       ctx.fillRect(box.x,box.y,box.w,box.h);ctx.strokeRect(box.x,box.y,box.w,box.h);
@@ -2446,10 +2448,10 @@
     // standing as an NPC on the road (ditch / camp wanderer / shop sellsword / tavern): mirrored to face the party
     // (KM_DATA.party.npcFaceParty). Once he joins he is a party member (not an actor) and faces the walking direction.
     const faceParty = D.party.npcFaceParty && (["frank","timmy","executioner","dark_wizard"].includes(did) || (D.party.recruitArt && did.startsWith(D.party.recruitArt)) || a.ghost);
-    const dx = fx ? fx.dx : 0, dy = fx ? fx.dy : 0, ds = dp ? dp.scale : (a.distant && a.hillScale) || 1; // brawl: a ghost far off on its hill is small
+    const dx = fx ? fx.dx : 0, dy = fx ? fx.dy : 0, ds = dp ? dp.scale : 1;
     ctx.save(); ctx.translate(sx + dx, y + dy); ctx.scale(ds, ds);
     KM.Assets.drawEntity(ctx, did, 0, 0, { flip: faceParty, t: fx ? fx.t : moving && KM_ART.walkRate ? a.t * KM_ART.walkRate(did) : a.t, action, hurt: fx && fx.hurt, alpha: a.alpha * (ln ? ln.alpha : 1), flash: a.flash > 0, name: a.label,
-      filter: a.ghostFilter || (ln && ln.filter), seq: a.seqPlay && a.seqPlay.id, seqT: a.seqPlay && a.seqPlay.t });
+      filter: ln && ln.filter, seq: a.seqPlay && a.seqPlay.id, seqT: a.seqPlay && a.seqPlay.t });
     ctx.restore();
     // v18: a separate foreground occluder drawn right after its owner (riddle keeper -> rock), never merged with it
     const fr = a.wizardRock ? "keeper_rock" : (KM_ART.entities[did] || {}).front; if (fr) KM.Assets.drawEntity(ctx, fr, sx, y, { alpha: a.alpha * (ln ? ln.alpha : 1), filter: ln && ln.filter });

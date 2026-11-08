@@ -50,7 +50,7 @@ KM.Brawl = (() => {
   }
   function runEnd(S, died) {
     if (!on() || !run || run.runId !== S.runId || !run.answers.length) return;
-    const party = S.party.map(m => ({ name: m.name, role: KM.PartyAbilities.role(m), weapon: m.weapon || 0, armour: m.armor || 0 }));
+    const party = S.party.map(m => ({ name: m.name, role: KM.PartyAbilities.role(m), art: ctx.artId(m), weapon: m.weapon || 0, armour: m.armor || 0 }));
     const top = k => Math.max(0, ...party.map(p => p[k]));
     const { bosses, ...rec } = run; run = null;
     Object.assign(rec, { party, gear: { weapon: top('weapon'), armour: top('armour'), helm: S.meterGear?.helm || 0, lantern: S.meterGear?.lantern || 0 }, result: { area: S.chapter, depth: S.stop, bossesKilled: bosses, died: !!died } });
@@ -67,16 +67,28 @@ KM.Brawl = (() => {
       if (kind) { out.push(ghostStop(kind, opponent(list, rank() + n), rank() + n++)); since = 0; } });
     return out;
   }
-  function ghostStop(kind, rec, step) {
-    const r = D().route, ids = D().art.slice(0, Math.max(1, Math.min(D().art.length, rec.party.length)));
-    return { type: kind === 'sighting' ? 'optional' : 'math', enemy: ids[0], group: kind === 'ambush' ? ids.slice(1) : [], level: r.level, gold: r.gold, gap: r.gapPx,
+  function team(rec) { // the ghost's party as members (leader first, at most 4): its recorded art, else art by role
+    const A = D().art; let k = 0;
+    return (rec.party.length ? rec.party : [{ role: 'knight' }]).slice(0, 4).map((p, i) =>
+      ({ ...p, art: p.art || (i ? (A[p.role] && p.role !== 'knight' ? A[p.role] : A.knight[k++ % A.knight.length]) : A.leader), name: i ? p.name || '' : rec.name }));
+  }
+  function ghostStop(kind, rec, step) { // both kinds: the whole team stands on the road (a sighting asks first, an ambush offers a way out)
+    const r = D().route, ids = team(rec).map(m => m.art);
+    return { type: 'math', enemy: ids[0], group: ids.slice(1), level: r.level, gold: r.gold, gap: r.gapPx,
       id: 'brawl-' + kind + '-' + step, brawl: { kind, ghost: rec.runId, name: rec.name, step } };
   }
-  function dress(actors, stops) { // ghost look + stats on the actors the game built for ghost stops
+  function dress(actors, stops) { // names + stats on the actors the game built for ghost stops (main actor = leader, extra k = member k)
     if (!on()) return;
-    const L = D().look, F = D().foe;
-    actors.forEach(a => { const b = stops[a.stop]?.brawl; if (!b || !a.foe) return;
-      Object.assign(a, { ghost: true, ghostFilter: L.filter, alpha: (a.alpha ?? 1) * L.alpha, hillScale: a.hill ? L.hillScale : null, combat: { hp: F.hpPerAnswer * (2 + b.step), atk: F.atk } }); });
+    const F = D().foe;
+    actors.forEach(a => { const b = stops[a.stop]?.brawl; if (!b || !a.foe) return; const m = team(ghost(b.ghost) || { party: [] })[a.extra || 0] || {};
+      Object.assign(a, { ghost: true, label: m.name ? ctx.shortName(m.name) : a.label, combat: { hp: F.hpPerAnswer * (2 + b.step), atk: F.atk } }); });
+  }
+  function teamHud() { // the facing team's hearts, for the game's own hearts row (mirrored): members, hp left in heart units, armour
+    const S = ctx?.S, e = S?.enc, b = e?.st?.brawl, rec = b && ghost(b.ghost); if (!rec) return null;
+    const foes = S.actors.filter(a => a.stop === S.stop && a.ghost && !a.hidden); if (!foes.length) return null;
+    const members = team(rec), PA = KM.PartyAbilities, max = members.reduce((n, m) => n + PA.life(m), 0);
+    const left = foes.reduce((n, a) => n + (a.maxHp ? Math.max(0, a.hp) / a.maxHp : 1), 0) / foes.length;
+    return { members, hp: Math.ceil(max * left - 1e-9), armour: members.reduce((n, m) => n + (m.armour || 0), 0), ...D().hud };
   }
 
   // ---- encounters: sighting (Challenge / Ignore), ambush (Fight / Flee / Sacrifice), the ghost's answer clock
@@ -85,19 +97,14 @@ KM.Brawl = (() => {
   function dialog(title, cards) {
     return `<div class="gear-shade"><div class="gear-dialog action-gear" role="dialog" aria-modal="true"><div class="action-heading tavern-heading tavern-under">${ctx.esc(title)}</div><div class="action-row">${cards.join('')}</div></div></div>`;
   }
-  function sighting(e) {
-    const b = e.st.brawl; if (!b || b.kind !== 'sighting') return false;
-    e.phase = 'optional'; ctx.say(speaker(), fill(pick(lines().sighting), { ghost: b.name }));
-    ctx.showPanel(dialog(fill(T(lines().sightingTitle), { ghost: b.name }), [
-      ctx.actionCard({ label: lines().challenge, act: 'awakenBell', icon: '⚔' }), ctx.actionCard({ label: lines().ignore, act: 'leaveBell', icon: '→' })]), 'rest action-panel');
-    return true;
-  }
-  function ambush(e) {
-    const b = e.st.brawl; if (!b || b.kind !== 'ambush' || e.brawlAsked) return false;
-    e.brawlAsked = true; e.phase = 'approach'; ctx.say(speaker(), fill(pick(lines().ambush), { ghost: b.name }));
-    const cards = [ctx.actionCard({ label: lines().fight, act: 'commit', icon: '⚔' }), ctx.actionCard({ label: lines().flee, act: 'brawlFlee', icon: '→', note: fill('{n} coins', { n: D().flee.cost }) })];
-    ctx.S.party.forEach((m, i) => { if (i) cards.push(ctx.actionCard({ label: fill(lines().sacrifice, { name: ctx.shortName(m.name) }), act: 'brawlSacrifice', icon: '✝', attrs: `data-i="${i}"` })); });
-    ctx.showPanel(dialog(fill(T(lines().ambushTitle), { ghost: b.name }), cards), 'rest action-panel');
+  function meet(e) { // sighting: Challenge / Ignore; ambush: Fight / Flee / Sacrifice
+    const b = e.st.brawl; if (!b || e.brawlAsked) return false;
+    const L = lines(), sight = b.kind === 'sighting', name = { ghost: b.name };
+    e.brawlAsked = true; e.phase = 'approach'; ctx.say(speaker(), fill(pick(sight ? L.sighting : L.ambush), name));
+    const cards = sight ? [ctx.actionCard({ label: L.challenge, act: 'commit', icon: '⚔' }), ctx.actionCard({ label: L.ignore, act: 'brawlIgnore', icon: '→' })]
+      : [ctx.actionCard({ label: L.fight, act: 'commit', icon: '⚔' }), ctx.actionCard({ label: L.flee, act: 'brawlFlee', icon: '→', note: fill('{n} coins', { n: D().flee.cost }) }),
+        ...ctx.S.party.slice(1).map((m, i) => ctx.actionCard({ label: fill(L.sacrifice, { name: ctx.shortName(m.name) }), act: 'brawlSacrifice', icon: '✝', attrs: `data-i="${i + 1}"` }))];
+    ctx.showPanel(dialog(fill(T(sight ? L.sightingTitle : L.ambushTitle), name), cards), 'rest action-panel');
     return true;
   }
   function secs(e, base) { // the ghost answers this sum at its recorded time: the bar fills when it does (then it strikes)
@@ -114,14 +121,17 @@ KM.Brawl = (() => {
     if (st.brawl) keep(D().storage.rank, rank() + 1); // beat this ghost: the next one is stronger
   }
   function leave(e) { ctx.S.actors.forEach(a => { if (a.stop === ctx.S.stop && a.foe) a.hidden = true; }); ctx.finish(); }
+  const asked = () => { const e = ctx.S.enc; return e?.st.brawl && e.phase === 'approach' ? e : null; };
   const actions = {
-    brawlFlee: () => { const e = ctx.S.enc, S = ctx.S; if (!e?.st.brawl || e.phase !== 'approach') return;
+    brawlIgnore: () => { const e = asked(); if (e) leave(e); },
+    brawlFlee: () => { const e = asked(), S = ctx.S; if (!e) return;
       if (Math.random() >= D().flee.chance) { ctx.say(speaker(), lines().fleeFail); return ctx.commit(); }
       const coins = Math.min(S.gold, D().flee.cost); S.gold -= coins; ctx.renderHUD(); ctx.say(speaker(), fill(lines().fleeOk, { coins })); leave(e); },
-    brawlSacrifice: btn => { const e = ctx.S.enc, m = ctx.S.party[+btn.dataset.i]; if (!e?.st.brawl || e.phase !== 'approach' || !m || m === ctx.S.party[0]) return;
+    brawlSacrifice: btn => { const e = asked(), m = ctx.S.party[+btn.dataset.i]; if (!e || !m || m === ctx.S.party[0]) return;
       ctx.loseCompanion(m); leave(e); }
   };
-  const init = c => { ctx = c; if (!on()) return; D().art.forEach(id => { KM_DATA.combat.patterns[id] = { deadline: true }; }); }; // ghosts strike when their bar fills
+  const artIds = () => Object.values(D().art).flat();
+  const init = c => { ctx = c; if (!on()) return; artIds().forEach(id => { KM_DATA.combat.patterns[id] ||= { deadline: true }; }); }; // ghosts strike when their bar fills
 
-  return { on, init, route, dress, sighting, ambush, secs, answered, won, runEnd, actions, pool, opponent, replay, skill, seedRecord };
+  return { on, init, route, dress, meet, team: teamHud, secs, answered, won, runEnd, actions, pool, opponent, replay, skill, seedRecord, members: team };
 })();

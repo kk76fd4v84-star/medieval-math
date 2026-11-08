@@ -5,10 +5,10 @@ function load(on){
   const mem={},ctx={localStorage:{getItem:k=>k in mem?mem[k]:null,setItem:(k,v)=>{mem[k]=String(v);}},document:{querySelector:()=>({content:'test-build'})}};
   ctx.window=ctx;vm.createContext(ctx);
   for(const f of ['src/data/combat.js','src/data/brawl.js'])vm.runInContext(fs.readFileSync(path.join(root,f),'utf8'),ctx);
-  vm.runInContext(`KM={BalanceTry:{on:k=>k==='brawl'&&${on}},PartyAbilities:{role:m=>m.role||'knight'}};`,ctx);
+  vm.runInContext(`KM={BalanceTry:{on:k=>k==='brawl'&&${on}},PartyAbilities:{role:m=>m.role||'knight',life:()=>2}};`,ctx);
   vm.runInContext(fs.readFileSync(path.join(root,'src/brawl.js'),'utf8'),ctx);
   const B=ctx.KM.Brawl,S={runId:'r1',name:'Magnus',challengeMode:'fellowship',chapter:'village',stop:7,party:[{name:'Magnus',role:'knight',weapon:1}],meterGear:{}};
-  B.init({S,T:s=>s,say(){}});return {B,S,mem,D:ctx.KM_DATA.brawl};
+  B.init({S,T:s=>s,say(){},shortName:s=>s,artId:m=>m.art||'hero'});return {B,S,mem,D:ctx.KM_DATA.brawl};
 }
 const J=x=>JSON.parse(JSON.stringify(x));
 // matchmaking: seeds ranked easy -> hard, start at the easiest, one step up per ghost beaten
@@ -22,7 +22,18 @@ const J=x=>JSON.parse(JSON.stringify(x));
   assert(ghosts.length>0,'ghost stops on the road');assert.equal(ghosts[0].brawl.step,2,'after two wins the next ghost is two steps up');
   assert.equal(ghosts[0].brawl.name,list[2].name);
   assert.deepEqual(J(B.route(road,{runId:'seed-check'})),J(B.route(road,{runId:'seed-check'})),'same run, same road');
-  for(const g of ghosts){assert(['optional','math'].includes(g.type));assert.equal(g.type==='optional','sighting'===g.brawl.kind);assert(Array.isArray(g.group));} }
+  for(const g of ghosts){assert.equal(g.type,'math');assert(['sighting','ambush'].includes(g.brawl.kind));
+    const rec=list.find(r=>r.runId===g.brawl.ghost);assert.deepEqual(J([g.enemy,...g.group]),J(B.members(rec).map(m=>m.art)),'the whole ghost team stands on the road');} }
+// the ghost team: recorded art first, else by role; leader = the hero art; plain knights take the follower looks in turn
+{ const {B,D}=load(true),lady=B.pool().find(r=>r.name==='Lady Quicksum');
+  assert.deepEqual(J(B.members(lady).map(m=>m.art)),[D.art.leader,D.art.darkWizard,D.art.priest,D.art.knight[0]]);
+  assert.equal(B.members(lady)[0].name,'Lady Quicksum');
+  assert.deepEqual(J(B.members({name:'X',party:[{role:'knight',art:'hero_starter'},{role:'knight',art:'follower_3'}]}).map(m=>m.art)),['hero_starter','follower_3']);
+  assert.equal(B.members({name:'X',party:Array(6).fill({role:'knight'})}).length,4,'at most four, like the enemy row');
+  // its hearts row: two per member, lit by the team's health left
+  const S={stop:3,enc:{st:{brawl:{ghost:lady.runId}}},actors:[0,1,2,3].map(k=>({stop:3,ghost:true,extra:k||undefined,hp:k<2?0:6,maxHp:6}))};
+  B.init({S,T:s=>s,say(){}});const h=B.team();assert.equal(h.members.length,4);assert.equal(h.hp,4,'half the team health = 4 of 8 hearts');
+  assert.equal(h.armour,0);assert.equal(h.top,D.hud.top); }
 // replay: the ghost's own answers for that operator in recorded order, looping; others fall back to all answers
 { const {B}=load(true),rec={answers:[{op:'+',ms:2000,correct:true},{op:'×',ms:5000,correct:false},{op:'+',ms:3000,correct:true}]},next=B.replay(rec);
   assert.deepEqual([next('+').ms,next('+').ms,next('+').ms],[2000,3000,2000]);assert.equal(next('×').ms,5000);assert.equal(next('÷').ms,2000);
@@ -38,9 +49,9 @@ const J=x=>JSON.parse(JSON.stringify(x));
   const [rec]=JSON.parse(mem['knightMath.brawl.runs']);
   assert.deepEqual(Object.keys(rec).sort(),['answers','build','createdAt','gear','mode','name','party','player','result','runId','v'].sort());
   assert.equal(rec.v,1);assert.deepEqual(rec.answers[0],{op:'×',a:6,b:7,level:'hard',ms:3250,correct:true,outcome:'crit'});
-  assert.deepEqual(rec.result,{area:'village',depth:7,bossesKilled:1,died:true});assert.deepEqual(rec.gear,{weapon:1,armour:0,helm:0,lantern:0});
+  assert.equal(rec.party[0].art,'hero');assert.deepEqual(rec.result,{area:'village',depth:7,bossesKilled:1,died:true});assert.deepEqual(rec.gear,{weapon:1,armour:0,helm:0,lantern:0});
   assert(B.pool().some(r=>r.runId==='r1'),'the recorded run joins the ghost pool'); }
 // switch off: no effect at all
 { const {B,mem}=load(false),road=[{type:'math'},{type:'math'},{type:'math'},{type:'math'},{type:'math'},{type:'math'},{type:'math'}];
-  assert.equal(B.route(road,{runId:'x'}),road);B.answered({problem:{text:'1 + 1'}},true);B.won({brawl:{}});assert.deepEqual(Object.keys(mem),[]); }
-console.log('PASS: brawl: seeds easy -> hard, matchmaking steps up per win, deterministic ghost stops, per-operator replay + ghost clock, run record format, off = no effect.');
+  assert.equal(B.route(road,{runId:'x'}),road);assert.equal(B.team(),null);B.answered({problem:{text:'1 + 1'}},true);B.won({brawl:{}});assert.deepEqual(Object.keys(mem),[]); }
+console.log('PASS: brawl: seeds easy -> hard, matchmaking steps up per win, deterministic ghost stops, the ghost team (art + hearts), per-operator replay + ghost clock, run record format, off = no effect.');

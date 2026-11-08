@@ -13,7 +13,7 @@ would receive later (one POST per finished run). Seed ghosts in `src/data/brawl.
   "build": "brawl-1",              // <meta name="km-build">
   "mode": "fellowship",
   "createdAt": "2026-11-08T03:10:00.000Z",
-  "party": [{ "name": "Magnus", "role": "knight", "weapon": 1, "armour": 0 }],
+  "party": [{ "name": "Magnus", "role": "knight", "art": "hero", "weapon": 1, "armour": 0 }],
   "gear": { "weapon": 1, "armour": 0, "helm": 0, "lantern": 0 },
   "answers": [
     { "op": "×", "a": 6, "b": 7, "level": "hard", "ms": 3250, "correct": true, "outcome": "crit" }
@@ -25,6 +25,8 @@ would receive later (one POST per finished run). Seed ghosts in `src/data/brawl.
 - `op` is one of `+ − × ÷` (the sum's own signs); `a`, `b` are its first two numbers.
 - `ms` is answer-bar time (pauses for animations are not counted); `null` if the sum had no timer.
 - `outcome` is the timing grade (`block`, `crit`, `normal`, `weak`) for a right answer, `null` for a wrong one.
+- `party[].art` is the sprite the member was drawn with; the ghost team is drawn with it (records without it: art by role,
+  `KM_DATA.brawl.art`). A ghost team shows on the right, facing the party, with its hearts mirrored at the top right.
 - `result.depth` is the stop index reached; `area` the chapter.
 
 Skill (for matchmaking) = share of right answers / median seconds of the right ones. The pool is ranked by it,

@@ -6,9 +6,10 @@ KM_DATA.brawl = {
   storage: { runs: "knightMath.brawl.runs", rank: "knightMath.brawl.rank", player: "knightMath.brawl.player", keep: 20 },
   // where ghosts show up on a route: after `from` stops, at most one per gap of `gap` stops; chance per eligible gap
   route: { from: 3, gap: 6, sighting: 0.35, ambush: 0.2, gapPx: 1300, level: "normal", gold: 6 },
-  // the ghosts' look: existing party art, pale and see-through (art ids by party slot: leader first)
-  art: ["hero_starter", "follower_1", "follower_2", "follower_3"],
-  look: { filter: "grayscale(1) brightness(1.45) contrast(.75)", alpha: 0.62, hillScale: 0.5 },  // hillScale: size far off on the hill
+  // a ghost team looks like a real party: a recorded run keeps each member's art; seeds (and old records) draw by role.
+  // The leader is the knight; plain knights take the follower looks in turn. They stand on the right, facing the party.
+  art: { leader: "hero", knight: ["follower_1", "follower_2", "follower_3"], priest: "frank", firestarter: "timmy", executioner: "executioner", darkWizard: "dark_wizard" },
+  hud: { top: 70, right: 18 },               // the ghost team's hearts: top right (stage px), under the distance / music buttons
   foe: { hpPerAnswer: 3, atk: 1 },          // a ghost's health = hpPerAnswer x its rank step (+ the run's usual health rules)
   replay: { minSecs: 1.5, maxSecs: 12 },     // a ghost answers at its recorded time, kept inside these bounds
   flee: { chance: 0.6, cost: 2 },            // Flee: chance to get away; it costs this many coins (or what you have)
@@ -25,10 +26,10 @@ KM_DATA.brawl = {
   // party chatter ({ghost} = the ghost's name). Own jokes only.
   lines: {
     sighting: [
-      "Is that {ghost} on the hill? He looks rather see-through today.",
+      "Is that {ghost} up ahead? He looks rather see-through today.",
       "A ghost party! They're counting on their fingers. All of them.",
       "{ghost}'s ghost. Still doing sums. Death is no excuse, apparently.",
-      "Those spectres are waving. Or adding. Hard to tell with spectres."
+      "That lot are waving. Or adding. Hard to tell with spectres."
     ],
     ambush: [
       "Ghosts on the road! {ghost}'s lot, and they've brought an abacus.",
