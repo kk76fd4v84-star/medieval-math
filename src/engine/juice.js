@@ -51,7 +51,7 @@ KM.Juice = (() => {
     resume(); // already unlocked if the page had a gesture; else the first key / tap does it (that key's hit plays once it runs)
     // Safari may say it plays Vorbis yet fail to decode it: any failed .ogg falls back to its .mp3 twin; callback form for older Safari
     const dec = a => new Promise((ok, no) => { const p = ac.decodeAudioData(a, ok, no); if (p && p.catch) p.catch(no); });
-    const get = (f, ext) => fetch(`assets/audio/sfx/${f}.${ext}`).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then(dec);
+    const get = (f, ext) => fetch(`assets/audio/sfx/${f}.${ext}?v=${(document.querySelector('meta[name=km-build]') || {}).content || ''}`).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then(dec);
     const files = {};
     for (const [id, s] of Object.entries(D().sounds)) {
       const g = amp[id] = ac.createGain(); g.gain.value = s.vol ?? 1; g.connect(ac.destination);

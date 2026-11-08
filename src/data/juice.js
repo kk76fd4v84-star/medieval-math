@@ -5,8 +5,8 @@
 window.KM_DATA = window.KM_DATA || {};
 KM_DATA.juice = {
   sounds: { // Charlie v6 (incoming/sfx_keys README): each digit one step of a minor scale, hammer + chug
-    name_ring_1: { file: "name_ring_1", vol: 0.55 }, name_ring_2: { file: "name_ring_2", vol: 0.55 }, name_ring_3: { file: "name_ring_3", vol: 0.55 },
-    name_ring_4: { file: "name_ring_4", vol: 0.55 }, name_ring_5: { file: "name_ring_5", vol: 0.55 }, // name letters: struck steel (Magnus: digits sounded like a hollow drum)
+    name_ring_1: { file: "name_ring_1", vol: 0.7 }, name_ring_2: { file: "name_ring_2", vol: 0.7 }, name_ring_3: { file: "name_ring_3", vol: 0.7 },
+    name_ring_4: { file: "name_ring_4", vol: 0.7 }, name_ring_5: { file: "name_ring_5", vol: 0.7 }, // name letters: hammer on anvil, heavy (Magnus: "anvil, metal hammer, heavy metal")
     key_digit_0: { file: "key_digit_0", vol: 0.8 }, key_digit_1: { file: "key_digit_1", vol: 0.8 },
     key_digit_2: { file: "key_digit_2", vol: 0.8 }, key_digit_3: { file: "key_digit_3", vol: 0.8 },
     key_digit_4: { file: "key_digit_4", vol: 0.8 }, key_digit_5: { file: "key_digit_5", vol: 0.8 },
