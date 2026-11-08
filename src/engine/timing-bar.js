@@ -5,7 +5,8 @@ KM.TimingBar=(()=>{
   const art='assets/timing-woodcut/';
   const iconWidths={block:40,crit:90,normal:96,weak:64};
   const pctLoss=n=>String(Math.round(n*100));
-  let root,rail,geometry,key;
+  let root,rail,geometry,key,lastPos=null;
+  const CB=()=>KM.CastBar&&KM.CastBar.on()&&KM_DATA.castBar;
   function mount(divider,g){
     geometry={...g,markerSize:[g.width,16],cy:8};key=null;
     rail=document.createElement('div');rail.className='timing-rail';rail.hidden=true;
@@ -18,9 +19,38 @@ KM.TimingBar=(()=>{
       b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();});
       b.addEventListener('keydown',e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();e.stopPropagation();}});
     });
-    rail.append(root);divider.append(rail);
+    rail.append(root);divider.append(rail);lastPos=null;
+    const cb=CB();if(cb){rail.classList.add('castbar');rail.style.setProperty('--cb-ink-ms',cb.inkFadeMs+'ms');rail.style.setProperty('--cb-shake-n',String(Math.max(1,Math.round(cb.shakeMs/180))));rail.style.setProperty('--cb-shake-px',cb.shakePx+'px');}
   }
-  function update(w,{visible=false,timed=false,jp=false,forgiving=false,deadline=false,hit=null,ink=null,tags=[]}={}){
+  // cast bar (switch): a moved icon shakes, slides, and leaves a green (helps) / red (hurts) trail that then catches up
+  const calm=()=>typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const pc=f=>(f*100)+'%';
+  function animate(moved,cb,roar=false){
+    const ink=rail.querySelector('.timing-ink'),still=calm(),play=id=>KM.Audio&&KM.Audio.play(id); // silent when no file is mapped
+    const slide=`${cb.slideMs}ms ${cb.ease} ${cb.shakeMs}ms`;
+    if(roar)play(cb.sfx.roar); // a boss shifted them
+    if(!still){play(cb.sfx.shake);ink.style.transition=`clip-path ${slide}`;}
+    const way=moved.some(m=>!m.good)?'bad':'good';setTimeout(()=>play(cb.sfx[way]),still?0:cb.shakeMs); // winds down if anything got worse
+    for(const m of moved){
+      const b=root.querySelector(`[data-outcome="${m.id}"]`);
+      rail.querySelector(`.cb-trail[data-id="${m.id}"]`)?.remove();
+      const t=document.createElement('div');t.className='cb-trail';t.dataset.id=m.id;t.dataset.good=String(m.good);
+      const c=KM.CastBar.colour(m.good),img=KM.CastBar.tint(c);
+      if(img)t.style.borderImageSource=`url("${img}")`;else{t.style.borderImage='none';t.style.background=c;}
+      const lo=Math.min(m.from,m.to),span=Math.abs(m.to-m.from);
+      rail.insertBefore(t,root); // over the track and the timer fill, under the icons, not cut by the icon gaps
+      if(still){b.style.transition='none';t.style.left=pc(lo);t.style.width=pc(span);
+        setTimeout(()=>{t.style.transition=`opacity ${cb.shrinkMs}ms`;t.style.opacity='0';},cb.holdMs);
+        setTimeout(()=>t.remove(),cb.holdMs+cb.shrinkMs);continue;}
+      b.style.transition=`left ${slide}`;b.classList.remove('cb-shake');void b.offsetWidth;b.classList.add('cb-shake');
+      t.style.left=pc(m.from);t.style.width='0%';void t.offsetWidth;
+      t.style.transition=`left ${slide},width ${slide}`;t.style.left=pc(lo);t.style.width=pc(span);
+      const done=cb.shakeMs+cb.slideMs+cb.holdMs;
+      setTimeout(()=>{t.style.transition=`left ${cb.shrinkMs}ms ${cb.ease},width ${cb.shrinkMs}ms ${cb.ease}`;t.style.left=pc(m.to);t.style.width='0%';},done);
+      setTimeout(()=>t.remove(),done+cb.shrinkMs); // cb-shake stays on (removing it would replay the mount pop)
+    }
+  }
+  function update(w,{roar=false,visible=false,timed=false,jp=false,forgiving=false,deadline=false,hit=null,ink=null,tags=[]}={}){
     if(!root)return;
     // meter pressure (switch): ink over the hidden span, plain-text tags for the foes' pressures
     const shroud=rail.querySelector('.mp-shroud'),tagBox=rail.querySelector('.mp-tags'),inkOn=!!(visible&&ink);
@@ -65,7 +95,8 @@ KM.TimingBar=(()=>{
       if(enemyLoss>0)lines[id]+=jp?` 敵の威圧で${pct(enemyLoss)}ポイント短縮。`:` Enemy pressure: −${pct(enemyLoss)} percentage points.`;
       if(partyLoss>0||enemyLoss>0)lines[id]+=jp?' 赤い部分は短くなった範囲。':' Red shows the lost window.';
     }
-    const positions={crit:w.crit,block:w.block,normal:w.normal,weak:1};
+    const positions={crit:w.crit,block:w.block,normal:w.normal,weak:1},cb=CB();
+    if(cb){const moved=visible&&lastPos?KM.CastBar.changes(lastPos,positions):[];lastPos=visible?positions:null;if(moved.length)animate(moved,cb,roar);}
     root.querySelectorAll('button').forEach(button=>{
       const id=button.dataset.outcome;button.style.left=(positions[id]*100)+'%';
       button.dataset.threshold=positions[id];button.setAttribute('aria-label',lines[id]);

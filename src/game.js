@@ -991,7 +991,7 @@
     const e=S.enc;
     const role={fire:'firestarter',execute:'executioner',lightning:'darkWizard',heal:'priest',resurrect:'priest'}[kind]||'knight';
     const owners=isFellowship()?S.party.filter(PA.alive):isKnight()&&e?.activeCard ? S.party.filter(m=>e.activeCard.owners.includes(m.id)) : PA.members(S.party,role);
-    const ready=e?.revealed&&e.pressureReady!==false,weapon=Math.max(0,...owners.filter(PA.alive).map(m=>m.weapon||0)),armour=PA.armour(S.party.filter(PA.alive)),companions=S.party.filter(m=>m.id!=='hero'&&PA.alive(m)).length;
+    const ready=e?.revealed&&e.pressureReady!==false&&(!KM.CastBar?.on()||D.castBar.shiftBy.includes(e.st?.type)),weapon=Math.max(0,...owners.filter(PA.alive).map(m=>m.weapon||0)),armour=PA.armour(S.party.filter(PA.alive)),companions=S.party.filter(m=>m.id!=='hero'&&PA.alive(m)).length;
     if(MP.on())return MP.windows({weapon,armour,companions,helm:MP.level(S,'helm'),lantern:MP.level(S,'lantern'),foes:ready?living(e):[]});
     const pressure=ready?KM.Timing.pressure(living(e)):{};
     return KM.Timing.windows({weapon:Math.max(0,...owners.filter(PA.alive).map(m=>m.weapon||0)),armour:PA.armour(S.party.filter(PA.alive)),
@@ -1000,7 +1000,8 @@
   function paintTimingLegend() {
     const e=S.enc,w=e?.tmr?.windows||e?.answerTiming?.windows||combatWindows();
     const foes=e?.revealed?living(e):[];
-    KM.TimingBar?.update(w,{visible:S.mode==='encounter'&&!!e?.revealed,timed:S.mode==='encounter'&&!!(e?.tmr||e?.answerTiming),jp:!!KM.I18n?.jp(),forgiving:foes.length>0&&foes.every(f=>KM.Timing.pattern(f.id).forgiving),deadline:foes.some(f=>KM.Timing.pattern(f.id).deadline),hit:e?.answerTiming?.fraction??null,ink:w.ink||null,tags:w.tags||[]});
+    KM.TimingBar?.update(w,{visible:KM.CastBar?.on()||S.mode==='encounter'&&!!e?.revealed, // cast bar switch: always on screen
+      timed:S.mode==='encounter'&&!!(e?.tmr||e?.answerTiming),jp:!!KM.I18n?.jp(),forgiving:foes.length>0&&foes.every(f=>KM.Timing.pattern(f.id).forgiving),deadline:foes.some(f=>KM.Timing.pattern(f.id).deadline),hit:e?.answerTiming?.fraction??null,roar:!!(e?.revealed&&KM.CastBar?.on()&&D.castBar.shiftBy.includes(e.st?.type)),ink:w.ink||null,tags:w.tags||[]});
   }
   const NOTIMER = /[?&]debug\b/.test(location.search) && /[?&]notimer\b/.test(location.search);
   let tmrHold = 0;

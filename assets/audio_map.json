@@ -1,5 +1,26 @@
 {
   "_comment": "event -> { files: [names in assets/audio/], vol }. Empty files = silent hook. Engine calls KM.Audio.play(event). vo_* entries are voice-over clips (KM.Audio.voice): put files in assets/audio/vo/ and list them, e.g. \"files\": [\"vo/vo_intro_01.ogg\"]. Music is not here: see src/data/music.js. v12r: a vo_* id plays only the file listed here; an id with no files (or no entry) is silent (no by-name probing, no 404s).",
+  "meter_shake": {
+    "files": [
+      "sfx/meter_shake.ogg"
+    ],
+    "vol": 0.55,
+    "_src": "Charlie, incoming/sfx_meter (NOTES_cast.md): 1 s rattle, cast bar shake"
+  },
+  "meter_tick_up": {
+    "files": [
+      "sfx/meter_tick_up.ogg"
+    ],
+    "vol": 0.8,
+    "_src": "Charlie, incoming/sfx_meter (NOTES_cast.md): 1 s rising ticks, cast bar slide when the change helps"
+  },
+  "meter_tock_down": {
+    "files": [
+      "sfx/meter_tock_down.ogg"
+    ],
+    "vol": 0.8,
+    "_src": "Charlie, incoming/sfx_meter (NOTES_cast.md): 1 s falling tocks, cast bar slide when the change hurts"
+  },
   "ui_click": {
     "files": [],
     "vol": 0.7
