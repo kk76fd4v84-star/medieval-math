@@ -108,7 +108,7 @@ KM.Brawl = (() => {
   }
   const tier = n => D().rating.tiers.filter(t => t.minRating <= n).pop();
   function badge(top) { // the rival's difficulty under its hearts (top right): its tier's art, else the placeholder skull sized by rating
-    const e = ctx?.S.enc, b = e?.st?.brawl, rec = b && e.revealed && ghost(b.ghost); if (!rec) return '';
+    const e = ctx?.S.enc, b = e?.st?.brawl, rec = b && ghost(b.ghost); if (!rec) return ''; // with its hearts (sighting on)
     const R = D().rating, n = rating(rec), t = tier(n), img = t && KM.Assets.loadImg(t.img);
     const px = Math.round(R.px[0] + (R.px[1] - R.px[0]) * (n - 1) / (R.count - 1));
     const art = img && img._ok ? `<img src="${t.img}" alt="">` : `<i style="width:${px}px;height:${px}px">${R.icon}</i>`;
@@ -118,7 +118,8 @@ KM.Brawl = (() => {
     return `<div class="gear-shade"><div class="gear-dialog action-gear" role="dialog" aria-modal="true"><div class="action-heading tavern-heading tavern-under brawl-name">${ctx.esc(title)}</div><div class="action-row">${cards.join('')}</div></div></div>`;
   }
   function banner(panel) { // during the fight: the rival's name in that same spot, when the panel has no heading of its own
-    const e = ctx?.S.enc, b = e?.st?.brawl; if (!b || !e.revealed || panel.querySelector('.action-heading')) return;
+    const e = ctx?.S.enc, b = e?.st?.brawl; if (!b) return; ctx.renderHUD(); // the rank icon under its hearts
+    if (!e.revealed || panel.querySelector('.action-heading')) return;
     panel.insertAdjacentHTML('beforeend', `<div class="action-heading brawl-name brawl-banner">${ctx.esc(b.name)}</div>`);
   }
   function meet(e) { // sighting: Challenge / Ignore; ambush: Fight / Flee / Sacrifice
