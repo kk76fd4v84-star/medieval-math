@@ -560,9 +560,9 @@ img.mp-tag{background:none;padding:0;height:28px}
 .tut-mark{position:absolute;top:0;transform:translateX(-100%);}
 .tut-mark img{height:40px;width:auto;}
 .tut-ends{display:flex;justify-content:space-between;font-size:20px;margin:6px 0 14px;}
-.tut-rows{display:inline-block;text-align:left;margin-bottom:10px;}
-.tut-row{display:flex;align-items:center;gap:26px;margin:4px 0;}
+.tut-rows{display:inline-block;text-align:left;margin-bottom:22px;}
+.tut-row{display:flex;align-items:center;gap:26px;margin:10px 0;}
 .tut-icon{width:96px;display:flex;justify-content:center;}
 .tut-icon img{height:40px;width:auto;}
 .tut-small{font-size:23px;margin:4px 0;}
-.tut-go{margin-top:12px;--bh:64px;font-size:32px;min-width:300px;}
+.tut-go{margin-top:12px;--bh:64px;font-size:32px;font-weight:bold;min-width:300px;}
