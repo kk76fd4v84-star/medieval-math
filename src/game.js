@@ -2715,7 +2715,7 @@
       const width=L.stage.w-24,scale=width/1605;
       d.className="magnus";d.style.backgroundImage="";
       d.innerHTML=`<img class="woodcut-divider" src="assets/timing-woodcut/divider.png" alt="" style="left:${L.stage.w/2-808*scale}px;top:${y+16-12*scale}px;width:${width}px;height:${24*scale}px">`;
-      KM.TimingBar?.mount(d,{left:56,top:y-9,width:L.stage.w-112});
+      KM.TimingBar?.mount(d,{left:12,top:y+16,width:width}); // Magnus 2026-11-08: in combat the divider itself becomes the full-length meter
       paintTimingLegend();dvFillFrac=-1;dividerFill(0);
     } else {
       $("divider").classList.toggle("painted", !!dv); $("divider").style.backgroundImage = dv ? `url("${dv}")` : "";
