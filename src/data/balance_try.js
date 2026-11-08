@@ -17,6 +17,7 @@ KM_DATA.balanceTry = {
   pauseMenu: false,  // music on/off lives in a pause menu (P; the world stops); nothing top right: the stage's music button and distance flag hide (Magnus 2026-11-08)
   toughFoes: false,   // stronger foes take more blows: Fellowship health x `tough` below, on top of the curve (Magnus 2026-11-08)
   chestCards: false,  // upgrade cards only from chests behind stronger foes, none in shops (src/data/chest_cards.js); turns on cards
+  traps: false,         // trap stops: a grail on a bear trap, disarm with multiplication sums; a snap costs a companion an arm or a leg (src/data/traps.js)
   cardsV2: false,       // Magnus's 2026-11-09 card edits: stacking levels, new Cleave/Swing/Embers/Shield Wall, Thunder Fist, High Voltage, Rallying Cry, Weighted Axe
   recruitCode: false, // recruiting = type a 6-digit code before a 5 s meter ends, no sum (src/data/party_levels.js)
   partyLevels: false, // party members level 1-5 by surviving fights; levels cancel foe intimidation on the cast bar (src/data/party_levels.js)

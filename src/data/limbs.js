@@ -1,7 +1,7 @@
 // Companion injuries (Maggi's limbs v1, approved by Magnus 2026-11-09): a member with `limb: "arm"` or `"leg"` draws a
 // same-layout stand-in of its sheet (bandaged missing arm / wooden peg). The hero never loses limbs.
 // Sheets load the first time someone is hurt; until then the intact sheet shows. Nothing here sets `limb` yet:
-// the trap stops will (src/data/traps.js, once its art is approved). Shared rear-walk sheet not wired yet (one look per sheet).
+// the trap stops do (src/data/traps.js, switch traps). Shared rear-walk sheet not wired yet (one look per sheet).
 window.KM_DATA = window.KM_DATA || {};
 KM_DATA.limbs = {
   dir: "assets/limbs/v1/",

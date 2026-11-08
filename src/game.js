@@ -61,6 +61,7 @@
   const PA = KM.PartyAbilities;
   // balance switches; tests that load without src/engine/balance-try.js get the switches-off behaviour
   const CARDS = KM.Cards && KM.BalanceTry?.on('cards') ? KM.Cards : null; // upgrade cards switch
+  const TRAPS = KM.BalanceTry?.on('traps') && window.KM_DATA?.traps ? KM_DATA.traps : null; // trap stops switch
   const CHEST = CARDS && KM.ChestCards?.on() ? KM.ChestCards : null; // chest cards switch: cards only from guarded chests
   const BT = KM.BalanceTry || { on: () => false, unit: () => 1, healthMul: () => null, packRelay: () => false, bossAtk: (e, b) => b, heartsText: String };
   const BR = KM.Brawl?.on() ? KM.Brawl : { route: r => r, dress() {}, meet: () => false, team: () => null, banner() {}, badge: () => '', secs: (e, s) => s, answered() {}, won() {}, runEnd() {}, actions: {}, init() {} }; // brawl switch (src/brawl.js)
@@ -137,7 +138,8 @@
   }
   function buildWorld(fromStop) {
     S.stops = []; let x = 1800;
-    const road = BR.route(inTomb() ? KM.Tomb.route() : sketch ? sketch.route : S.chapter==="hollowwood" ? KM.HollowWood.route(S.runId) : KM.Road.build(S.routeVersion,S.runId), S); // brawl: ghost stops
+    const road0 = BR.route(inTomb() ? KM.Tomb.route() : sketch ? sketch.route : S.chapter==="hollowwood" ? KM.HollowWood.route(S.runId) : KM.Road.build(S.routeVersion,S.runId), S); // brawl: ghost stops
+    const road = TRAPS && !inTomb() && !sketch ? withTraps(road0) : road0;
     road.forEach((e, i) => { x += (e.gap || 1300) * (W.gapScale || 1); S.stops.push(Object.assign({ idx: i, stopX: x }, e)); });
     S.actors = []; S.obstacles = []; S.props = []; S.trees = [];
     const taken = new Set(S.party.filter(m => m.name).map(m => m.name));
@@ -192,6 +194,7 @@
         S.actors.push(mkActor({ stop: i, id: st.enemy, x: st.stopX + 420, main: true, foe: true, distant: true, hill: true })); // optional creature: on its hill
         return;
       }
+      if (st.type === "trap") { clear.push([st.stopX - 300, st.stopX + 300]); return; } // drawn by drawTraps, no actor
       const aid = st.type === "recruit" ? candArt(0, st) : st.enemy || st.npc;
       const w = KM.Assets.entitySize(aid)[0]; clear.push([st.stopX - w / 2 - 150, st.stopX + w / 2 + (st.walksIn ? 600 : 150)]);
       if (st.type === "math" && !st.group) st.group = rollGroup(st);
@@ -727,6 +730,7 @@
       case "riddle": musicScene("riddle"); startRiddle(); break;
       case "recruit": musicScene("recruit"); renderRecruit(); break;
       case "rest": musicScene(encounterMusic(st)); startRest(); break;
+      case "trap": startTrap(); break;
     }
   }
   function optionalBoss(){
@@ -1046,7 +1050,7 @@
     const role={fire:'firestarter',execute:'executioner',lightning:'darkWizard',heal:'priest',resurrect:'priest'}[kind]||'knight';
     const owners=isFellowship()?S.party.filter(PA.alive):isKnight()&&e?.activeCard ? S.party.filter(m=>e.activeCard.owners.includes(m.id)) : PA.members(S.party,role);
     const ready=e?.revealed&&e.pressureReady!==false&&(!KM.CastBar?.on()||LV||D.castBar.shiftBy.includes(e.st?.type)),weapon=Math.max(0,...owners.filter(PA.alive).map(m=>m.weapon||0)),armour=PA.armour(S.party.filter(PA.alive)),companions=S.party.filter(m=>m.id!=='hero'&&PA.alive(m)).length;
-    if(MP.on())return MP.windows({weapon,armour,companions,helm:MP.level(S,'helm'),lantern:MP.level(S,'lantern'),foes:ready?living(e):[],extra:LV?PL.foes:undefined,courage:LV?courage():0,shrink:CARDS&&CARDS.v2?CARDS.shrink(S):undefined});
+    if(MP.on())return MP.windows({weapon,armour,companions,helm:MP.level(S,'helm'),lantern:MP.level(S,'lantern'),foes:ready?living(e):[],extra:LV?PL.foes:undefined,courage:LV?courage():0,shrink:bandShrink()});
     const pressure=ready?KM.Timing.pressure(living(e)):{};
     return KM.Timing.windows({weapon:Math.max(0,...owners.filter(PA.alive).map(m=>m.weapon||0)),armour:PA.armour(S.party.filter(PA.alive)),
       companions:S.party.filter(m=>m.id!=='hero'&&PA.alive(m)).length,pressure});
@@ -1362,6 +1366,46 @@
     later(D.chestCards.shine.ms / 1000, () => { if (S.enc !== e || S.dying) return;
       if (!options.length) return finishEncounter();
       e.cardOptions = options; e.cardPick = true; showPanel(cardDialog(e), 'rest action-panel'); });
+  }
+  // ---- trap stops (data KM_DATA.traps): disarm with multiplication sums; a snap costs a companion an arm or a leg
+  function withTraps(road) {
+    const out = road.slice(), at = [...new Set(TRAPS.at.map(f => Math.max(1, Math.min(road.length - 1, Math.round(f * road.length)))))].sort((a, b) => b - a);
+    at.forEach((i, k) => out.splice(i, 0, { type: "trap", id: "trap_" + (at.length - k), gap: TRAPS.gap }));
+    return out;
+  }
+  function startTrap() {
+    const e = S.enc; e.phase = "trap"; showPanel('', 'info'); heroSay(pickOne(TRAPS.say.spot), inPhase("trap"));
+    later(1.4, () => { if (S.enc === e && !S.dying) trapSum(e, 0); });
+  }
+  function trapSum(e, n) {
+    ask(TRAPS.level, () => n + 1 < TRAPS.sums ? trapSum(e, n + 1) : trapJammed(e), () => trapSnap(e), null, undefined, "trap");
+  }
+  function trapJammed(e) {
+    if (S.enc !== e) return; e.st.trapState = "sprung"; e.phase = "busy"; showPanel('', 'info'); A.play(TRAPS.sfx.jam); heroSay(pickOne(TRAPS.say.jammed));
+    const options = CARDS && isFellowship() ? CARDS.offer(S).map(c => c.id) : [];
+    later(1.1, () => { if (S.enc !== e || S.dying) return;
+      if (options.length) { e.chest = { t0: S.t }; e.used = e.used || {}; e.cardOptions = options; e.cardPick = true; return showPanel(cardDialog(e), 'rest action-panel'); }
+      S.gold += TRAPS.gold; float(`+${TRAPS.gold}`, slotX(0), W.groundY - tallOf("hero") + 70, "#f3c94b"); save(); renderHUD(); later(0.8, finishEncounter); });
+  }
+  function trapSnap(e) {
+    if (S.enc !== e) return; e.st.trapState = "sprung"; e.phase = "busy"; showPanel('', 'info'); A.play(TRAPS.sfx.snap);
+    const can = S.party.filter(m => m.id !== "hero" && PA.alive(m) && !m.limb && !m.dying);
+    if (can.length) { const m = pickOne(can); m.limb = pickOne(["arm", "leg"]); act(m, "hurt", 0.5); speak(m, pickOne(TRAPS.say.snap[m.limb])); }
+    else { act(S.party[0], "hurt", 0.5); heroSay(pickOne(TRAPS.say.heroSnap)); hearts(-Math.min(TRAPS.heroHearts, Math.max(0, S.hp - 1))); }
+    save(); renderHUD(); later(1.6, finishEncounter);
+  }
+  const limbShrink = () => S.party.reduce((o, m) => { const c = m.limb && PA.alive(m) && TRAPS.limbCost[m.limb] || {}; return { crit: o.crit + (c.crit || 0), block: o.block + (c.block || 0) }; }, { crit: 0, block: 0 });
+  function bandShrink() {
+    const c = CARDS && CARDS.v2 ? CARDS.shrink(S) : null; if (!TRAPS) return c || undefined;
+    const l = limbShrink(); return { crit: l.crit + (c ? c.crit : 0), block: l.block + (c ? c.block : 0) };
+  }
+  function drawTraps() {
+    if (!TRAPS) return; const T = TRAPS.art;
+    S.stops.forEach((st, i) => { if (st.type !== "trap" || i < S.stop - 1) return;
+      const x = screenX(st.stopX + T.dx); if (x < -300 || x > VW + 300) return;
+      const im = KM.Assets.loadImg(st.trapState === "sprung" ? T.sprung : T.open); if (!im._ok) return;
+      const h = T.w * im.naturalHeight / im.naturalWidth; ctx.drawImage(im, x - T.w / 2, W.groundY + T.dy - h, T.w, h);
+    });
   }
   function drawChests() {
     if (!CHEST || !isFellowship()) return;
@@ -1910,7 +1954,7 @@
   const TUT = KM.CastBar && KM.CastBar.on() && KM_DATA.tutorial && (() => { const t = KM_DATA.tutorial.castBar;
     return { t, seen: () => { try { return localStorage.getItem(t.saveKey) === '1'; } catch (_) { return true; } }, done: () => { try { localStorage.setItem(t.saveKey, '1'); } catch (_) {} } }; })();
   // recruit codes (switch recruitCode; data KM_DATA.recruitCode): a random code to type before the short meter ends
-  const NOT_FIGHT = ["recruit", "recruitCode", "restraint"], RC_KIND = () => BT.on('recruitCode') ? "recruitCode" : "recruit";
+  const NOT_FIGHT = ["recruit", "recruitCode", "restraint", "trap"], RC_KIND = () => BT.on('recruitCode') ? "recruitCode" : "recruit";
   function recruitCode() { let t = String(1 + Math.floor(Math.random() * 9)); while (t.length < D.recruitCode.digits) t += Math.floor(Math.random() * 10);
     return { text: t, answer: Number(t), code: true, type: 'code', level: 'code' }; }
   const tipSeen = id => { try { return localStorage.getItem(KM_DATA.tutorial.tips[id].saveKey) === '1'; } catch (_) { return true; } };
@@ -2850,7 +2894,7 @@
       if (!arena && SCN()) S.trees.forEach(tr => { const x = screenX(tr.x); if (x > -600 && x < VW + 600) KM.Scenery.tree(ctx, tr.i, x); });
       if(!arena)S.props.forEach(p => { const x = screenX(p.x); if (x > -400 && x < VW + 400) KM.Assets.drawEntity(ctx, p.id, x, W.propLaneY, { scale: W.propScale, alpha: W.propAlpha }); });
       if(!arena)S.obstacles.forEach(o => { const x = screenX(o.x); if (x > -400 && x < VW + 400) KM.Assets.drawEntity(ctx, o.id, x, W.groundY + 10); });
-      if(!arena){drawCompanionGraves(2);drawGraves();drawLoot();drawChests();} // v12g: graves are road props on the ground line (behind the party and road actors)
+      if(!arena){drawCompanionGraves(2);drawGraves();drawLoot();drawChests();drawTraps();} // v12g: graves are road props on the ground line (behind the party and road actors)
       const behind = a => a.riddleVariant!==2 && (a.back || a.narrator) && !(a.distant && a.hill);
       if(!arena)KM.RoadCamp.draw(ctx,S.stops,S.camX,"back");
       live.filter(a => a.facade).forEach(drawFacade);
