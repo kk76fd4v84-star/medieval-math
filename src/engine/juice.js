@@ -1,29 +1,53 @@
-// Juice (switch juice): every digit lands heavy with a clang, Enter punches, a wrong Enter is blocked. Data: src/data/juice.js.
-// Cheap: CSS animations on the elements the game already re-renders, pooled sfx (KM.Audio), nothing waits on it.
+// Juice (switch juice): every key has its own heavy sound the instant it goes down, digits land heavy, Enter punches,
+// a wrong Enter is blocked. Data: src/data/juice.js.
+// Latency: Web Audio, every file fetched + decoded once at init; a hit is one AudioBufferSourceNode into that sound's
+// reused GainNode, started synchronously in the keydown / pointerdown handler (nothing awaited, no <audio>).
 window.KM = window.KM || {};
 KM.Juice = (() => {
   const D = () => KM_DATA.juice, on = () => !!(KM.BalanceTry && KM.BalanceTry.on('juice'));
-  const turn = {}; // sfx list -> next index (a list alternates)
-  function sound(c) {
-    const i = turn[c.sfx] = ((turn[c.sfx] ?? -1) + 1) % c.sfx.length;
-    KM.Audio.play(c.sfx[i], { gain: (c.gain ?? 1) * (D().vol?.[c.sfx[i]] ?? 1), rate: 1 + (Math.random() * 2 - 1) * (c.pitch || 0) });
+  const buf = {}, amp = {}, turn = {}; let ac = null;
+  const last = { id: null, t: 0, started: false };   // the latest hit (tests + timing check)
+  function hit(id, pitch) {
+    last.id = id; last.t = performance.now(); last.started = false;
+    if (!ac || !buf[id] || KM.Audio?.muted?.()) return;
+    const s = ac.createBufferSource(); s.buffer = buf[id]; s.playbackRate.value = 1 + (Math.random() * 2 - 1) * (pitch || 0);
+    s.connect(amp[id]); s.start(); last.started = true;
+  }
+  const next = c => c.sfx[turn[c.sfx] = ((turn[c.sfx] ?? -1) + 1) % c.sfx.length]; // a list alternates
+  // the sound for a key, at once (k = '0'..'9', 'back', 'enter' + right: true / false / null = nothing to submit); true = handled
+  function press(k, right) {
+    if (!on()) return false; const d = D();
+    if (k === 'back') hit(next(d.back), d.back.pitch);
+    else if (k === 'enter') { if (right == null) return true; const c = right ? d.enter : d.wrong; hit(next(c), c.pitch); }
+    else hit(d.digits[+k], d.digit.pitch);
+    return true;
   }
   const restart = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
-  function key(k, el) { // after the answer box shows the new input: k = a digit or 'back'
-    if (!on() || !el) return;
-    if (k === 'back') return sound(D().back);
-    const c = D().digit; sound(c); const g = el.lastElementChild; if (!g) return;
-    g.classList.add('juice-land'); if (c.spark) el.insertAdjacentHTML('beforeend', '<i class="juice-spark" aria-hidden="true"></i>');
+  function key(k, el) { // motion only, after the answer box shows the new digit
+    if (!on() || !el || k === 'back') return; const g = el.lastElementChild; if (!g) return;
+    g.classList.add('juice-land'); if (D().digit.spark) el.insertAdjacentHTML('beforeend', '<i class="juice-spark" aria-hidden="true"></i>');
   }
-  function enter(right, el, S) { // a submitted answer
-    if (!on()) return; const c = right ? D().enter : D().wrong; sound(c);
+  function enter(right, el, S) { // motion for a submitted answer
+    if (!on()) return; const c = right ? D().enter : D().wrong;
     if (el) restart(el, right ? 'juice-punch' : 'juice-block'); S.shake = Math.max(S.shake || 0, c.shake || 0);
   }
-  function init() { // timings + sizes -> CSS variables, Charlie's sounds warmed
+  function load() { // fetch + decode every sound once; a hit before its buffer is ready is skipped, never waited for
+    const Ctx = window.AudioContext || window.webkitAudioContext; if (!Ctx || !/^https?:/.test(location.protocol)) return;
+    ac = new Ctx(); let ogg = true; try { ogg = !!new Audio().canPlayType('audio/ogg; codecs="vorbis"'); } catch (e) {}
+    const resume = () => { if (ac.state !== 'running') ac.resume(); }; // first user gesture unlocks the context
+    for (const ev of ['keydown', 'pointerdown', 'touchstart']) window.addEventListener(ev, resume, { capture: true, passive: true });
+    const files = {};
+    for (const [id, s] of Object.entries(D().sounds)) {
+      const g = amp[id] = ac.createGain(); g.gain.value = s.vol ?? 1; g.connect(ac.destination);
+      (files[s.file] ||= fetch(`assets/audio/sfx/${s.file}.${ogg ? 'ogg' : 'mp3'}`).then(r => r.arrayBuffer()).then(a => ac.decodeAudioData(a)))
+        .then(b => { buf[id] = b; }, e => console.warn('[juice] sound failed:', s.file, e));
+    }
+  }
+  function init() { // timings + sizes -> CSS variables, sounds decoded
     if (!on()) return; const d = D(), st = document.documentElement.style;
     st.setProperty('--juice-land', d.digit.ms + 'ms'); st.setProperty('--juice-drop', -d.digit.drop + 'px'); st.setProperty('--juice-squash', d.digit.squash);
     st.setProperty('--juice-punch', d.enter.ms + 'ms'); st.setProperty('--juice-punch-squash', d.enter.squash); st.setProperty('--juice-block', d.wrong.ms + 'ms');
-    KM.Audio.warm(Object.values(d).flatMap(c => c.sfx || []));
+    load();
   }
-  return { on, key, enter, init };
+  return { on, press, key, enter, init, last, ready: () => Object.keys(buf).length, state: () => ac && ac.state };
 })();

@@ -64,7 +64,7 @@
   const CHEST = CARDS && KM.ChestCards?.on() ? KM.ChestCards : null; // chest cards switch: cards only from guarded chests
   const BT = KM.BalanceTry || { on: () => false, unit: () => 1, healthMul: () => null, packRelay: () => false, bossAtk: (e, b) => b, heartsText: String };
   const BR = KM.Brawl?.on() ? KM.Brawl : { route: r => r, dress() {}, meet: () => false, team: () => null, banner() {}, secs: (e, s) => s, answered() {}, won() {}, runEnd() {}, actions: {}, init() {} }; // brawl switch (src/brawl.js)
-  const JU = KM.Juice || { key() {}, enter() {}, init() {} }; // juice switch (src/engine/juice.js); tests load game.js alone
+  const JU = KM.Juice || { press: () => false, key() {}, enter() {}, init() {} }; // juice switch (src/engine/juice.js); tests load game.js alone
   const MP = KM.MeterPressure || { on: () => false, seconds: s => s, sells: () => [], level: () => 0, cost: () => null, image: () => null }; // meter pressure switch
   const maxHp = () => PA.maxHp(S.party);
   const roleMembers = role => PA.members(S.party, role);
@@ -1421,15 +1421,16 @@
   function typeKey(k) {
     const e = S.enc, striking = e && e.phase === "deadline" && e.deadlineFrom === "math"; // a deadline strike must not eat keystrokes
     if (!e || (e.phase !== "math" && !striking) || e.sub) return;
-    A.play("key_tap");
+    const right = k !== "enter" || !e.input ? null : parseInt(e.input, 10) === e.problem.answer; // Enter: right / wrong / nothing to submit
+    if (!JU.press(k, right)) A.play("key_tap"); // juice switch: the key's own sound, in this keydown
     if (k === "back") e.input = e.input.slice(0, -1);
     else if (k === "enter") { if (striking) { e.enterQueued = true; return; } return submitAnswer(); }
     else if (/^\d$/.test(k) && e.input.length < 6) e.input += k;
-    const el = $("answer"); if (el) el.innerHTML = G(e.input) || "&nbsp;"; JU.key(k, el); // juice switch: lands heavy + clang
+    const el = $("answer"); if (el) el.innerHTML = G(e.input) || "&nbsp;"; JU.key(k, el); // juice switch: lands heavy
   }
   function submitAnswer() {
     const e = S.enc; if (!e || e.phase !== 'math' || !e.q || !e.input) return;
-    const q = e.q, right = parseInt(e.input, 10) === e.problem.answer; JU.enter(right, $("answer"), S); // juice switch: kosh / blocked
+    const q = e.q, right = parseInt(e.input, 10) === e.problem.answer; JU.enter(right, $("answer"), S); // juice switch: punch / blocked (its sound played on the keydown)
     e.failedFraction=e.tmr?Math.min(1,e.tmr.t/e.tmr.secs):1;
     e.answerTiming = right ? KM.Timing.grade(e.tmr, q) : null; BR.answered(e, right); // brawl: ghost recording
     e.q = null; e.tmr = null; e.phase = "busy";
@@ -2125,8 +2126,11 @@
     }
     if (b.disabled) return;
     if(S.enc?.gearChoice && !["assignGear","cancelGear","toggleMusic","openPause","closePause","pauseMusic"].includes(b.dataset.act))return;
-    if (b.dataset.key) return typeKey(b.dataset.key);
+    if (b.dataset.key) return JU.on?.() ? undefined : typeKey(b.dataset.key); // juice: the pad acts on pointerdown
     if (b.dataset.act && actions[b.dataset.act]) { A.play("ui_click"); actions[b.dataset.act](b); }
+  });
+  document.addEventListener("pointerdown", ev => { // juice switch: an on-screen key acts (and sounds) the moment it is touched
+    const b = JU.on?.() && ev.target.closest?.("[data-key]"); if (b && !b.disabled) typeKey(b.dataset.key);
   });
   // Keyboard is THE input. Every prompt shows its key; clicking the option lines also works.
   document.addEventListener("keydown", ev => {

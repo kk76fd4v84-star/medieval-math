@@ -88,5 +88,5 @@ KM.Audio = (function () {
     const files = [...new Set(Object.entries(map).filter(([ev]) => !ev.startsWith("vo_")).flatMap(([, m]) => [...((m && m.files) || []), ...(m && m.rare ? [m.rare.file] : [])]))];
     return Promise.all(files.map(f => new Promise(res => KM.Loader.fetch(path(f), url => { if (/^blob:/.test(url)) blobs[f] = url; res(); }))));
   }
-  return { init, play, warm, preloadAll, loop, stop, stopLoops, looping: () => Object.keys(loops), voice, text, voOf, log, counts, voLog, voPlayed, voFail, voBusy: () => false, fileLog, map: () => map, poolSize: () => Object.values(pool).reduce((n, l) => n + l.length, 0), setMuted: v => { muted = v; if (v) stopLoops(0); } };
+  return { init, play, warm, preloadAll, loop, stop, stopLoops, looping: () => Object.keys(loops), voice, text, voOf, log, counts, voLog, voPlayed, voFail, voBusy: () => false, fileLog, map: () => map, poolSize: () => Object.values(pool).reduce((n, l) => n + l.length, 0), setMuted: v => { muted = v; if (v) stopLoops(0); }, muted: () => muted };
 })();
