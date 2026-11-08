@@ -14,11 +14,13 @@ const E=engine('?castbar=1&meterpressure=1'),CB=E.KM.CastBar,CD=E.KM_DATA.castBa
 assert.equal(engine('').KM.CastBar.on(),false,'off by default');assert.equal(E.KM_DATA.balanceTry.castBar,false);assert.equal(CB.on(),true);
 for(const k of ['shakeMs','slideMs','holdMs','shrinkMs','inkFadeMs'])assert(CD[k]>=0,k+' in data');
 assert.deepEqual([CD.shakeMs,CD.slideMs,CD.shrinkMs],[1000,1000,1000],'Magnus: a full second shake, slide, catch-up');assert.equal(CD.holdMs,0,'strictly one after the other');
-assert.deepEqual({...CD.sfx},{shake:'meter_shake',good:'meter_tick_up',bad:'meter_tock_down'});
+assert.deepEqual({...CD.sfx},{shake:'meter_shake',good:'meter_tick_up',bad:'meter_tock_down',roar:'dragon_roar'});
+assert.equal(CD.shiftBy.join(),'boss,mega','only bosses shift the icons');
+const G=fs.readFileSync(path.join(root,'src/game.js'),'utf8');assert.match(G,/e\.pressureReady!==false&&\(!KM\.CastBar\?\.on\(\)\|\|D\.castBar\.shiftBy\.includes/,'non-boss pressure off with the cast bar');
 // Charlie's 1 s sounds: mapped, both formats in assets/audio/sfx, the placeholder tick gone
 const map=JSON.parse(fs.readFileSync(path.join(root,'assets/audio_map.json'),'utf8'));
-for(const id of Object.values(CD.sfx)){assert.deepEqual(map[id].files,['sfx/'+id+'.ogg'],id);for(const f of ['ogg','mp3'])assert(fs.existsSync(path.join(root,'assets/audio/sfx/'+id+'.'+f)),id+'.'+f);}
-assert.equal(map.meter_shake.vol,0.55);assert.equal(map.meter_tick_up.vol,0.8);assert.equal(map.meter_tock_down.vol,0.8);assert(!map.meter_tick&&!CD.ticks,'placeholder tick dropped');
+for(const id of [CD.sfx.shake,CD.sfx.good,CD.sfx.bad]){assert.deepEqual(map[id].files,['sfx/'+id+'.ogg'],id);for(const f of ['ogg','mp3'])assert(fs.existsSync(path.join(root,'assets/audio/sfx/'+id+'.'+f)),id+'.'+f);}
+assert.equal(map.meter_shake.vol,0.55);assert.equal(map.meter_tick_up.vol,0.8);assert.equal(map.meter_tock_down.vol,0.8);assert(!map.meter_tick&&!CD.ticks,'placeholder tick dropped');assert.deepEqual(map.dragon_roar.files,['sfx/boss_roar_31.wav']);
 assert.notEqual(CB.colour(true),CB.colour(false));assert.equal(CB.colour(true),CD.colours.good);assert.equal(CB.colour(false),CD.colours.bad);
 const pos=w=>({block:w.block,crit:w.crit,normal:w.normal,weak:1});
 const plain=x=>JSON.parse(JSON.stringify(x));
