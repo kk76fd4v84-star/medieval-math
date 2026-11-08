@@ -20,6 +20,8 @@ if(out.on){e.act.hp=0;e.hp=0;g.defeatEnemy();advance(D.chestCards.delayMs/1000+.
  out.sfx=[...scope.__played||[]];}
 // a shop: no upgrade card offer
 fresh('shop');S.enc.cardPick=false;g.renderRest();out.shopCards=/openCards|takeCard/.test(nodes.get('panel').innerHTML)||!!S.enc.cardPick;
+// no other source: campsite, tavern, riddle offer no upgrade card with the switch
+out.others={};for(const w of ['campsite','tavern','riddle']){const q=fresh(w);if(q.phase==='rest'||w!=='riddle')g.renderRest&&q.phase==='rest'&&g.renderRest();out.others[w]=!!(q.cardOptions&&q.cardOptions.length)||/openCards|takeCard/.test(nodes.get('panel').innerHTML);}
 // a weak foe guards nothing
 e=fresh('rabid_squirrel');out.dog=CC?CC.guarded(e.st):false;
 module.exports=out;`;
@@ -28,6 +30,6 @@ const on=exec(harness('?debug&notimer&chestcards=1')+body),off=exec(harness('?de
 const ctx={};ctx.window=ctx;require('node:vm').createContext(ctx);require('node:vm').runInContext(fs.readFileSync(path.join(root,'src/data/balance_try.js'),'utf8'),ctx);assert.equal(ctx.KM_DATA.balanceTry.chestCards,false,'off by default');
 assert(on.on&&on.cards,'chestcards turns on the cards');assert(on.guarded,'goblin guards a chest');assert(!on.dog,'rabid squirrel guards nothing');
 assert.equal(on.phase,'chest');assert(on.open,'chest unlocked');assert(!on.pickEarly,'shine first');assert(on.pick,'then the pick');assert(on.took&&on.ended,'one card, then the fight ends');
-assert.equal(on.shopCards,false,'shops: no upgrade cards with the switch');
-assert.equal(off.shopCards,true,'switch off: the shop offers cards as before');
+assert.equal(on.shopCards,false,'shops: no upgrade cards with the switch');for(const [w,v] of Object.entries(on.others))assert.equal(v,false,w+': no upgrade card with the switch');
+assert.equal(off.shopCards,true,'switch off: the shop offers cards as before');assert.equal(off.others.campsite,true,'switch off: campsite still offers (probe works)');
 console.log('PASS: chest cards: guarded foes only, shine -> unlock -> pick -> fight ends, shops only sell; off = cards at shops as before.');

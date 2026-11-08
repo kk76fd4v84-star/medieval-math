@@ -16,5 +16,8 @@ KM_DATA.castBar = {
   plainIn: ["tavern-interior"],         // Magnus: the plain divider (no cast bar) on these screens, e.g. choosing a companion
   colours: { good: "#3f8a2c", bad: "#b3261e" },
   // Charlie's 1 s sounds (assets/audio/sfx, mapped in audio_map): shake at the start of the shake, tick_up / tock_down at the start of the slide
-  sfx: { shake: "meter_shake", good: "meter_tick_up", bad: "meter_tock_down" }
+  // Magnus: only bosses change the icons, with a roar. Other foes / NPCs (the riddle guy, ...) never move them: their
+  // meter pressure is not applied while the cast bar is on. Party gear (shop buys) still moves them.
+  shiftBy: ["boss", "mega"],            // stop types whose foes may shift the cast bar icons
+  sfx: { shake: "meter_shake", good: "meter_tick_up", bad: "meter_tock_down", roar: "dragon_roar" }  // roar = Charlie's boss_roar_31
 };
