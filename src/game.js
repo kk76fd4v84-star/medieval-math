@@ -2612,6 +2612,12 @@
     if (tint && raw._ok) KM.Scenery.drawInked(ctx, raw, x0, y0, fw * s, fh * s); else if (im._ok) ctx.drawImage(im, x0, y0, fw * s, fh * s);
     occ.push({ owner: a, x: x0, y: y0, w: fw * s, h: fh * s });
   }
+  // injuries (data KM_DATA.limbs): a hurt companion's sheet swaps for Maggi's same-layout stand-in once it has loaded
+  function limbSheet(m) {
+    if (!m.limb || m.id === "hero" || !D.limbs) return undefined;
+    return img => { const n = D.limbs.sheets[String(img && img._src || '').split('?')[0]]; if (!n) return null;
+      const im = KM.Assets.loadImg(D.limbs.dir + n + '_no_' + m.limb + '.png'); return im._ok ? im : null; };
+  }
   function drawParty(walking) {
     for (let i = S.party.length - 1; i >= 0; i--) {
       const m = S.party[i]; if (m.eaten || (S.entering && m.id === "hero" && S.entering.t < .75)) continue;
@@ -2625,10 +2631,10 @@
         ctx.save(); ctx.translate(x, y + (fx ? fx.dy : 0)); ctx.scale(pose.scale, pose.scale);
         if (m.dying) {
           const cfg=KM_ART.entities[id]||{},seq=m.dying.seq || cfg.deathSeq || (!cfg.noFallbackDeath && (KM_ART.entities.hero || {}).deathSeq);
-          KM.Assets.drawEntity(ctx, id, 0, 0, seq ? { seq, seqT: m.dying.t } : {rot:Math.min(1,Math.floor(m.dying.t*5)/3)*Math.PI/2});
+          KM.Assets.drawEntity(ctx, id, 0, 0, seq ? { seq, seqT: m.dying.t, sheet: limbSheet(m) } : {rot:Math.min(1,Math.floor(m.dying.t*5)/3)*Math.PI/2, sheet: limbSheet(m)});
         } else KM.Assets.drawEntity(ctx, id, 0, 0, { flip: pose.returning,
           t: fx ? fx.t : walking && rig ? (S.walkT || 0) * KM_ART.walkRate(id) : S.t,
-          action: fx ? fx.action : walking ? "walk" : "idle", hurt: fx && fx.hurt, rot: fx && fx.rot,
+          action: fx ? fx.action : walking ? "walk" : "idle", hurt: fx && fx.hurt, rot: fx && fx.rot, sheet: limbSheet(m),
           name: m.id === "hero" ? S.name : shortName(m.name) });
         ctx.restore();
       }
@@ -2652,7 +2658,7 @@
     ctx.save(); ctx.globalAlpha = v.a;
     if (v.id === "tavern-interior" && KM.RestView.scene(v.id).full) { drawTavernInside(cands); ctx.restore(); exitRect = null; return; } // v12o: draws its own party, after the sign
     for (let i = S.party.length - 1; i >= 0; i--) { const mm = S.party[i];
-      KM.Assets.drawEntity(ctx, artId(mm), slotX(i), W.groundY, { name: mm.id === "hero" ? S.name : shortName(mm.name) });
+      KM.Assets.drawEntity(ctx, artId(mm), slotX(i), W.groundY, { name: mm.id === "hero" ? S.name : shortName(mm.name), sheet: limbSheet(mm) });
       if (v.a >= 1) pushSay(mm, slotX(i), W.groundY - occupy(mm, artId(mm), slotX(i), W.groundY)); }
     if (v.id === "tavern-arrival" && S.hoverSpot === "arrivalDoor" && S.enc && S.enc.phase === "tavernOut") { const r = arrivalDoor(); // subtle ink outline on hover
       ctx.save(); ctx.strokeStyle = "rgba(42,29,18,.85)"; ctx.lineWidth = 5 / K; ctx.setLineDash([16 / K, 10 / K]); ctx.beginPath(); ctx.roundRect(r.x - 8, r.y - 8, r.w + 16, r.h + 16, 18); ctx.stroke(); ctx.restore(); }
@@ -2764,7 +2770,7 @@
     const R = TR(), n = (e.st.cands || []).length;
     drawProp(propRect("counter", R.bar.x, W.groundY - R.bar.back)); // the bar, against the back wall
     for (let i = S.party.length - 1; i >= 0; i--) { const mm = S.party[i];
-      KM.Assets.drawEntity(ctx, artId(mm), slotX(i), W.groundY, { name: mm.id === "hero" ? S.name : shortName(mm.name) });
+      KM.Assets.drawEntity(ctx, artId(mm), slotX(i), W.groundY, { name: mm.id === "hero" ? S.name : shortName(mm.name), sheet: limbSheet(mm) });
       if (S.view.a >= 1) pushSay(mm, slotX(i), W.groundY - occupy(mm, artId(mm), slotX(i), W.groundY)); }
     cands.forEach(({ p, j }) => { const g = seatGeom(j, n);
       if (g.stand) KM.Assets.drawEntity(ctx, candArt(j), g.x, g.feetY, { flip: true, name: shortName(p.name) }); // facing the party
@@ -2947,6 +2953,7 @@
 
   // v19 debug hook, OFF unless the page is opened with ?debug (screenshots / quick checks): jump the road to the first stop
   // matching `want` (a type, enemy, npc or id, e.g. "mega", "frank", "toad") with `looks` = follower skins (1-5) in the party.
+  if (/[?&]debug\b/.test(location.search)) window.__km.limb = (i, limb) => { const m = S.party[i]; if (m && m.id !== 'hero') m.limb = limb || undefined; return !!m; }; // debug: try an injury look
   if (/[?&]debug\b/.test(location.search)) window.__km.debugJump = (want, looks = [], cards) => { // cards: debug-only held card ids
     const i = S.stops.findIndex(st => [st.type, st.enemy, st.npc, st.id, st.rest].includes(want)); if (i < 0) return false;
     hush(); S.runId = S.runId || "run-debug"; S.name = S.name === "Nobody" ? "Magnus" : S.name;
