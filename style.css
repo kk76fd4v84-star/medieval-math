@@ -568,16 +568,15 @@ img.mp-tag{background:none;padding:0;height:28px}
 .tut-small{font-size:23px;margin:4px 0;}
 .tut-go{margin-top:12px;--bh:64px;font-size:32px;font-weight:bold;min-width:300px;}
 /* brawl: the rival's difficulty under its name (KM_DATA.brawl.rating), and its name centred over the fight */
-.brawl-rating{display:flex;justify-content:center;gap:4px;margin:0 0 8px;} .brawl-rating i{display:inline-block;width:26px;height:26px;opacity:.22;}
+.brawl-rating{display:inline-flex;gap:3px;vertical-align:middle;} .brawl-rating i{display:inline-block;width:26px;height:26px;opacity:.22;}
 .brawl-rating i.on{opacity:1;} .brawl-rating svg,.brawl-rating img{width:100%;height:100%;display:block;}
 .panel .brawl-banner{position:absolute;left:0;right:0;top:0;margin:18px 0 0;pointer-events:none;}
 /* juice (switch juice, src/data/juice.js): a typed digit drops in and thuds, a spark; Enter punches; a wrong Enter is blocked */
-#answer{position:relative;display:inline-block;}
 #answer .juice-land{animation:juice-land var(--juice-land,130ms) cubic-bezier(.3,0,.6,1);transform-origin:50% 100%;}
 @keyframes juice-land{0%{transform:translateY(var(--juice-drop,-18px)) scale(1.12);}60%{transform:translateY(0) scale(1.18,var(--juice-squash,.78));}100%{transform:none;}}
 #answer .juice-spark{position:absolute;right:-6px;bottom:6px;width:22px;height:22px;pointer-events:none;background:radial-gradient(circle,#f3a64a 0 2px,transparent 3px) 0 0/11px 11px;animation:juice-spark var(--juice-land,130ms) ease-out forwards;}
 @keyframes juice-spark{0%{opacity:1;transform:scale(.4);}100%{opacity:0;transform:scale(1.6) translateY(-8px);}}
 #answer.juice-punch{animation:juice-punch var(--juice-punch,170ms) ease-out;transform-origin:50% 100%;}
-@keyframes juice-punch{0%{transform:scale(1.2,var(--juice-punch-squash,.84));}100%{transform:none;}}
+@keyframes juice-punch{0%{transform:translateY(-50%) scale(1.2,var(--juice-punch-squash,.84));}100%{transform:translateY(-50%);}}
 #answer.juice-block{animation:juice-block var(--juice-block,200ms) ease-out;}
-@keyframes juice-block{0%,100%{transform:none;}25%{transform:translateX(-7px);}60%{transform:translateX(5px);}}
+@keyframes juice-block{0%,100%{transform:translateY(-50%);}25%{transform:translateY(-50%) translateX(-7px);}60%{transform:translateY(-50%) translateX(5px);}}

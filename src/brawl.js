@@ -107,8 +107,8 @@ KM.Brawl = (() => {
     return Math.max(1, Math.min(R.count, Math.round(1 + (R.count - 1) * (skill(rec) - lo) / (hi - lo))));
   }
   const ratingRow = n => `<span class="brawl-rating" role="img" aria-label="${n} / ${D().rating.count}">${Array.from({ length: D().rating.count }, (_, i) => `<i class="${i < n ? 'on' : ''}">${D().rating.icon}</i>`).join('')}</span>`;
-  function dialog(title, cards, rec) { // the rival's name centred above the cards (where every action heading sits), its rating under it
-    return `<div class="gear-shade"><div class="gear-dialog action-gear" role="dialog" aria-modal="true"><div class="action-heading tavern-heading tavern-under brawl-name">${ctx.esc(title)}</div>${rec ? ratingRow(rating(rec)) : ''}<div class="action-row">${cards.join('')}</div></div></div>`;
+  function dialog(title, cards, rec) { // the rival's name centred above the cards (where every action heading sits), its rating beside it
+    return `<div class="gear-shade"><div class="gear-dialog action-gear" role="dialog" aria-modal="true"><div class="action-heading tavern-heading tavern-under brawl-name">${ctx.esc(title)}${rec ? ratingRow(rating(rec)) : ''}</div><div class="action-row">${cards.join('')}</div></div></div>`;
   }
   function banner(panel) { // during the fight: the rival's name in that same spot, when the panel has no heading of its own
     const e = ctx?.S.enc, b = e?.st?.brawl; if (!b || !e.revealed || panel.querySelector('.action-heading')) return;
