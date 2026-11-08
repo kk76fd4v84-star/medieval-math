@@ -63,7 +63,7 @@
   const CARDS = KM.Cards && KM.BalanceTry?.on('cards') ? KM.Cards : null; // upgrade cards switch
   const CHEST = CARDS && KM.ChestCards?.on() ? KM.ChestCards : null; // chest cards switch: cards only from guarded chests
   const BT = KM.BalanceTry || { on: () => false, unit: () => 1, healthMul: () => null, packRelay: () => false, bossAtk: (e, b) => b, heartsText: String };
-  const BR = KM.Brawl?.on() ? KM.Brawl : { route: r => r, dress() {}, meet: () => false, team: () => null, secs: (e, s) => s, answered() {}, won() {}, runEnd() {}, actions: {}, init() {} }; // brawl switch (src/brawl.js)
+  const BR = KM.Brawl?.on() ? KM.Brawl : { route: r => r, dress() {}, meet: () => false, team: () => null, banner() {}, secs: (e, s) => s, answered() {}, won() {}, runEnd() {}, actions: {}, init() {} }; // brawl switch (src/brawl.js)
   const MP = KM.MeterPressure || { on: () => false, seconds: s => s, sells: () => [], level: () => 0, cost: () => null, image: () => null }; // meter pressure switch
   const maxHp = () => PA.maxHp(S.party);
   const roleMembers = role => PA.members(S.party, role);
@@ -328,7 +328,7 @@
   // v11 (Magnus: "absolute destruction of unnecessary small texts"): the strip only holds the big carved sum, a few
   // LARGE key options and one icon status row. Every line of dialogue is a speech bubble above its speaker.
   const panel = $("panel");
-  function showPanel(html, cls) { const sky=$("sky-title"); if(sky)sky.hidden=cls!=="title"; panel.className = "panel " + (cls || ""); panel.innerHTML = KM.I18n?.html(html) ?? html; fitSums(); fitMoves(); fitRiddleQ(); }
+  function showPanel(html, cls) { const sky=$("sky-title"); if(sky)sky.hidden=cls!=="title"; panel.className = "panel " + (cls || ""); panel.innerHTML = KM.I18n?.html(html) ?? html; BR.banner(panel); fitSums(); fitMoves(); fitRiddleQ(); }
   // v12s: the strip is 184 px, so a riddle that wraps to 2-3 lines steps its font down (KM_UI.riddleQ.minFont) until the
   // question frame + answer row fit inside the strip; every current riddle is one line at the full size.
   function fitRiddleQ() {
@@ -1424,11 +1424,11 @@
     if (k === "back") e.input = e.input.slice(0, -1);
     else if (k === "enter") { if (striking) { e.enterQueued = true; return; } return submitAnswer(); }
     else if (/^\d$/.test(k) && e.input.length < 6) e.input += k;
-    const el = $("answer"); if (el) el.innerHTML = G(e.input) || "&nbsp;";
+    const el = $("answer"); if (el) el.innerHTML = G(e.input) || "&nbsp;"; KM.Juice.key(k, el); // juice switch: lands heavy + clang
   }
   function submitAnswer() {
     const e = S.enc; if (!e || e.phase !== 'math' || !e.q || !e.input) return;
-    const q = e.q, right = parseInt(e.input, 10) === e.problem.answer;
+    const q = e.q, right = parseInt(e.input, 10) === e.problem.answer; KM.Juice.enter(right, $("answer"), S); // juice switch: kosh / blocked
     e.failedFraction=e.tmr?Math.min(1,e.tmr.t/e.tmr.secs):1;
     e.answerTiming = right ? KM.Timing.grade(e.tmr, q) : null; BR.answered(e, right); // brawl: ghost recording
     e.q = null; e.tmr = null; e.phase = "busy";
@@ -2092,7 +2092,7 @@
     toggleMusic: () => { MU.toggleMute(); renderHUD(); },
     openPause, closePause, pauseMusic: () => { MU.toggleMute(); renderHUD(); renderPause(); }
   };
-  Object.assign(actions, BR.actions);
+  Object.assign(actions, BR.actions); KM.Juice.init();
   BR.init({ S, say, T, esc, showPanel, actionCard, shortName, artId, renderHUD, loseCompanion, commit: () => commit(), finish: () => finishEncounter() });
 
   // v11b (Magnus): scene hotspots work with the mouse too: pointer cursor + the ink highlight on hover, click = use
@@ -2325,10 +2325,10 @@
   // (MISSING_ART #34) + the number of easy sums left in big type
   // ---- v11b hearts in the scene: the party's at the top left (in pairs = one pair per member), the monster's small
   // above the monster. Ink hearts: red = full, outline = lost (stand-ins, MISSING_ART #33)
-  const HS = 34, HG = 6, PG = 14; // party heart size, gap, extra gap between members (stage px)
+  const HS = 34, HG = 6, PG = 14, HX = 18, HY = 16; // party heart size, gap, extra gap between members, top-left corner (stage px)
   const showHearts = () => !["title", "intro", "name"].includes(S.mode);
   const armourOverhang = () => Math.max(0, Math.ceil(PA.armour(S.party) / Math.max(1,maxHp())) - 1) * 7;
-  const partyHeartsRect = () => { if (inTomb() || !showHearts()) return null; return { x:18, y:16, w:maxHp()/BT.unit()*(HS+HG)+armourOverhang()+Math.max(0,S.party.length-1)*PG, h:HS }; };
+  const partyHeartsRect = () => { if (inTomb() || !showHearts()) return null; return { x:HX, y:HY, w:maxHp()/BT.unit()*(HS+HG)+armourOverhang()+Math.max(0,S.party.length-1)*PG, h:HS }; };
   function heartPath(x, y, s) { // top-left x,y, size s
     ctx.beginPath(); ctx.moveTo(x + s / 2, y + s * 0.95);
     ctx.bezierCurveTo(x - s * 0.05, y + s * 0.55, x - s * 0.02, y + s * 0.05, x + s * 0.27, y + s * 0.06);
@@ -2347,12 +2347,11 @@
     // Armour is one shared visual pool: cover hearts from the team's outer end, regardless of who owns the gear.
     if(slots.length)for(let h=armour-1;h>=0;h--)heart(slots[h%slots.length]+Math.floor(h/slots.length)*7*dir,y,HS,true,'#b8b9b4');
   }
-  function hudText(text,x,y,st){ctx.font=st.font;ctx.fillStyle=st.ink;ctx.textAlign='right';ctx.textBaseline='bottom';ctx.fillText(text,x,y);}
   function drawHearts() {
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.lineJoin = "round";
     const r = partyHeartsRect();
     if(r)teamHearts(S.party,S.hp,PA.armour(S.party),r.x,r.y,1);
-    const g=BR.team();if(g){teamHearts(g.members,g.hp,g.armour,L.scene.w-g.right-HS,g.top,-1);hudText(g.label,L.scene.w-g.right,g.top-g.name.gap,g.name);} // brawl: the ghost team's name + hearts, mirrored top right
+    const g=BR.team();if(g)teamHearts(g.members,g.hp,g.armour,L.scene.w-HX-HS,HY,-1); // brawl: the rival party's hearts, the player's mirrored (same y, same inset from the right)
     // every living foe: its own small hearts above its head (a ghost team member's are in its team row)
     foeHeartsRects().forEach(fr => {
       if(!fr.owner.ghost)for (let i=0;i<fr.shown;i++)heart(fr.x+i*(FS+3),fr.y,FS,i<fr.full,"#7a1f14");

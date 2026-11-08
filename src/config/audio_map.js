@@ -562,5 +562,44 @@ window.KM_AUDIO_MAP = {
     ],
     "vol": 0.9,
     "_note": "Charlie: first time a combo banner fires (upgrade cards)"
+  },
+  "key_cling": {
+    "files": [
+      "sfx/key_cling_1.ogg",
+      "sfx/key_cling_2.ogg",
+      "sfx/key_cling_3.ogg",
+      "sfx/key_cling_4.ogg"
+    ],
+    "vol": 0.6,
+    "_src": "Charlie, incoming/sfx_keys (README): number entry, sword battle / blacksmith forge (juice switch): each digit"
+  },
+  "key_enter_kosh": {
+    "files": [
+      "sfx/key_enter_kosh_1.ogg",
+      "sfx/key_enter_kosh_2.ogg"
+    ],
+    "vol": 0.9,
+    "_src": "Charlie, incoming/sfx_keys (README): number entry, sword battle / blacksmith forge (juice switch): a right Enter"
+  },
+  "enter_wrong": {
+    "files": [
+      "sfx/enter_wrong.ogg"
+    ],
+    "vol": 0.7,
+    "_src": "Charlie, incoming/sfx_keys (README): number entry, sword battle / blacksmith forge (juice switch): a wrong Enter (blocked ka-tunk)"
+  },
+  "enter_miss_whoosh": {
+    "files": [
+      "sfx/enter_miss_whoosh.ogg"
+    ],
+    "vol": 0.7,
+    "_src": "Charlie, incoming/sfx_keys (README): number entry, sword battle / blacksmith forge (juice switch): optional, a blade swishing past"
+  },
+  "key_backspace": {
+    "files": [
+      "sfx/key_backspace.ogg"
+    ],
+    "vol": 0.5,
+    "_src": "Charlie, incoming/sfx_keys (README): number entry, sword battle / blacksmith forge (juice switch): Backspace (soft wooden tick)"
   }
 };

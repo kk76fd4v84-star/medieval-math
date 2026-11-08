@@ -33,7 +33,12 @@ const J=x=>JSON.parse(JSON.stringify(x));
   // its hearts row: two per member, lit by the team's health left
   const S={stop:3,enc:{st:{brawl:{ghost:lady.runId}}},actors:[0,1,2,3].map(k=>({stop:3,ghost:true,extra:k||undefined,hp:k<2?0:6,maxHp:6}))};
   B.init({S,T:s=>s,say(){}});const h=B.team();assert.equal(h.members.length,4);assert.equal(h.hp,4,'half the team health = 4 of 8 hearts');
-  assert.equal(h.armour,0);assert.equal(h.top,D.hud.top);assert.equal(h.label,'Sir Quicksum'); }
+  assert.equal(h.armour,0);assert.deepEqual(Object.keys(h).sort(),['armour','hp','members'],'only hearts beside the hearts: no name, no icon'); }
+// difficulty: 1..10 from skill, seeds spread easy -> hard, a row of `count` icons with N lit
+{ const {B,D}=load(true),seeds=B.pool().filter(r=>r.player==='seed'),n=seeds.map(B.rating);
+  assert.deepEqual(J(n),[1,2,4,4,7,10],'seed ratings: '+n);for(let i=1;i<n.length;i++)assert(n[i]>=n[i-1]);
+  assert.equal(B.rating({answers:[]}),1,'no answers: 1');assert.equal(B.rating({answers:[{op:'+',ms:500,correct:true}]}),D.rating.count,'clamped to the top');
+  assert(D.rating.icon.length>10,'one swappable icon entry'); }
 // replay: the ghost's own answers for that operator in recorded order, looping; others fall back to all answers
 { const {B}=load(true),rec={answers:[{op:'+',ms:2000,correct:true},{op:'×',ms:5000,correct:false},{op:'+',ms:3000,correct:true}]},next=B.replay(rec);
   assert.deepEqual([next('+').ms,next('+').ms,next('+').ms],[2000,3000,2000]);assert.equal(next('×').ms,5000);assert.equal(next('÷').ms,2000);

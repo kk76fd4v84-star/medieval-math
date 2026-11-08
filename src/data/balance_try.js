@@ -12,6 +12,7 @@ KM_DATA.balanceTry = {
   gradual: false,     // slow step-by-step maths ladder (see `ladder` below); turns on whoActs
   whoActs: false,
   knightStart: false, // a new run starts as the covered-face knight (Maggi's starter art, chipped sword) instead of the villager
+  juice: false,       // number entry feels forged: digits land heavy with Charlie's clangs, Enter punches (src/data/juice.js)
   brawl: false,       // ghosts of recorded runs on the road: sightings + ambushes (src/data/brawl.js, src/brawl.js)
   pauseMenu: false,  // music on/off lives in a pause menu (P; the world stops); nothing top right: the stage's music button and distance flag hide (Magnus 2026-11-08)
   toughFoes: false,   // stronger foes take more blows: Fellowship health x `tough` below, on top of the curve (Magnus 2026-11-08)
