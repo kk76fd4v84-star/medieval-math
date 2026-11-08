@@ -7,14 +7,15 @@ KM.MeterPressure = (() => {
   const on = () => !!(KM.BalanceTry && KM.BalanceTry.on('meterPressure'));
   const snap = n => Math.round(n * 1e6) / 1e6, clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
   // per type, only the strongest living foe counts (a pack never stacks)
-  function strongest(foes) {
-    const out = { quick: 0, heavy: 0, slippery: 0, shroud: 0 };
-    for (const f of foes || []) { const p = D().foes[f.id || f] || {}; for (const k of TYPES) out[k] = Math.max(out[k], p[k] || 0); }
+  // extra = more foe pressures (party levels' early critters); courage 0..1 = share of the intimidation the party shrugs off
+  function strongest(foes, extra = {}, courage = 0) {
+    const out = { quick: 0, heavy: 0, slippery: 0, shroud: 0 }, keep = 1 - clamp(courage, 0, 1);
+    for (const f of foes || []) { const id = f.id || f, p = D().foes[id] || extra[id] || {}; for (const k of TYPES) out[k] = Math.max(out[k], snap((p[k] || 0) * keep)); }
     return out;
   }
   // gear first cancels its pressure (never beyond clean); leftover weapon / armour widens the bands as before
-  function windows({ weapon = 0, armour = 0, companions = 0, helm = 0, lantern = 0, foes = [] } = {}) {
-    const r = R(), L = D().limits, G = D().gear, p = strongest(foes);
+  function windows({ weapon = 0, armour = 0, companions = 0, helm = 0, lantern = 0, foes = [], extra, courage = 0 } = {}) {
+    const r = R(), L = D().limits, G = D().gear, p = strongest(foes, extra, courage);
     const use = (levels, step, need) => { const got = Math.min(need, Math.max(0, levels) * step); return [need - got, Math.max(0, levels - got / step)]; };
     const [slip, wLeft] = use(weapon, r.weaponStep, p.slippery);
     const [heavy, aLeft] = use(armour, r.armourStep, p.heavy);

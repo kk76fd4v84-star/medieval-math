@@ -992,12 +992,25 @@
     ask(level, () => turnRight(kind), () => turnWrong(kind), () => renderChoice(), undefined, kind);
   }
   // Timing measures answer quality. Filling the bar never submits or fails the question.
+  // party levels (switch partyLevels; data KM_DATA.partyLevels): fights won while alive raise a member's level (1..max);
+  // the living party's average level cancels part of a foe's intimidation (all of it for normal foes at max, part for big bosses)
+  const LV = BT.on('partyLevels'), PL = D.partyLevels;
+  const lvlOf = m => m.lvl || 1;
+  function courage() {
+    const alive = S.party.filter(PA.alive); if (!alive.length) return 0;
+    const avg = alive.reduce((n, m) => n + lvlOf(m), 0) / alive.length, big = PL.big.includes(S.enc?.st?.type);
+    return Math.max(0, (avg - 1) / (PL.max - 1)) * (big ? PL.cancel.big : PL.cancel.normal);
+  }
+  function partyWins() {
+    S.party.filter(PA.alive).forEach(m => { m.wins = (m.wins || 0) + 1; const n = PL.winsFor.filter(w => m.wins >= w).length;
+      if (n > lvlOf(m)) { m.lvl = Math.min(PL.max, n); float(PL.levelUp.replace('{n}', m.lvl), m.sx, W.groundY - tallOf("hero") + 40, "#f2c14e"); } });
+  }
   function combatWindows(kind=S.enc?.action) {
     const e=S.enc;
     const role={fire:'firestarter',execute:'executioner',lightning:'darkWizard',heal:'priest',resurrect:'priest'}[kind]||'knight';
     const owners=isFellowship()?S.party.filter(PA.alive):isKnight()&&e?.activeCard ? S.party.filter(m=>e.activeCard.owners.includes(m.id)) : PA.members(S.party,role);
-    const ready=e?.revealed&&e.pressureReady!==false&&(!KM.CastBar?.on()||D.castBar.shiftBy.includes(e.st?.type)),weapon=Math.max(0,...owners.filter(PA.alive).map(m=>m.weapon||0)),armour=PA.armour(S.party.filter(PA.alive)),companions=S.party.filter(m=>m.id!=='hero'&&PA.alive(m)).length;
-    if(MP.on())return MP.windows({weapon,armour,companions,helm:MP.level(S,'helm'),lantern:MP.level(S,'lantern'),foes:ready?living(e):[]});
+    const ready=e?.revealed&&e.pressureReady!==false&&(!KM.CastBar?.on()||LV||D.castBar.shiftBy.includes(e.st?.type)),weapon=Math.max(0,...owners.filter(PA.alive).map(m=>m.weapon||0)),armour=PA.armour(S.party.filter(PA.alive)),companions=S.party.filter(m=>m.id!=='hero'&&PA.alive(m)).length;
+    if(MP.on())return MP.windows({weapon,armour,companions,helm:MP.level(S,'helm'),lantern:MP.level(S,'lantern'),foes:ready?living(e):[],extra:LV?PL.foes:undefined,courage:LV?courage():0});
     const pressure=ready?KM.Timing.pressure(living(e)):{};
     return KM.Timing.windows({weapon:Math.max(0,...owners.filter(PA.alive).map(m=>m.weapon||0)),armour:PA.armour(S.party.filter(PA.alive)),
       companions:S.party.filter(m=>m.id!=='hero'&&PA.alive(m)).length,pressure});
@@ -1292,7 +1305,7 @@
   }
   function defeatEnemy() {
     const e = S.enc, st = e.st, E = D.enemies[e.act.id] || {};
-    if(e.won)return;e.won=true;BR.won(st);
+    if(e.won)return;e.won=true;BR.won(st);if(LV)partyWins();
     if(CARDS&&CARDS.cleanRefill(S)&&!e.lost)S.party.forEach(m=>m.armor=Math.max(m.armor||0,m.armorTop||0)); // Shield Wall
     e.phase = "busy"; say(e.act, e.act.defeat || E.defeat); enemyDeath(e.act);
 
@@ -1357,8 +1370,12 @@
   // ---- generic maths question (combat actions, recruits, Frank)
   function ask(level, onRight, onWrong, back, secs, kind="recruit") {
     if (TUT && !TUT.seen()) return tutorial(() => ask(level, onRight, onWrong, back, secs, kind));
-    const tip = kind !== "recruit" && crewTip(); if (tip) return tipDialog(tip, () => ask(level, onRight, onWrong, back, secs, kind));
+    const again = () => ask(level, onRight, onWrong, back, secs, kind), code = kind === "recruitCode", fight = !NOT_FIGHT.includes(kind);
+    if (code && TUT && !tipSeen('recruitCode')) return tipDialog('recruitCode', again);
+    if (fight && scaredTip()) { const e0 = S.enc; e0.phase = "busy"; showPanel('', 'info'); return later(KM_DATA.tutorial.tips.scared.afterSecs, () => { if (S.enc === e0 && !S.dying) tipDialog('scared', again); }); }
+    const tip = fight && crewTip(); if (tip) return tipDialog(tip, again);
     const e = S.enc; e.phase = "math"; e.input = ""; e.tmr = null; e.enterQueued = false;
+    if (code) { e.problem = recruitCode(); e.q = { onRight, onWrong, back, level }; renderMath(); return startAnswerTimer(D.recruitCode.secs); }
     if(isFellowship() && S.spells>0 && !S.spellLeft && !meadNow()){S.spells--;S.spellLeft=SPL.problems;A.play(SPL.sfx.cast);renderHUD();}
     const mead = meadNow(), stupid = mead || S.spellLeft > 0; // Scroll: the next maths problem only. Mead: all sums in this battle.
     const grade=KM.Progression.level(level,e.st,S.stops),stage=KM.Progression.stage(e.st,S.stops);
@@ -1415,7 +1432,7 @@
       <div class="ops">${OPS.map(([ch]) => `<span class="op ${used.includes(ch) ? "on" : ""}">${G(ch)}</span>`).join("")}</div>` : "";
     showPanel(`<div class="center mathp ${L.touchPad ? "touch" : ""}">
         ${isKnight()&&e.activeCard?'<small class="committed-card">'+T(e.activeCard.name)+'</small>':''}
-        <div class="sum"><span class="problem">${G(used)}<span class="answer" id="answer">${G(e.input) || "&nbsp;"}</span></span></div>
+        <div class="sum${e.problem.code ? " code" : ""}"><span class="problem">${G(e.problem.code ? e.problem.text : used)}<span class="answer" id="answer">${G(e.input) || "&nbsp;"}</span></span></div>
         ${pad}
       </div>`, "math"); // v11: only the carved sum (no title, hint or key captions; Esc still goes back)
   }
@@ -1555,11 +1572,11 @@
         huntersStep(1); if (S.dying) return;
         if (st.rest === 'campsite') { campRecruitLeaves(st, j); done(false); return; }
         if (isTavern(st)) { tavernRecruitLeaves(st,j);done(false);return; }
-        if(isFellowship()){say(candSpeaker(st,j),`It's ${S.enc.problem.answer}. Maybe another time.`);campRecruitLeaves(st,j);done(false);return;}
-        say(candSpeaker(st, j), `It's ${S.enc.problem.answer}! Can't count? Roll me for it, then.`, inPhase("contestOffer"));
+        if(isFellowship()){say(candSpeaker(st,j),S.enc.problem.code?D.recruitCode.fail.leave:`It's ${S.enc.problem.answer}. Maybe another time.`);campRecruitLeaves(st,j);done(false);return;}
+        say(candSpeaker(st, j), S.enc.problem.code ? D.recruitCode.fail.contest : `It's ${S.enc.problem.answer}! Can't count? Roll me for it, then.`, inPhase("contestOffer"));
         S.enc.phase = "contestOffer"; S.enc.contest = { st, j, done };
         contestPanel();
-      }, () => done(false, true));
+      }, () => done(false, true), undefined, RC_KIND());
   }
   function campRecruitLeaves(st, j) {
     const p = st.cands[j], a = candSpeaker(st, j);
@@ -1853,6 +1870,16 @@
   // cast bar tutorial (switch castBar; text KM_DATA.tutorial.castBar): once per save, before the first sum
   const TUT = KM.CastBar && KM.CastBar.on() && KM_DATA.tutorial && (() => { const t = KM_DATA.tutorial.castBar;
     return { t, seen: () => { try { return localStorage.getItem(t.saveKey) === '1'; } catch (_) { return true; } }, done: () => { try { localStorage.setItem(t.saveKey, '1'); } catch (_) {} } }; })();
+  // recruit codes (switch recruitCode; data KM_DATA.recruitCode): a random code to type before the short meter ends
+  const NOT_FIGHT = ["recruit", "recruitCode", "restraint"], RC_KIND = () => BT.on('recruitCode') ? "recruitCode" : "recruit";
+  function recruitCode() { let t = String(1 + Math.floor(Math.random() * 9)); while (t.length < D.recruitCode.digits) t += Math.floor(Math.random() * 10);
+    return { text: t, answer: Number(t), code: true, type: 'code', level: 'code' }; }
+  const tipSeen = id => { try { return localStorage.getItem(KM_DATA.tutorial.tips[id].saveKey) === '1'; } catch (_) { return true; } };
+  // first time a foe's intimidation moves the cast bar for a party that can't shrug it off (switch partyLevels)
+  function scaredTip() {
+    if (!LV || !TUT || !MP.on() || tipSeen('scared')) return false;
+    const w = combatWindows(), p = w && w.enemyPressure; return !!(p && (p.crit > 0 || p.block > 0 || w.quick > 0 || w.ink));
+  }
   // first time the bar shifts because the party grew (worse) or got better gear (better): one tip each per save. Fight sums only.
   let crewLast = null;
   function crewTip() {
@@ -1860,8 +1887,7 @@
     const alive = S.party.filter(PA.alive), cur = { comp: alive.filter(m => m.id !== 'hero').length,
       gear: alive.reduce((n, m) => n + (m.weapon || 0), 0) + PA.armour(alive) + (MP.on() ? MP.level(S, 'helm') + MP.level(S, 'lantern') : 0) + (S.cards || []).length };
     const last = crewLast; crewLast = cur; if (!last) return null;
-    const seen = id => { try { return localStorage.getItem(tips[id].saveKey) === '1'; } catch (_) { return true; } };
-    return cur.comp > last.comp && !seen('party') ? 'party' : cur.gear > last.gear && !seen('gear') ? 'gear' : null;
+    return cur.comp > last.comp && !tipSeen('party') ? 'party' : cur.gear > last.gear && !tipSeen('gear') ? 'gear' : null;
   }
   function tipDialog(id, then) {
     const e = S.enc, t = KM_DATA.tutorial.tips[id]; e.phase = 'tutorial'; e.tutorialThen = then; e.tip = id;
@@ -1937,7 +1963,7 @@
       () => completeRecruit(st,j,back,pickOne(RT.yes)),
       () => { huntersStep(1); if (S.dying) return;
         tavernRecruitLeaves(st,j);back(); },
-      back);
+      back, undefined, RC_KIND());
   }
   const contestPanel = () => showPanel(`<div class="center"><div class="opts big3 turn moves">${move("D", "Roll for it", "contest", "roll")}${move("N", "No", "noContest", "")}</div></div>`, "info");
   function restRecruit(j) {

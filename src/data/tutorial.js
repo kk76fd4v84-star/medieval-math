@@ -18,6 +18,19 @@ KM_DATA.tutorial = {
   },
   // one-time tips the first time the cast bar shifts for a reason (Magnus 2026-11-09); same frame, words only
   tips: {
+    recruitCode: {  // switch recruitCode: first recruit
+      saveKey: "knightMath.tutorial.recruitCodeTip",
+      title: "Quick hands",
+      text: "Companions want to see how fast you are. They care little about how smart you are. Type the numbers before the meter runs out.",
+      button: "Got it"
+    },
+    scared: {       // switch partyLevels: first time a foe's intimidation moves the cast bar
+      saveKey: "knightMath.tutorial.scaredTip",
+      title: "Terrified",
+      text: "Right now this critter terrifies you, and it weakens your attacks. Watch the icons it pushes back. The longer your companions live, the stronger they grow, and things like this won't scare you.",
+      button: "Got it",
+      afterSecs: 2.6   // let the bar's shake + slide play first
+    },
     party: {
       saveKey: "knightMath.tutorial.partyTip",
       title: "A bigger party",
