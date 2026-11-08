@@ -1357,6 +1357,7 @@
   // ---- generic maths question (combat actions, recruits, Frank)
   function ask(level, onRight, onWrong, back, secs, kind="recruit") {
     if (TUT && !TUT.seen()) return tutorial(() => ask(level, onRight, onWrong, back, secs, kind));
+    const tip = kind !== "recruit" && crewTip(); if (tip) return tipDialog(tip, () => ask(level, onRight, onWrong, back, secs, kind));
     const e = S.enc; e.phase = "math"; e.input = ""; e.tmr = null; e.enterQueued = false;
     if(isFellowship() && S.spells>0 && !S.spellLeft && !meadNow()){S.spells--;S.spellLeft=SPL.problems;A.play(SPL.sfx.cast);renderHUD();}
     const mead = meadNow(), stupid = mead || S.spellLeft > 0; // Scroll: the next maths problem only. Mead: all sums in this battle.
@@ -1852,6 +1853,22 @@
   // cast bar tutorial (switch castBar; text KM_DATA.tutorial.castBar): once per save, before the first sum
   const TUT = KM.CastBar && KM.CastBar.on() && KM_DATA.tutorial && (() => { const t = KM_DATA.tutorial.castBar;
     return { t, seen: () => { try { return localStorage.getItem(t.saveKey) === '1'; } catch (_) { return true; } }, done: () => { try { localStorage.setItem(t.saveKey, '1'); } catch (_) {} } }; })();
+  // first time the bar shifts because the party grew (worse) or got better gear (better): one tip each per save. Fight sums only.
+  let crewLast = null;
+  function crewTip() {
+    const tips = TUT && KM_DATA.tutorial.tips; if (!tips) return null;
+    const alive = S.party.filter(PA.alive), cur = { comp: alive.filter(m => m.id !== 'hero').length,
+      gear: alive.reduce((n, m) => n + (m.weapon || 0), 0) + PA.armour(alive) + (MP.on() ? MP.level(S, 'helm') + MP.level(S, 'lantern') : 0) + (S.cards || []).length };
+    const last = crewLast; crewLast = cur; if (!last) return null;
+    const seen = id => { try { return localStorage.getItem(tips[id].saveKey) === '1'; } catch (_) { return true; } };
+    return cur.comp > last.comp && !seen('party') ? 'party' : cur.gear > last.gear && !seen('gear') ? 'gear' : null;
+  }
+  function tipDialog(id, then) {
+    const e = S.enc, t = KM_DATA.tutorial.tips[id]; e.phase = 'tutorial'; e.tutorialThen = then; e.tip = id;
+    showPanel('', 'info'); document.getElementById('tut-layer')?.remove();
+    document.getElementById('stage').insertAdjacentHTML('beforeend', `<div id="tut-layer" class="tut-shade"><div class="tut-dialog" role="dialog" aria-modal="true" aria-labelledby="tut-title"><div id="tut-title" class="tut-title">${esc(T(t.title))}</div><div class="tut-intro">${esc(T(t.text))}</div><button type="button" class="opt plaque tut-go" data-act="closeTutorial">${esc(T(t.button))}</button></div></div>`);
+    document.querySelector('#tut-layer .tut-go')?.focus();
+  }
   function tutorial(then) {
     const e = S.enc, t = TUT.t, w = 'assets/timing-woodcut/', img = id => `<img src="${w}${id}.png" alt="" draggable="false">`; e.phase = 'tutorial'; e.tutorialThen = then;
     const bar = `<div class="tut-bar" aria-hidden="true"><img class="tut-track" src="${w}track.png" alt=""><img class="tut-fill" src="${w}fill.png" alt="">${t.icons.map(r => `<span class="tut-mark" style="left:${r.at * 100}%">${img(r.icon)}</span>`).join('')}</div><div class="tut-ends"><span>${esc(T(t.ends[0]))}</span><span>${esc(T(t.ends[1]))}</span></div>`;
@@ -1879,7 +1896,7 @@
     return e.phase === "rest" && !!S.view && S.view.id === "tavern-interior";
   }
   function closePause() { paused = false; document.getElementById('pause-layer')?.remove(); }
-  function closeTutorial() { const e = S.enc; if (!e || e.phase !== 'tutorial') return; TUT.done(); document.getElementById('tut-layer')?.remove(); const then = e.tutorialThen; e.tutorialThen = null; then(); }
+  function closeTutorial() { const e = S.enc; if (!e || e.phase !== 'tutorial') return; if (e.tip) { try { localStorage.setItem(KM_DATA.tutorial.tips[e.tip].saveKey, '1'); } catch (_) {} e.tip = null; } else TUT.done(); document.getElementById('tut-layer')?.remove(); const then = e.tutorialThen; e.tutorialThen = null; then(); }
   function gearDialog(kind){
     const g=restT().gear,key=kind==='weapon'?'maxWeapon':'maxArmor',cost=kind==='weapon'?g.weaponCost:g.armorCost;
     const icon=`<img src="assets/ui/shop/${kind==='weapon'?'sword':'armour'}-cutout.png" alt="">`;

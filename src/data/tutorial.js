@@ -15,5 +15,20 @@ KM_DATA.tutorial = {
     ],
     // optional small lines under the rows (none in v3): strike: "...", trail: "...", tricks: { title, lines } (meterPressure only)
     button: "Onward!"
+  },
+  // one-time tips the first time the cast bar shifts for a reason (Magnus 2026-11-09); same frame, words only
+  tips: {
+    party: {
+      saveKey: "knightMath.tutorial.partyTip",
+      title: "A bigger party",
+      text: "Every new companion adds to your strikes, but a bigger party is harder to command. You get less time to block or land a crit.",
+      button: "Onward!"
+    },
+    gear: {
+      saveKey: "knightMath.tutorial.gearTip",
+      title: "Better gear",
+      text: "Armour, weapons and other gear help your party fight as one, winning back time to block and land a crit.",
+      button: "Onward!"
+    }
   }
 };
