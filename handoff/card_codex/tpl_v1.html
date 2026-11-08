@@ -1,0 +1,38 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Fellowship Card Codex</title><style>
+body{background:#efe4cc;color:#1c1712;font:15px Georgia,serif;margin:0;padding:24px 32px}
+h1{margin:0 0 4px;font-size:28px}h2{border-bottom:2px solid #1c1712;margin:28px 0 12px;text-transform:capitalize}
+.bar{position:sticky;top:0;background:#efe4cc;padding:8px 0;border-bottom:1px solid #b9a988;z-index:2}
+button{background:#1c1712;color:#efe4cc;border:0;padding:7px 14px;font:inherit;cursor:pointer;margin-right:6px}button.o{background:#d9661f}
+.grid{display:flex;flex-wrap:wrap;gap:16px}.card{background:#f8f1e1;border:1px solid #1c1712;padding:12px;width:430px;display:flex;gap:12px}
+.card.del{opacity:.4;text-decoration:line-through}.card img{width:130px;align-self:flex-start;border:1px solid #1c1712}
+.f{display:grid;grid-template-columns:110px 1fr;gap:3px 6px;flex:1;font-size:13px}.f label{color:#6b5d48}
+.f [contenteditable],textarea{border-bottom:1px dotted #8a7b60;outline:0;min-height:1em;font:inherit}textarea{width:100%;background:transparent;border:1px solid #b9a988}
+.ch{background:#f7c9a3;box-shadow:inset 3px 0 #d9661f}.small{font-size:12px;color:#6b5d48}
+</style></head><body><div class="bar"><h1>Fellowship Card Codex</h1><span class="small">Click any value to edit. Changes are highlighted in orange and autosaved in this browser.</span><br>
+<button class="o" id="save">Save my changes</button><button id="add">Add card</button><button id="reset">Reset to original</button></div><div id="out"></div>
+<script>
+const ORIG=__DATA__;const KEY='mm_card_codex_v1';const FIELDS=Object.keys(ORIG[0]).filter(k=>k!='_img'&&k!='notes');
+let _ls=null;try{_ls=window.localStorage;_ls.getItem('x')}catch(e){_ls=null}
+let cards=JSON.parse((_ls&&_ls.getItem(KEY))||'null')||JSON.parse(JSON.stringify(ORIG));
+const orig=id=>ORIG.find(c=>c.id===c._oid||c.id===id);
+function origOf(c){return ORIG.find(o=>o.id===c._oid)}
+function changes(c){const o=origOf(c);if(!o)return['new card'];const r=FIELDS.concat('notes').filter(k=>String(c[k])!==String(o[k]));if(c._deleted)r.push('deleted');return r}
+function persist(){try{_ls&&_ls.setItem(KEY,JSON.stringify(cards))}catch(e){}}
+cards.forEach(c=>{if(c._oid===undefined&&ORIG.some(o=>o.id===c.id))c._oid=c.id});
+function render(){const out=document.getElementById('out');out.innerHTML='';const g={};cards.forEach(c=>(g[c.owner]=g[c.owner]||[]).push(c));
+for(const own in g){const h=document.createElement('h2');h.textContent=own;out.append(h);const grid=document.createElement('div');grid.className='grid';out.append(grid);
+g[own].forEach(c=>{const d=document.createElement('div');d.className='card'+(c._deleted?' del':'');if(c._img){const i=new Image();i.src=c._img;d.append(i)}
+const f=document.createElement('div');f.className='f';const o=origOf(c);
+FIELDS.forEach(k=>{const l=document.createElement('label');l.textContent=k.replace(/_/g,' ');const v=document.createElement('div');v.contentEditable=true;v.textContent=c[k];
+if(o&&String(c[k])!==String(o[k])||!o)v.className='ch';v.oninput=()=>{const t=v.textContent;c[k]=typeof(o||{})[k]==='number'&&t.trim()!==''&&!isNaN(t)?Number(t):t;v.className=(!o||String(c[k])!==String(o[k]))?'ch':'';persist()};
+v.onblur=()=>{if(k==='owner')render()};f.append(l,v)});
+const nl=document.createElement('label');nl.textContent='notes';const ta=document.createElement('textarea');ta.value=c.notes||'';ta.placeholder='Your ideas for this card…';if(c.notes)ta.className='ch';
+ta.oninput=()=>{c.notes=ta.value;ta.className=c.notes?'ch':'';persist()};const b=document.createElement('button');b.textContent=c._deleted?'Undo delete':'Delete';b.style.marginTop='6px';
+b.onclick=()=>{c._deleted=!c._deleted;persist();render()};f.append(nl,ta,document.createElement('span'),b);d.append(f);grid.append(d)})}}
+document.getElementById('add').onclick=()=>{const n={};FIELDS.forEach(k=>n[k]=typeof ORIG[0][k]==='number'?0:'');n.id='new_card_'+Date.now()%100000;n.name='New card';n.owner='knight';n.notes='';cards.push(n);persist();render();scrollTo(0,document.body.scrollHeight)};
+document.getElementById('reset').onclick=()=>{if(confirm('Throw away all edits?')){try{_ls&&_ls.removeItem(KEY)}catch(e){};cards=JSON.parse(JSON.stringify(ORIG));cards.forEach(c=>c._oid=c.id);render()}};
+function exportData(){const strip=c=>{const r={};for(const k in c)if(k!='_img')r[k]=c[k];return r};const ch={};cards.forEach(c=>{const x=changes(c);if(x.length)ch[c._oid||c.id]=x});
+return{saved:new Date().toISOString(),cards:cards.map(strip),changed:ch}}
+document.getElementById('save').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(exportData(),null,2)],{type:'application/json'}));a.download='card_codex_edits.json';a.click()};
+render();
+</script></body></html>

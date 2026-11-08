@@ -1,0 +1,50 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Fellowship Card Codex</title><style>
+body{background:#efe4cc;color:#1c1712;font:15px Georgia,serif;margin:0;padding:24px 32px}
+h1{margin:0 0 4px;font-size:28px}h2{border-bottom:2px solid #1c1712;margin:28px 0 12px;text-transform:capitalize}
+.bar{position:sticky;top:0;background:#efe4cc;padding:8px 0;border-bottom:1px solid #b9a988;z-index:2}
+button{background:#1c1712;color:#efe4cc;border:0;padding:7px 14px;font:inherit;cursor:pointer;margin-right:6px}button.o{background:#d9661f}
+.grid{display:flex;flex-wrap:wrap;gap:16px}.card{background:#f8f1e1;border:1px solid #1c1712;padding:12px;width:470px;display:flex;gap:12px}
+.card.del{opacity:.4;text-decoration:line-through}.card img{width:130px;align-self:flex-start;border:1px solid #1c1712}
+.f{display:grid;grid-template-columns:150px 1fr;gap:3px 6px;flex:1;font-size:13px}.f label{color:#6b5d48}
+.f [contenteditable],textarea{border-bottom:1px dotted #8a7b60;outline:0;min-height:1em;font:inherit}textarea{width:100%;background:transparent;border:1px solid #b9a988}
+.sec{grid-column:1/-1;margin-top:8px;padding-top:6px;border-top:1px solid #b9a988;font-weight:bold;font-size:13px}.full{grid-column:1/-1}select{font:inherit;margin-top:4px;background:#f8f1e1;border:1px solid #b9a988}.ch{background:#f7c9a3;box-shadow:inset 3px 0 #d9661f}.small{font-size:12px;color:#6b5d48}
+</style></head><body><div class="bar"><h1>Fellowship Card Codex</h1><span class="small">Click any text or number to change it. Changes turn orange.</span><br>
+<button class="o" id="save">Save my changes</button><button id="add">Add card</button><button id="reset">Reset to original</button></div><div id="out"></div>
+<script>
+const ORIG=__DATA__;const KEY='mm_card_codex_v2';
+const WHO={knight:'Knight',firestarter:'Timmy the Firestarter',darkWizard:'Dark Wizard',any:'Any party member'};
+const SIGN={knight:'+',firestarter:'×',darkWizard:'×',any:''};
+const TEXT=[['name','Card name'],['hit_effect','On a right answer'],['miss_or_cost','The cost']];
+const STATS=[['knightTargets','Extra enemies the knight hits'],['burn','Burn damage each turn'],['wizardDamage','Extra lightning damage to every enemy'],['cleanRefill','Armour refills after a fight with no hearts lost (1 = yes)'],
+['levelCost_knight','Makes knight sums harder by (levels)'],['levelCost_firestarter','Makes fire sums harder by (levels)'],['levelCost_darkWizard','Makes wizard sums harder by (levels)'],['missChip','On a miss, an ally loses this many hearts (half with half-hearts, never the last)'],['meterBack_crit','On a crit, push the meter back by (% of the bar)'],['meterBack_block','On a block (armour, no counter-attack), push the meter back by (% of the bar)'],['meterBack_normal','On a normal hit, push the meter back by (% of the bar)'],['meterBack_weak','On a weak hit, push the meter back by (% of the bar)'],['meterBack_miss','On a wrong answer, push the meter back by (% of the bar)']];
+const ALL=['name','owner','hit_effect','miss_or_cost','combos','notes'].concat(STATS.map(s=>s[0]));
+let _ls=null;try{_ls=window.localStorage;_ls.getItem('x')}catch(e){_ls=null}
+let cards=JSON.parse((_ls&&_ls.getItem(KEY))||'null')||JSON.parse(JSON.stringify(ORIG));
+cards.forEach(c=>{if(c._oid===undefined&&ORIG.some(o=>o.id===c.id))c._oid=c.id;c._show=c._show||[]});
+const origOf=c=>ORIG.find(o=>o.id===c._oid);
+const diff=(c,k)=>{const o=origOf(c);return !o||String(c[k]??'')!==String(o[k]??'')};
+function persist(){try{_ls&&_ls.setItem(KEY,JSON.stringify(cards))}catch(e){}}
+function field(f,c,k,label,num){const l=document.createElement('label');l.textContent=label;const v=document.createElement('div');v.contentEditable=true;v.textContent=c[k]??'';if(diff(c,k))v.className='ch';
+ v.oninput=()=>{const t=v.textContent.trim();c[k]=num?(t===''||isNaN(t)?t:Number(t)):v.textContent;v.className=diff(c,k)?'ch':'';persist()};f.append(l,v)}
+function render(){const out=document.getElementById('out');out.innerHTML='';const g={};cards.forEach(c=>(g[c.owner]=g[c.owner]||[]).push(c));
+for(const own in g){const h=document.createElement('h2');h.textContent=(WHO[own]||own)+(SIGN[own]?'  ('+SIGN[own]+' sums)':'');out.append(h);const grid=document.createElement('div');grid.className='grid';out.append(grid);
+g[own].forEach(c=>{const d=document.createElement('div');d.className='card'+(c._deleted?' del':'');if(c._img){const i=new Image();i.src=c._img;d.append(i)}
+const f=document.createElement('div');f.className='f';
+TEXT.forEach(([k,lab])=>field(f,c,k,lab,false));
+const sub=document.createElement('div');sub.className='sec';sub.textContent='What it does in the game';f.append(sub);
+const o=origOf(c)||{};const shown=STATS.filter(([k])=>Number(c[k])||Number(o[k])||c._show.includes(k));
+if(!shown.length){const p=document.createElement('div');p.className='small full';p.textContent='No numbers yet. Add one below.';f.append(p)}
+shown.forEach(([k,lab])=>field(f,c,k,lab,true));
+const hidden=STATS.filter(s=>!shown.includes(s));if(hidden.length){const sel=document.createElement('select');sel.className='full';sel.innerHTML='<option value="">+ Add an effect or cost…</option>'+hidden.map(([k,l])=>`<option value="${k}">${l}</option>`).join('');
+ sel.onchange=()=>{if(sel.value){c._show.push(sel.value);if(!c[sel.value])c[sel.value]=1;persist();render()}};f.append(sel)}
+if(c.combos){field(f,c,'combos','Combo idea (not built yet)',false)}
+const nl=document.createElement('label');nl.textContent='Notes for Cobra';const ta=document.createElement('textarea');ta.value=c.notes||'';ta.placeholder='Anything else you want changed…';if(c.notes)ta.className='ch';
+ta.oninput=()=>{c.notes=ta.value;ta.className=c.notes?'ch':'';persist()};const b=document.createElement('button');b.textContent=c._deleted?'Undo delete':'Delete card';b.style.marginTop='6px';
+b.onclick=()=>{c._deleted=!c._deleted;persist();render()};f.append(nl,ta,document.createElement('span'),b);d.append(f);grid.append(d)})}}
+document.getElementById('add').onclick=()=>{const own=prompt('Who owns the new card? knight, firestarter, darkWizard or any','knight')||'knight';const n={id:'new_card_'+Date.now()%100000,name:'New card',owner:own,hit_effect:'',miss_or_cost:'',combos:'',notes:'',_show:[]};STATS.forEach(([k])=>n[k]=0);cards.push(n);persist();render();scrollTo(0,document.body.scrollHeight)};
+document.getElementById('reset').onclick=()=>{if(confirm('Throw away all edits?')){try{_ls&&_ls.removeItem(KEY)}catch(e){};cards=JSON.parse(JSON.stringify(ORIG));cards.forEach(c=>{c._oid=c.id;c._show=[]});render()}};
+function exportData(){const strip=c=>{const r={};for(const k in c)if(k[0]!='_')r[k]=c[k];if(c._deleted)r.deleted=true;return r};const ch={};
+cards.forEach(c=>{const o=origOf(c);const x=o?ALL.filter(k=>diff(c,k)):['new card'];if(c._deleted)x.push('deleted');if(x.length)ch[c._oid||c.id]=x});return{saved:new Date().toISOString(),changed:ch,cards:cards.map(strip)}}
+document.getElementById('save').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(exportData(),null,2)],{type:'application/json'}));a.download='card_codex_edits.json';document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),500)};
+render();
+</script></body></html>
