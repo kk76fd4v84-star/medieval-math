@@ -3,7 +3,7 @@ window.KM = window.KM || {};
 KM.BalanceTry = (() => {
   const B = KM_DATA.balanceTry, q = new URLSearchParams(location.search);
   const flag = (key, param) => q.has(param) ? q.get(param) !== '0' : !!B[key];
-  const sw = { curve: flag('curve', 'curve'), halfHearts: flag('halfHearts', 'halfhearts'), campArmour: flag('campArmour', 'camparmour'), whoActs: flag('whoActs', 'whoacts'), cards: flag('cards', 'cards'), gradual: flag('gradual', 'gradual'), meterPressure: flag('meterPressure', 'meterpressure'), castBar: flag('castBar', 'castbar'), knightStart: flag('knightStart', 'knightstart'), chestCards: flag('chestCards', 'chestcards'), toughFoes: flag('toughFoes', 'toughfoes') };
+  const sw = { curve: flag('curve', 'curve'), halfHearts: flag('halfHearts', 'halfhearts'), campArmour: flag('campArmour', 'camparmour'), whoActs: flag('whoActs', 'whoacts'), cards: flag('cards', 'cards'), gradual: flag('gradual', 'gradual'), meterPressure: flag('meterPressure', 'meterpressure'), castBar: flag('castBar', 'castbar'), knightStart: flag('knightStart', 'knightstart'), chestCards: flag('chestCards', 'chestcards'), toughFoes: flag('toughFoes', 'toughfoes'), brawl: flag('brawl', 'brawl') };
   if (sw.chestCards) sw.cards = true;
   if (sw.cards || sw.gradual) sw.whoActs = true;
 

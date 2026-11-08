@@ -1,0 +1,46 @@
+// Brawl mode (src/brawl.js): ghost records, matchmaking (easy -> hard, up after a win), replay, route, the ghost clock.
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict');
+const root=process.env.GAME_ROOT||path.resolve(__dirname,'..');
+function load(on){
+  const mem={},ctx={localStorage:{getItem:k=>k in mem?mem[k]:null,setItem:(k,v)=>{mem[k]=String(v);}},document:{querySelector:()=>({content:'test-build'})}};
+  ctx.window=ctx;vm.createContext(ctx);
+  for(const f of ['src/data/combat.js','src/data/brawl.js'])vm.runInContext(fs.readFileSync(path.join(root,f),'utf8'),ctx);
+  vm.runInContext(`KM={BalanceTry:{on:k=>k==='brawl'&&${on}},PartyAbilities:{role:m=>m.role||'knight'}};`,ctx);
+  vm.runInContext(fs.readFileSync(path.join(root,'src/brawl.js'),'utf8'),ctx);
+  const B=ctx.KM.Brawl,S={runId:'r1',name:'Magnus',challengeMode:'fellowship',chapter:'village',stop:7,party:[{name:'Magnus',role:'knight',weapon:1}],meterGear:{}};
+  B.init({S,T:s=>s,say(){}});return {B,S,mem,D:ctx.KM_DATA.brawl};
+}
+const J=x=>JSON.parse(JSON.stringify(x));
+// matchmaking: seeds ranked easy -> hard, start at the easiest, one step up per ghost beaten
+{ const {B,D}=load(true),list=B.pool();
+  assert.deepEqual(list.map(r=>r.name),D.seeds.map(s=>s.name),'seed ghosts rank easy -> hard by skill');
+  for(let i=1;i<list.length;i++)assert(B.skill(list[i])>B.skill(list[i-1]));
+  assert.equal(B.opponent(list,0).name,D.seeds[0].name,'start against the easiest');
+  B.won({type:'math',brawl:{}});B.won({type:'math',brawl:{}});
+  const road=Array.from({length:14},(_,i)=>({type:'math',enemy:'goblin',idx:i}));
+  const ghosts=B.route(road,{runId:'seed-check'}).filter(st=>st.brawl);
+  assert(ghosts.length>0,'ghost stops on the road');assert.equal(ghosts[0].brawl.step,2,'after two wins the next ghost is two steps up');
+  assert.equal(ghosts[0].brawl.name,list[2].name);
+  assert.deepEqual(J(B.route(road,{runId:'seed-check'})),J(B.route(road,{runId:'seed-check'})),'same run, same road');
+  for(const g of ghosts){assert(['optional','math'].includes(g.type));assert.equal(g.type==='optional','sighting'===g.brawl.kind);assert(Array.isArray(g.group));} }
+// replay: the ghost's own answers for that operator in recorded order, looping; others fall back to all answers
+{ const {B}=load(true),rec={answers:[{op:'+',ms:2000,correct:true},{op:'×',ms:5000,correct:false},{op:'+',ms:3000,correct:true}]},next=B.replay(rec);
+  assert.deepEqual([next('+').ms,next('+').ms,next('+').ms],[2000,3000,2000]);assert.equal(next('×').ms,5000);assert.equal(next('÷').ms,2000);
+  // the ghost clock: a right answer sets the bar to its time (clamped); a wrong one keeps the usual time
+  const e={st:{brawl:{ghost:'seed-0'}},revealed:true,problem:{text:'3 + 4'},act:{}};
+  const b=B.secs(e,20);assert(b>=1.5&&b<=12,'ghost time in bounds: '+b);
+  assert.equal(B.secs({st:{},revealed:true,problem:{text:'3 + 4'}},20),20,'not a ghost fight: unchanged');
+  const w={st:{brawl:{ghost:'x'}},revealed:true,problem:{text:'3 + 4'},act:{},ghostNext:()=>({ms:900,correct:false})};assert.equal(B.secs(w,20),20,'wrong ghost answer: usual time'); }
+// recording: Cobra's run shape, saved at the run end, then part of the pool
+{ const {B,S,mem}=load(true);
+  B.answered({problem:{text:'6 × 7'},q:{level:'hard'},tmr:{t:3.25},answerTiming:{grade:'crit'}},true);B.answered({problem:{text:'9 − 4'},q:{},tmr:{t:6}},false);
+  B.won({type:'boss'});B.runEnd(S,true);
+  const [rec]=JSON.parse(mem['knightMath.brawl.runs']);
+  assert.deepEqual(Object.keys(rec).sort(),['answers','build','createdAt','gear','mode','name','party','player','result','runId','v'].sort());
+  assert.equal(rec.v,1);assert.deepEqual(rec.answers[0],{op:'×',a:6,b:7,level:'hard',ms:3250,correct:true,outcome:'crit'});
+  assert.deepEqual(rec.result,{area:'village',depth:7,bossesKilled:1,died:true});assert.deepEqual(rec.gear,{weapon:1,armour:0,helm:0,lantern:0});
+  assert(B.pool().some(r=>r.runId==='r1'),'the recorded run joins the ghost pool'); }
+// switch off: no effect at all
+{ const {B,mem}=load(false),road=[{type:'math'},{type:'math'},{type:'math'},{type:'math'},{type:'math'},{type:'math'},{type:'math'}];
+  assert.equal(B.route(road,{runId:'x'}),road);B.answered({problem:{text:'1 + 1'}},true);B.won({brawl:{}});assert.deepEqual(Object.keys(mem),[]); }
+console.log('PASS: brawl: seeds easy -> hard, matchmaking steps up per win, deterministic ghost stops, per-operator replay + ghost clock, run record format, off = no effect.');

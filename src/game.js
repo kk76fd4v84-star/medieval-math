@@ -63,6 +63,7 @@
   const CARDS = KM.Cards && KM.BalanceTry?.on('cards') ? KM.Cards : null; // upgrade cards switch
   const CHEST = CARDS && KM.ChestCards?.on() ? KM.ChestCards : null; // chest cards switch: cards only from guarded chests
   const BT = KM.BalanceTry || { on: () => false, unit: () => 1, healthMul: () => null, packRelay: () => false, bossAtk: (e, b) => b, heartsText: String };
+  const BR = KM.Brawl?.on() ? KM.Brawl : { route: r => r, dress() {}, sighting: () => false, ambush: () => false, secs: (e, s) => s, answered() {}, won() {}, runEnd() {}, actions: {}, init() {} }; // brawl switch (src/brawl.js)
   const MP = KM.MeterPressure || { on: () => false, seconds: s => s, sells: () => [], level: () => 0, cost: () => null, image: () => null }; // meter pressure switch
   const maxHp = () => PA.maxHp(S.party);
   const roleMembers = role => PA.members(S.party, role);
@@ -135,7 +136,7 @@
   }
   function buildWorld(fromStop) {
     S.stops = []; let x = 1800;
-    const road = inTomb() ? KM.Tomb.route() : sketch ? sketch.route : S.chapter==="hollowwood" ? KM.HollowWood.route(S.runId) : KM.Road.build(S.routeVersion,S.runId);
+    const road = BR.route(inTomb() ? KM.Tomb.route() : sketch ? sketch.route : S.chapter==="hollowwood" ? KM.HollowWood.route(S.runId) : KM.Road.build(S.routeVersion,S.runId), S); // brawl: ghost stops
     road.forEach((e, i) => { x += (e.gap || 1300) * (W.gapScale || 1); S.stops.push(Object.assign({ idx: i, stopX: x }, e)); });
     S.actors = []; S.obstacles = []; S.props = []; S.trees = [];
     const taken = new Set(S.party.filter(m => m.name).map(m => m.name));
@@ -199,6 +200,7 @@
         wizardRock:!!st.wizardRock, riddleVariant:st.type==='riddle'?S.stops.slice(0,i).filter(q=>q.type==='riddle').length%3:null,
         back: ["bridgekeeper", "enchanter", "hermit"].includes(aid), candIdx: st.type === "recruit" ? 0 : undefined, name: st.type === "recruit" ? st.cands[0].name : undefined, label: st.type === "recruit" ? shortName(st.cands[0].name) : undefined }));
     });
+    BR.dress(S.actors, S.stops);
     if(inTomb()){S.graves=[];S.companionGraves=[];S.swaps=null;return;}
     if(sketch)return;
     buildGraves();
@@ -728,6 +730,7 @@
   }
   function optionalBoss(){
     const e=S.enc;if(!e||e.st.type!=='optional')return;
+    if(BR.sighting(e))return; // brawl: a ghost party on the hill
     e.phase='optional';heroSay('Something is listening beyond the graves.',inPhase('optional'));
     showPanel(actionRow([
       actionCard({label:'Awaken the bell',act:'awakenBell',icon:MICON.hard,meta:'Optional boss',note:'A dangerous detour'}),
@@ -742,6 +745,7 @@
   // ---- hidden strength: commit or avoid
   function approach() {
     const e = S.enc; e.phase = "approach";
+    if (BR.ambush(e)) return; // brawl: walked into a ghost team
     if(isFellowship())return commit();
     const can = C.avoidable[e.st.type];
     heroSay(e.st.type === "math" ? "Something lurks in the mist..." : "It blocks the whole road. No way around!", inPhase("approach"));
@@ -1008,7 +1012,7 @@
   let tmrHold = 0;
   const sumDrawn = () => [...panel.querySelectorAll(".sum img")].every(i => i.complete && i.naturalWidth > 0); // the on-screen glyphs have painted
   function startAnswerTimer(secs) {
-    const e = S.enc; if (!e) return null;
+    const e = S.enc; if (!e) return null; secs = BR.secs(e, secs); // brawl: a ghost answers at its recorded time
     e.tmr = null; e.answerTiming = null; tmrHold = 0; dividerFill(0);
     if (!(secs > 0) || NOTIMER || !e.q) return null;
     const windows=e.revealed?combatWindows():KM.Timing.windows();
@@ -1288,7 +1292,7 @@
   }
   function defeatEnemy() {
     const e = S.enc, st = e.st, E = D.enemies[e.act.id] || {};
-    if(e.won)return;e.won=true;
+    if(e.won)return;e.won=true;BR.won(st);
     if(CARDS&&CARDS.cleanRefill(S)&&!e.lost)S.party.forEach(m=>m.armor=Math.max(m.armor||0,m.armorTop||0)); // Shield Wall
     e.phase = "busy"; say(e.act, e.act.defeat || E.defeat); enemyDeath(e.act);
 
@@ -1427,7 +1431,7 @@
     const e = S.enc; if (!e || e.phase !== 'math' || !e.q || !e.input) return;
     const q = e.q, right = parseInt(e.input, 10) === e.problem.answer;
     e.failedFraction=e.tmr?Math.min(1,e.tmr.t/e.tmr.secs):1;
-    e.answerTiming = right ? KM.Timing.grade(e.tmr, q) : null;
+    e.answerTiming = right ? KM.Timing.grade(e.tmr, q) : null; BR.answered(e, right); // brawl: ghost recording
     e.q = null; e.tmr = null; e.phase = "busy";
     if (right) { S.stats.correct++; awardScore(e.answerTiming, "math", e.problem.scrollAssisted); A.play("correct"); q.onRight(); }
     else { S.stats.wrong++; A.play("wrong"); q.onWrong(); }
@@ -1708,6 +1712,10 @@
     showPanel(`<div class="center"><div class="opts big3">${priests().map((m, i) => `<button class="opt plaque" data-act="doSacrifice" data-id="${m.id}">${BANNER}<span class="nm">${esc(shortName(m.name))}</span></button>`).join("")}${big("Esc", "Cancel", "cancelSacrifice")}</div></div>`, "riddle");
   }
   function cancelSacrifice() { const e = S.enc; e.sub = null; e.prevPhase === "riddle" ? renderRiddle() : renderChoice(); }
+  function loseCompanion(m) { // a companion leaves the party for good (brawl: left behind to stall a ghost team)
+    const i = S.party.indexOf(m); if (i <= 0) return; S.party.splice(i, 1); S.stats.sacrificed++; buryCompanion(m, S.enc?.act?.id); A.play("sacrifice");
+    S.hp = Math.min(S.hp, maxHp()); const a = mkActor({ id: artId(m), x: S.camX + m.sx, state: "holdoff", name: m.name, label: shortName(m.name) }); S.actors.push(a); say(a, m.sacrifice || "Farewell!");
+  }
   function doSacrifice(id) {
     const e = S.enc, i = S.party.findIndex(m => m.id === id); if (!e || i <= 0 || e.sub !== "sacrifice" || !priests().includes(S.party[i])) return; e.sub = null;
     const m = S.party.splice(i, 1)[0]; S.stats.sacrificed++; buryCompanion(m,e.act?.id); A.play("sacrifice");
@@ -1927,7 +1935,7 @@
   function heroDies(killer) {
     if (S.mode === "dying" || S.mode === "gameover") return;
     const st = S.stops[S.stop];
-    S.dying = { t: 0, killer, st };
+    S.dying = { t: 0, killer, st }; BR.runEnd(S, true);
     const hero = S.party[0]; if (hero) { hero.act = null; hero.dying = { t: 0 }; }
     const dur = hero ? deathDur(hero, killer) : 0; // v19: brutal death by the killer (eaten / torn / arrows) or the approved knight death
     S.deathDepth = S.enc && S.enc.depth ? Object.assign({}, S.enc.depth, { mode: "battle" }) : null;
@@ -1957,7 +1965,7 @@
     const next=!finalize && !sketch && S.routeVersion && PREVIEW!=="score-win" && D.chapters.next[S.chapter];
     if(next)return chapterGate(next);
     if(sketch)return sketchPage("sketchWin");
-    S.mode = "win"; A.play("victory"); musicScene("win"); if (!PREVIEW) KM.Save.clear();
+    S.mode = "win"; BR.runEnd(S, false); A.play("victory"); musicScene("win"); if (!PREVIEW) KM.Save.clear();
     const isBest = !PREVIEW && KM.Save.recordBest(+leagues(), S.name);
     endNarrator(A.text(D.dialogue.victory)); paceVO(A.voOf(D.dialogue.victory), narrator);
     showPanel(`<div class="center endp"><h1>Victory!</h1><div class="endrow">${scoreHTML()}${journeyHTML(isBest)}<button class="opt plaque scores-link" data-act="leaderboard">Leaderboard</button>
@@ -2073,6 +2081,9 @@
     retry: () => retry(),
     toggleMusic: () => { MU.toggleMute(); renderHUD(); }
   };
+  Object.assign(actions, BR.actions);
+  BR.init({ S, say, T, esc, showPanel, actionCard, shortName, renderHUD, loseCompanion, commit: () => commit(), finish: () => finishEncounter() });
+
   // v11b (Magnus): scene hotspots work with the mouse too: pointer cursor + the ink highlight on hover, click = use
   // (exterior doorway = go in; inside: sign = swing it / its plaques, recruit = "Join my party?", door = go outside).
   function hotspotAt(ev) {
@@ -2438,7 +2449,7 @@
     const dx = fx ? fx.dx : 0, dy = fx ? fx.dy : 0, ds = dp ? dp.scale : 1;
     ctx.save(); ctx.translate(sx + dx, y + dy); ctx.scale(ds, ds);
     KM.Assets.drawEntity(ctx, did, 0, 0, { flip: faceParty, t: fx ? fx.t : moving && KM_ART.walkRate ? a.t * KM_ART.walkRate(did) : a.t, action, hurt: fx && fx.hurt, alpha: a.alpha * (ln ? ln.alpha : 1), flash: a.flash > 0, name: a.label,
-      filter: ln && ln.filter, seq: a.seqPlay && a.seqPlay.id, seqT: a.seqPlay && a.seqPlay.t });
+      filter: a.ghostFilter || (ln && ln.filter), seq: a.seqPlay && a.seqPlay.id, seqT: a.seqPlay && a.seqPlay.t });
     ctx.restore();
     // v18: a separate foreground occluder drawn right after its owner (riddle keeper -> rock), never merged with it
     const fr = a.wizardRock ? "keeper_rock" : (KM_ART.entities[did] || {}).front; if (fr) KM.Assets.drawEntity(ctx, fr, sx, y, { alpha: a.alpha * (ln ? ln.alpha : 1), filter: ln && ln.filter });
