@@ -47,3 +47,24 @@ KM_DATA.tavernRoom.sign = {
   icons: { mead: "icon_mead.png", stew: "icon_stew.png" }, // Maggi's keyed mug + bowl; the fire bottle uses its item icon
   swing: { deg: 5, period: 0.8, tau: 0.36, dur: 1.5 }      // a buy (or a refused one) knocks the board
 };
+
+// Tavern recruit cards (Magnus: "larger cards so you see what they can do"). Pure data, read by recruitCard in src/game.js.
+KM_DATA.recruitCards = {
+  title: "Choose a companion",
+  // Magnus 2026-11-08: a card is just the name + one line (no hearts, stats or role)
+  lines: {
+    darkWizard:  "Almost in control of magic.",
+    knight:      "Helps holding your sword to strike harder.",
+    priest:      "Heals the party.",
+    firestarter: "Burns every foe.",
+    executioner: "Helps holding your sword to strike harder."  // Magnus's line for the hooded one he saw next to the wizard (he is the executioner: × sums, axe doubles on wounded foes)
+  },
+  ask: "Ask {name} to join?", leave: "{names} will leave.", yes: "Ask to join", no: "Cancel",
+  roles: {
+    knight:      { title: "Knight",      attack: "Answers + sums. Cleaves two foes." },
+    priest:      { title: "Priest",      attack: "Answers − sums. Heals the party." },
+    firestarter: { title: "Firestarter", attack: "Types fire words. Burns every foe." },
+    executioner: { title: "Executioner", attack: "Answers × sums. Finishes wounded foes." },
+    darkWizard:  { title: "Dark Wizard", attack: "Answers × sums. Strikes every foe." }
+  }
+};
