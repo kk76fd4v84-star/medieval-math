@@ -29,11 +29,7 @@ KM.TimingBar=(()=>{
     const ink=rail.querySelector('.timing-ink'),still=calm(),play=id=>KM.Audio&&KM.Audio.play(id); // silent when no file is mapped
     const slide=`${cb.slideMs}ms ${cb.ease} ${cb.shakeMs}ms`;
     if(!still){play(cb.sfx.shake);ink.style.transition=`clip-path ${slide}`;}
-    for(const good of [true,false])if(moved.some(m=>m.good===good))setTimeout(()=>play(cb.sfx[good?'good':'bad']),still?0:cb.shakeMs);
-    // clock ticks over the slide: winding up when the change helps, down when it hurts (KM_DATA.castBar.ticks)
-    const good=moved.some(m=>m.good)&&!moved.some(m=>!m.good)?'good':moved.some(m=>!m.good)?'bad':null,mapped=id=>!!(KM.Audio&&KM.Audio.map&&KM.Audio.map()[id]);
-    const rates=good&&!mapped(cb.sfx[good])?(cb.ticks||{})[good]||[]:[]; // Charlie's 1 s up/down file replaces the ticks once mapped
-    rates.forEach((rate,i)=>setTimeout(()=>KM.Audio&&KM.Audio.play(cb.sfx.tick,{rate}),(still?0:cb.shakeMs)+(rates.length>1?i*cb.slideMs/(rates.length-1):0)));
+    const way=moved.some(m=>!m.good)?'bad':'good';setTimeout(()=>play(cb.sfx[way]),still?0:cb.shakeMs); // winds down if anything got worse
     for(const m of moved){
       const b=root.querySelector(`[data-outcome="${m.id}"]`);
       rail.querySelector(`.cb-trail[data-id="${m.id}"]`)?.remove();
