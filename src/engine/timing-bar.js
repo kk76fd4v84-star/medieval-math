@@ -10,7 +10,7 @@ KM.TimingBar=(()=>{
     geometry={...g,markerSize:[g.width,16],cy:8};key=null;
     rail=document.createElement('div');rail.className='timing-rail';rail.hidden=true;
     rail.style.cssText=`left:${g.left}px;top:${g.top}px;width:${g.width}px`;
-    rail.innerHTML='<div class="timing-ink"><div class="timing-track"></div><div id="dvfill"></div></div>'+KM.Timing.markers(g.width,16,8);
+    rail.innerHTML='<div class="timing-ink"><div class="timing-track"></div><div id="dvfill"></div></div><div class="mp-shroud" hidden></div><div class="mp-tags" hidden></div>'+KM.Timing.markers(g.width,16,8);
     root=document.createElement('div');root.className='timing-legend';root.hidden=true;
     root.innerHTML='<i class="pressure-band pressure-crit" aria-hidden="true"></i><i class="pressure-band pressure-block" aria-hidden="true"></i>'+['block','crit','normal','weak'].map(id=>`<button type="button" class="timing-emblem" data-outcome="${id}" aria-describedby="timing-tip-${id}"><img src="${art+id}.png" alt="" draggable="false"><span role="tooltip" id="timing-tip-${id}"></span></button>`).join('');
     root.insertAdjacentHTML('beforeend','<span class="timing-hit" role="img" hidden><svg viewBox="0 0 22 44" aria-hidden="true"><path d="M11 15v28" stroke="#ecdcc4" stroke-width="6"/><path d="M11 15v28" stroke="#292018" stroke-width="2.5"/><path d="M2 2 20 3 18 11 11 18 4 11Z" fill="#ac5c24" stroke="#292018" stroke-width="2.5" stroke-linejoin="round"/><path d="m7 5 7 1" stroke="#ecdcc4" stroke-width="2"/></svg></span>');
@@ -20,8 +20,13 @@ KM.TimingBar=(()=>{
     });
     rail.append(root);divider.append(rail);
   }
-  function update(w,{visible=false,timed=false,jp=false,forgiving=false,deadline=false,hit=null}={}){
+  function update(w,{visible=false,timed=false,jp=false,forgiving=false,deadline=false,hit=null,ink=null,tags=[]}={}){
     if(!root)return;
+    // meter pressure (switch): ink over the hidden span, plain-text tags for the foes' pressures
+    const shroud=rail.querySelector('.mp-shroud'),tagBox=rail.querySelector('.mp-tags'),inkOn=!!(visible&&ink);
+    shroud.hidden=!inkOn;if(inkOn){shroud.style.left=(ink[0]*100)+'%';shroud.style.width=((ink[1]-ink[0])*100)+'%';}
+    const tagHTML=visible&&tags.length&&KM.MeterPressure?tags.map(KM.MeterPressure.tagHTML).join(''):'';
+    tagBox.hidden=!tagHTML;if(tagBox.innerHTML!==tagHTML)tagBox.innerHTML=tagHTML;
     root.hidden=!visible;rail.hidden=!(visible||timed);rail.classList.toggle("combat",visible);rail.parentElement?.classList.toggle("combat",visible);
     const signature=JSON.stringify([w,visible,jp,forgiving,deadline,hit]);if(signature===key)return;key=signature;
     const mark=root.querySelector('.timing-hit');mark.hidden=!Number.isFinite(hit);

@@ -9,7 +9,7 @@ assert(/<meta name="km-build" content="[^"]+">/.test(html),'build label');
 // the generated list: real files, no music, the opening's enemies / portraits / scenery / cards are in it
 const ctx0={};ctx0.window=ctx0;vm.createContext(ctx0);vm.runInContext(fs.readFileSync(path.join(root,'src/config/preload_images.js'),'utf8'),ctx0);
 const list=ctx0.KM_PRELOAD_IMAGES;assert(Array.isArray(list)&&list.length>100,'list of '+list.length);
-for(const f of list){assert(fs.existsSync(path.join(root,f)),'exists: '+f);assert(!/\/music\//.test(f));}
+for(const f of list){assert(fs.existsSync(path.join(root,f.replace(/\?.*$/,''))),'exists: '+f);assert(!/\/music\//.test(f));}
 assert.equal(new Set(list).size,list.length,'no duplicates');
 // ---- loader + assets with a fake DOM / Image
 class FakeImage{constructor(){this.complete=false;this.naturalWidth=0;this.l={};}addEventListener(k,f){(this.l[k]=this.l[k]||[]).push(f);}

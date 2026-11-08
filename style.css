@@ -535,3 +535,9 @@ html[lang="ja"] .action-card .action-detail{font-size:18px;}
 .tavern-deck .action-card[data-act="tvAsk"] .action-detail{font-size:19px;line-height:1.15;}
 .action-gear #gear-title.tavern-lift{width:auto;height:auto;overflow:visible;clip-path:none;}
 #strip:has(.tavern-deck){z-index:5;}
+/* meter pressure (switch): ink hiding part of the meter, and the foes' pressure tags above its right end */
+.mp-shroud{position:absolute;top:-9px;height:18px;z-index:3;pointer-events:none;background:#292018;border-radius:9px 3px 9px 4px;box-shadow:0 0 0 2px rgba(41,32,24,.35),0 0 6px 2px rgba(41,32,24,.5)}
+.mp-shroud[hidden],.mp-tags[hidden]{display:none}
+.mp-tags{position:absolute;right:0;top:-46px;display:flex;gap:8px;pointer-events:none;z-index:5}
+.mp-tag{font-family:inherit;font-size:15px;font-weight:bold;letter-spacing:.08em;color:#ecdcc4;background:#292018;padding:3px 8px 2px;border-radius:2px;line-height:1.2}
+img.mp-tag{background:none;padding:0;height:28px}
