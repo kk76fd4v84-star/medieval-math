@@ -8,17 +8,12 @@ KM_DATA.castBar = {
   minMove: 0.005,                       // smaller moves (rounding) are ignored
   // Magnus 2026-11-08: three strict phases of a full second each
   shakeMs: 1000, shakePx: 3,            // 1) the icon shakes
-  slideMs: 1000,                        // 2) it slides to its new place, the trail grows behind it (ticks play here)
+  slideMs: 1000,                        // 2) it slides to its new place, the trail grows behind it (tick_up / tock_down play here)
   holdMs: 0,                            //    (no pause between)
   shrinkMs: 1000,                       // 3) the trail catches up to the icon
   inkFadeMs: 400,                       // ink (shroud) just fades in
   ease: "cubic-bezier(.2,.75,.25,1)",
   colours: { good: "#3f8a2c", bad: "#b3261e" },
-  // optional sounds, silent if no file is mapped for them. Charlie is making incoming/sfx_meter/meter_shake.mp3,
-  // meter_tick_up.mp3 (good, 1 s) and meter_tock_down.mp3 (bad, 1 s): map them under these ids and they replace the ticks below.
-  sfx: { shake: "meter_shake", good: "meter_tick_up", bad: "meter_tock_down", tick: "meter_tick" },
-  // until meter_tick_up / meter_tock_down are mapped: clock winding during the slide, one tick per rate, spread over the slide, the last one at the slide's end.
-  // Charlie's wooden ratchet click (meter_tick); rate = playback speed (also pitch), limited to 0.8..1.2 by the audio code.
-  // good: "tick tick tick tiiick" (rising, last one slower = longer); bad: "tock tock tock tocckk" (low, falling)
-  ticks: { good: [1.05, 1.12, 1.2, 0.9], bad: [0.9, 0.87, 0.84, 0.8] }
+  // Charlie's 1 s sounds (assets/audio/sfx, mapped in audio_map): shake at the start of the shake, tick_up / tock_down at the start of the slide
+  sfx: { shake: "meter_shake", good: "meter_tick_up", bad: "meter_tock_down" }
 };
