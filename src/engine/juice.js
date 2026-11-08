@@ -26,8 +26,8 @@ KM.Juice = (() => {
     const i = c.charCodeAt(0) - 65, [lo, hi] = D().text.rate; return i >= 0 && i < 26 && c.length === 1 ? lo + (hi - lo) * ((i * D().text.spread) % 26) / 25 : 1;
   };
   // name entry: the key's sound at once (a character -> digits[char code % 10], Backspace, Enter); true = handled
-  function text(k) {
-    if (!on()) return false; const d = D(), t = d.text;
+  function text(k) { // always on (Magnus: the name's metal sounds matter for immersion), not only with the juice switch
+    const d = D(), t = d.text;
     if (k === 'Backspace') hit(t.back, t.pitch); else if (k === 'Enter') hit(t.enter, t.pitch);
     else if (k.length === 1) { const c = k.toUpperCase(); hit(d.digits[c.codePointAt(0) % 10], 0, letterRate(c)); } else return false;
     return true;
@@ -54,8 +54,8 @@ KM.Juice = (() => {
         .then(b => { buf[id] = b; }, e => console.warn('[juice] sound failed:', s.file, e));
     }
   }
-  function init() { // timings + sizes -> CSS variables, sounds decoded
-    if (!on()) return; const d = D(), st = document.documentElement.style;
+  function init() { // timings + sizes -> CSS variables, sounds decoded (always: name entry uses them without the switch)
+    const d = D(), st = document.documentElement.style;
     st.setProperty('--juice-land', d.digit.ms + 'ms'); st.setProperty('--juice-drop', -d.digit.drop + 'px'); st.setProperty('--juice-squash', d.digit.squash);
     st.setProperty('--juice-punch', d.enter.ms + 'ms'); st.setProperty('--juice-punch-squash', d.enter.squash); st.setProperty('--juice-block', d.wrong.ms + 'ms');
     load();

@@ -18,6 +18,7 @@ KM_DATA.juice = {
   digits: ["key_digit_0", "key_digit_1", "key_digit_2", "key_digit_3", "key_digit_4", "key_digit_5", "key_digit_6", "key_digit_7", "key_digit_8", "key_digit_9"], // key 0..9
   text:  { pitch: 0.03, back: "key_delete", enter: "key_enter_heavy",                  // name entry: a character plays digits[char code % 10] (A = a)
            rate: [0.85, 1.2], spread: 11 },  // + each letter its own fixed pitch: A..Z step through rate by (index * spread) % 26, so neighbours differ
+  name:  { hot: "#ff3d0f", cooled: "#2a1d12", glow: "#ff8a2a", glowPx: 18, coolSecs: 1.1 }, // each typed name letter: fire red-orange, cools to black ink (always on)
   digit: { pitch: 0.03, ms: 130, drop: 18, squash: 0.78, spark: true },                 // lands heavy: drop + thud squash
   back:  { sfx: ["key_delete"], pitch: 0.03 },                                           // delete
   enter: { sfx: ["key_enter_heavy"], pitch: 0.02, ms: 170, squash: 0.84, shake: 0.07 },  // right: the very heavy Enter + nudge

@@ -574,12 +574,23 @@
   function renderIntro() {
     if (S.mode === "name") {
       speak(narrator(), A.text(D.dialogue.namePrompt), { hold: true });
-      showPanel(`<div class="center dlg"><div class="namerow"><input id="nameInput" aria-label="Your name" maxlength="16" placeholder="your name" autocomplete="off" spellcheck="false">${big("Enter", "Begin", "submitName", 'id="nameOk"')}</div></div>`, "dialog");
-      setTimeout(() => { const i = $("nameInput"); if (i) i.focus(); }, 30);
+      showPanel(`<div class="center dlg"><div class="namerow"><div class="namebox"><input id="nameInput" aria-label="Your name" maxlength="16" placeholder="your name" autocomplete="off" spellcheck="false"><div id="nameInk" class="nameink" aria-hidden="true"></div></div>${big("Enter", "Begin", "submitName", 'id="nameOk"')}</div></div>`, "dialog");
+      setTimeout(() => { const i = $("nameInput"); if (i) { i.focus(); nameInk(i); } }, 30);
       return;
     }
     speak(narrator(), S.intro.lines[S.intro.i] || "", { hold: true });
     showPanel(`<div class="center dlg"><div class="opts">${big("Space", "Next", "nextLine")}${S.intro.after === "go" ? "" : big("Esc", "Skip", "skipIntro", 'id="skipBtn"')}</div></div>`, "dialog");
+  }
+  // the name's letters (data KM_DATA.juice.name): each new letter is drawn fire red-orange and cools to black ink; the
+  // input's own text is transparent (caret stays) and this row of letters sits on top of it
+  function nameInk(inp) {
+    const ink = $("nameInk"), N = KM_DATA.juice && KM_DATA.juice.name; if (!ink || !N) return;
+    const st = ink.style; st.setProperty('--nhot', N.hot); st.setProperty('--ncool', N.cooled); st.setProperty('--nglow', N.glow); st.setProperty('--nglowpx', N.glowPx + 'px'); st.setProperty('--nsecs', N.coolSecs + 's');
+    inp.classList.add('inked'); let old = '', born = [];
+    const draw = () => { const v = inp.value, now = performance.now();
+      born = [...v].map((c, i) => c === old[i] && born[i] != null ? born[i] : now); old = v;
+      ink.innerHTML = [...v].map((c, i) => `<span style="animation-delay:${-((now - born[i]) / 1000).toFixed(3)}s">${c === ' ' ? '&nbsp;' : c.replace(/[&<>"]/g, m => '&#' + m.charCodeAt(0) + ';')}</span>`).join(''); };
+    inp.addEventListener('input', draw); draw();
   }
   function advanceIntro(auto, wholeLine) {
     const it = S.intro; if (!it || S.mode !== "intro") return;
