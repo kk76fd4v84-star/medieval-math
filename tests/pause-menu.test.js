@@ -4,9 +4,9 @@ const root=process.env.GAME_ROOT||path.resolve(__dirname,'..'),read=f=>fs.readFi
 vm.runInContext(read('src/data/balance_try.js'),ctx);assert.equal(ctx.KM_DATA.balanceTry.pauseMenu,false,'off by default');
 assert.match(read('src/engine/balance-try.js'),/pauseMenu: flag\('pauseMenu', 'pausemenu'\)/);
 const g=read('src/game.js');
-assert.match(g,/pm \? `<button class="pause-btn"/,'switch on: a pause button instead of the music button');
+assert.match(g,/mute = pm \? '' : `<button class="music-toggle"/,'switch on: no music button (and no pause button: P opens the menu)');assert(!/pause-btn/.test(g),'no pause button');
 assert.match(g,/\$\{pm \? '' : `<span class="dist"/,'switch on: no distance flag');
 assert.match(g,/if \(!paused\) update\(dt\)/,'paused = the world stops');
 assert.match(g,/pauseMusic: \(\) => \{ MU\.toggleMute\(\)/,'the menu toggles the same saved music setting');
-const ja=read('src/i18n/ja.js');for(const s of ['Pause','Paused','Resume','Music: On','Music: Off'])assert(ja.includes(JSON.stringify(s)+':'),'ja: '+s);
-console.log('PASS: pause menu: off by default, pause button replaces music button + flag, world stops, music toggle, ja.');
+const ja=read('src/i18n/ja.js');for(const s of ['Paused','Resume','Music: On','Music: Off'])assert(ja.includes(JSON.stringify(s)+':'),'ja: '+s);
+console.log('PASS: pause menu: off by default, nothing top right (P opens it), world stops, music toggle, ja.');

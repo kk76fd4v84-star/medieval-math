@@ -69,7 +69,6 @@ window.KM_JA={
   "Answer before an icon to gain its effect.": "アイコンより前に答えると、その効果を得る。",
   "Block: will block next incoming damage and crit.": "防御：次に受けるダメージと会心を防ぐ。",
   "Onward!": "進め！",
-  "Pause": "一時停止",
   "Paused": "一時停止中",
   "Resume": "再開",
   "Music: On": "音楽：オン",

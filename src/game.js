@@ -495,7 +495,7 @@
   const SKULL = `<svg class="skull" viewBox="0 0 32 32" aria-label="hunters"><path d="M16 3c-7 0-11 4.6-11 10.4 0 3.6 1.7 6 4 7.4V25h3v-2.4h1.6V25h4.8v-2.4H20V25h3v-4.2c2.3-1.4 4-3.8 4-7.4C27 7.6 23 3 16 3z" fill="#efe0c0" stroke="#2a1d12" stroke-width="2.2" stroke-linejoin="round"/><path d="M8.6 13.6c1-2.2 4.4-2.4 5.4-.4.7 1.6-.6 3.6-2.6 3.6-2.2 0-3.4-1.6-2.8-3.2zM23.4 13.6c-1-2.2-4.4-2.4-5.4-.4-.7 1.6.6 3.6 2.6 3.6 2.2 0 3.4-1.6 2.8-3.2zM16 17.2l-1.8 3h3.6z" fill="#2a1d12"/><path d="M11 28.5h10" stroke="#2a1d12" stroke-width="2"/></svg>`;
   const HELM = `<svg class="helm" viewBox="0 0 32 32" aria-label="you"><path d="M6 29V12C6 6.5 10.5 3 16 3s10 3.5 10 9v17z" fill="#efe0c0" stroke="#2a1d12" stroke-width="2.2" stroke-linejoin="round"/><path d="M7 14.5h18" stroke="#2a1d12" stroke-width="3.2"/><path d="M16 18v9M12.5 22.5h7" stroke="#d16f19" stroke-width="2.6"/><path d="M9 20.5h2M9 24h2M21 20.5h2M21 24h2" stroke="#2a1d12" stroke-width="1.6"/></svg>`;
   function renderHUD() {
-    const ms = MU.settings(), pm = BT.on('pauseMenu'), mute = pm ? `<button class="pause-btn" data-act="openPause" aria-label="${T('Pause')}" title="${T('Pause')} (P)"><span aria-hidden="true">❚❚</span></button>` : `<button class="music-toggle" data-act="toggleMusic" aria-label="${ms.muted?'Unmute music':'Mute music'}" aria-pressed="${ms.muted}" title="${ms.muted?'Unmute music':'Mute music'} (M)"><span aria-hidden="true">${ms.muted?'♩':'♫'}</span> Music ${ms.muted?'off':'on'}</button>`;
+    const ms = MU.settings(), pm = BT.on('pauseMenu'), mute = pm ? '' : `<button class="music-toggle" data-act="toggleMusic" aria-label="${ms.muted?'Unmute music':'Mute music'}" aria-pressed="${ms.muted}" title="${ms.muted?'Unmute music':'Mute music'} (M)"><span aria-hidden="true">${ms.muted?'♩':'♫'}</span> Music ${ms.muted?'off':'on'}</button>`;
     if(inTomb()){
       const h='<span class="tomb-label">'+T('The Tomb Passage')+' <small>'+Math.min(S.stop+1,S.stops.length)+' / '+S.stops.length+'</small></span>'+mute;
       if(h!==hudCache){$("hud").innerHTML=KM.I18n?.html(h)||h;hudCache=h;}return;
@@ -1859,7 +1859,7 @@
     showPanel('', 'info'); document.getElementById('tut-layer')?.remove();
     document.getElementById('stage').insertAdjacentHTML('beforeend', `<div id="tut-layer" class="tut-shade"><div class="tut-dialog" role="dialog" aria-modal="true" aria-labelledby="tut-title"><div id="tut-title" class="tut-title">${esc(T(t.title))}</div><div class="tut-intro">${esc(T(t.intro))}</div>${bar}<div class="tut-rows">${rows}</div>${small(t.strike)}${tricks}${small(t.trail)}<button type="button" class="opt plaque tut-go" data-act="closeTutorial">${esc(T(t.button))}</button></div></div>`);
   }
-  // pause menu (switch pauseMenu): P or the top-right button; the world stops (no update), the music setting lives here
+  // pause menu (switch pauseMenu): P opens, P / Esc close; the world stops (no update), the music setting lives here
   let paused = false;
   function openPause() { if (paused || S.mode === "title") return; paused = true; renderPause(); }
   function renderPause() {
