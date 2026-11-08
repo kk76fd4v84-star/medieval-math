@@ -31,7 +31,8 @@ KM.TimingBar=(()=>{
     if(!still){play(cb.sfx.shake);ink.style.transition=`clip-path ${slide}`;}
     for(const good of [true,false])if(moved.some(m=>m.good===good))setTimeout(()=>play(cb.sfx[good?'good':'bad']),still?0:cb.shakeMs);
     // clock ticks over the slide: winding up when the change helps, down when it hurts (KM_DATA.castBar.ticks)
-    const good=moved.some(m=>m.good)&&!moved.some(m=>!m.good)?'good':moved.some(m=>!m.good)?'bad':null,rates=(cb.ticks||{})[good]||[];
+    const good=moved.some(m=>m.good)&&!moved.some(m=>!m.good)?'good':moved.some(m=>!m.good)?'bad':null,mapped=id=>!!(KM.Audio&&KM.Audio.map&&KM.Audio.map()[id]);
+    const rates=good&&!mapped(cb.sfx[good])?(cb.ticks||{})[good]||[]:[]; // Charlie's 1 s up/down file replaces the ticks once mapped
     rates.forEach((rate,i)=>setTimeout(()=>KM.Audio&&KM.Audio.play(cb.sfx.tick,{rate}),(still?0:cb.shakeMs)+(rates.length>1?i*cb.slideMs/(rates.length-1):0)));
     for(const m of moved){
       const b=root.querySelector(`[data-outcome="${m.id}"]`);
