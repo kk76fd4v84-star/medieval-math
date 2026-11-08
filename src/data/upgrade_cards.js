@@ -25,10 +25,12 @@ KM_DATA.upgradeCards = {
 
 // Cards v2 (Magnus's card codex edits 2026-11-09, behind the `cardsV2` switch, ?cardsv2=1, which turns `cards` on).
 // Picking a card again raises its level (up to max). Per-level values are arrays, index = level - 1.
-// Numbers Magnus did not give are PROVISIONAL (marked *) until he OKs them. No art matches the new rules yet, so every
-// card shows as a text card (`text` / `costText`); `img` comes back once Maggi paints the new versions.
+// Numbers Magnus did not give are PROVISIONAL (marked *) until he OKs them. Art: Maggi's v10 cards (600x900, text baked
+// in, art.dir + id + ".png"); the game prints LEVEL n/max into the empty level slot. `text` / `costText` stay as the
+// fallback text card when a picture is missing.
 KM_DATA.upgradeCardsV2 = {
   offered: 2,
+  art: { dir: "assets/ui/cards/v10/", size: [600, 900], level: { box: [204, 128, 505, 147], font: 15, ink: "#140E0A" } },
   knightSecondHit: 0.5,          // every knight swing: 100% on the first foe, 50% on the second (Cleave raises it)
   list: [
     { id: "cleave", owner: "knight", name: "Cleave", max: 5,

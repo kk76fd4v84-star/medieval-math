@@ -1943,8 +1943,13 @@
     if(e.cardOptions.length)cards.push(actionCard({label:'Upgrade card',act:'openCards',icon:'<img src="assets/ui/cards/cleave.png" alt="" style="height:64px">',meta:'Pick one',detail:T('Free')}));
   }
   function cardDialog(e){
-    const opts=e.cardOptions.map(id=>CARDS.byId(id)).map(c=>`<button class="upgrade-card" data-act="takeCard" data-id="${c.id}" aria-label="${c.name}" style="background:none;border:0;padding:0 10px;cursor:pointer"> ${c.img&&!CARDS.v2?`<img src="${c.img}" alt="${c.name}" style="height:min(560px,62vh);display:block">`:plainCard(c)}</button>`).join('');
+    const opts=e.cardOptions.map(id=>CARDS.byId(id)).map(c=>`<button class="upgrade-card" data-act="takeCard" data-id="${c.id}" aria-label="${c.name}" style="background:none;border:0;padding:0 10px;cursor:pointer"> ${c.img&&!CARDS.v2?`<img src="${c.img}" alt="${c.name}" style="height:min(560px,62vh);display:block">`:CARDS.v2&&CARDS.data.art&&KM.Assets.loadImg(CARDS.data.art.dir+c.id+'.png')._ok?artCard(c):plainCard(c)}</button>`).join('');
     return `<div role="dialog" aria-label="Pick an upgrade card" style="position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(36,28,18,.45)">${opts}${actionCard({label:'Not now',act:'closeCards',icon:'←',meta:'Back'})}</div>`;
+  }
+  function artCard(c){ // cards v2 painting (data upgradeCardsV2.art) with LEVEL n/max printed in its empty level slot
+    const A=CARDS.data.art,[w,h]=A.size,[x0,y0,x1,y1]=A.level.box,H='min(560px,62vh)',pc=(v,t)=>`${(100*v/t).toFixed(3)}%`;
+    const lvl=(c.max||1)>1?`<span style="position:absolute;left:${pc(x0,w)};top:${pc(y0,h)};width:${pc(x1-x0,w)};height:${pc(y1-y0,h)};display:flex;align-items:center;justify-content:center;font:calc(${H} * ${A.level.font} / ${h}) Gelasio,Georgia,serif;color:${A.level.ink};letter-spacing:.06em">${T('LEVEL')} ${CARDS.lv(S,c.id)+1}/${c.max}</span>`:'';
+    return `<div style="position:relative;height:${H};aspect-ratio:${w}/${h}"><img src="${A.dir+c.id}.png" alt="${c.name}" style="height:100%;display:block">${lvl}</div>`;
   }
   function plainCard(c){ // a card with no painting yet: parchment, name, effect, cost
     return `<div style="height:min(560px,62vh);aspect-ratio:2/3;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:6% 8%;background:#ecdcc4;border:6px double #292018;color:#292018;font-family:Georgia,serif;text-align:center"><strong style="font-size:30px">${c.name}</strong><span style="font-size:15px">${String(c.owner||'').replace('darkWizard','Dark Wizard').toUpperCase()}${CARDS.v2&&(c.max||1)>1?` · ${T('LEVEL')} ${CARDS.lv(S,c.id)+1}/${c.max}`:''}</span><span style="font-size:22px;line-height:1.3">${c.text||''}</span><span style="font-size:20px;line-height:1.3;background:#292018;color:#ecdcc4;padding:14px">${c.costText||''}</span></div>`;
