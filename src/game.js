@@ -1847,9 +1847,10 @@
     const e = S.enc, t = TUT.t, w = 'assets/timing-woodcut/', img = id => `<img src="${w}${id}.png" alt="" draggable="false">`; e.phase = 'tutorial'; e.tutorialThen = then;
     const bar = `<div class="tut-bar" aria-hidden="true"><img class="tut-track" src="${w}track.png" alt=""><img class="tut-fill" src="${w}fill.png" alt="">${t.icons.map(r => `<span class="tut-mark" style="left:${r.at * 100}%">${img(r.icon)}</span>`).join('')}</div><div class="tut-ends"><span>${esc(T(t.ends[0]))}</span><span>${esc(T(t.ends[1]))}</span></div>`;
     const rows = t.icons.map(r => `<div class="tut-row"><span class="tut-icon">${img(r.icon)}</span><span>${esc(T(r.text))}</span></div>`).join('');
+    const small = s => s ? `<div class="tut-small">${esc(T(s))}</div>` : '';
     const tricks = BT.on('meterPressure') && t.tricks ? `<div class="tut-small"><b>${esc(T(t.tricks.title))}</b>${t.tricks.lines.map(l => `<br>${esc(T(l))}`).join('')}</div>` : '';
     showPanel('', 'info'); document.getElementById('tut-layer')?.remove();
-    document.getElementById('stage').insertAdjacentHTML('beforeend', `<div id="tut-layer" class="tut-shade"><div class="tut-dialog" role="dialog" aria-modal="true" aria-labelledby="tut-title"><div id="tut-title" class="tut-title">${esc(T(t.title))}</div><div class="tut-intro">${esc(T(t.intro))}</div>${bar}<div class="tut-rows">${rows}</div><div class="tut-small">${esc(T(t.strike))}</div>${tricks}<div class="tut-small">${esc(T(t.trail))}</div><button type="button" class="opt plaque tut-go" data-act="closeTutorial">${esc(T(t.button))}</button></div></div>`);
+    document.getElementById('stage').insertAdjacentHTML('beforeend', `<div id="tut-layer" class="tut-shade"><div class="tut-dialog" role="dialog" aria-modal="true" aria-labelledby="tut-title"><div id="tut-title" class="tut-title">${esc(T(t.title))}</div><div class="tut-intro">${esc(T(t.intro))}</div>${bar}<div class="tut-rows">${rows}</div>${small(t.strike)}${tricks}${small(t.trail)}<button type="button" class="opt plaque tut-go" data-act="closeTutorial">${esc(T(t.button))}</button></div></div>`);
   }
   function closeTutorial() { const e = S.enc; if (!e || e.phase !== 'tutorial') return; TUT.done(); document.getElementById('tut-layer')?.remove(); const then = e.tutorialThen; e.tutorialThen = null; then(); }
   function gearDialog(kind){
