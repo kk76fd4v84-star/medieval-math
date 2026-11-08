@@ -90,6 +90,7 @@ KM.Assets = (function () {
     if(/^grave/.test(id) && !KM_DATA.enemies[id])return KM.CompanionGraves.drawMarker(ctx,x,y,{lean:o.rot||0,alpha:o.alpha??1});
     const cfg = KM_ART.entities[id] || { box: { w: 60, h: 60, color: "#f0f", label: id } };
     const d = pick(id, o.action || "idle", o.t || 0, o.seq, o.seqT);
+    if (d && o.recolor) d.img = o.recolor(d.img) || d.img; // o.recolor(image) -> a cached recoloured copy (brawl: the ghost look)
     // art: native px x global factor (o.scale is ignored for art; it only sizes placeholder boxes)
     const sc = d ? artScale(cfg, d) : (o.scale || 1);
     ctx.save();

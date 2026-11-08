@@ -20,25 +20,25 @@ const J=x=>JSON.parse(JSON.stringify(x));
   const road=Array.from({length:14},(_,i)=>({type:'math',enemy:'goblin',idx:i}));
   const ghosts=B.route(road,{runId:'seed-check'}).filter(st=>st.brawl);
   assert(ghosts.length>0,'ghost stops on the road');assert.equal(ghosts[0].brawl.step,2,'after two wins the next ghost is two steps up');
-  assert.equal(ghosts[0].brawl.name,list[2].name);
+  assert.equal(ghosts[0].brawl.name,'Sir '+list[2].name);
   assert.deepEqual(J(B.route(road,{runId:'seed-check'})),J(B.route(road,{runId:'seed-check'})),'same run, same road');
   for(const g of ghosts){assert.equal(g.type,'math');assert(['sighting','ambush'].includes(g.brawl.kind));
     const rec=list.find(r=>r.runId===g.brawl.ghost);assert.deepEqual(J([g.enemy,...g.group]),J(B.members(rec).map(m=>m.art)),'the whole ghost team stands on the road');} }
 // the ghost team: recorded art first, else by role; leader = the hero art; plain knights take the follower looks in turn
-{ const {B,D}=load(true),lady=B.pool().find(r=>r.name==='Lady Quicksum');
+{ const {B,D}=load(true),lady=B.pool().find(r=>r.name==='Quicksum');
   assert.deepEqual(J(B.members(lady).map(m=>m.art)),[D.art.leader,D.art.darkWizard,D.art.priest,D.art.knight[0]]);
-  assert.equal(B.members(lady)[0].name,'Lady Quicksum');
+  assert.equal(B.members(lady)[0].name,'Sir Quicksum','one Sir, added in one place');assert.equal(B.members({name:'Sir Brisk',party:[]})[0].name,'Sir Brisk','never Sir Sir');
   assert.deepEqual(J(B.members({name:'X',party:[{role:'knight',art:'hero_starter'},{role:'knight',art:'follower_3'}]}).map(m=>m.art)),['hero_starter','follower_3']);
   assert.equal(B.members({name:'X',party:Array(6).fill({role:'knight'})}).length,4,'at most four, like the enemy row');
   // its hearts row: two per member, lit by the team's health left
   const S={stop:3,enc:{st:{brawl:{ghost:lady.runId}}},actors:[0,1,2,3].map(k=>({stop:3,ghost:true,extra:k||undefined,hp:k<2?0:6,maxHp:6}))};
   B.init({S,T:s=>s,say(){}});const h=B.team();assert.equal(h.members.length,4);assert.equal(h.hp,4,'half the team health = 4 of 8 hearts');
-  assert.equal(h.armour,0);assert.equal(h.top,D.hud.top); }
+  assert.equal(h.armour,0);assert.equal(h.top,D.hud.top);assert.equal(h.label,'Sir Quicksum'); }
 // replay: the ghost's own answers for that operator in recorded order, looping; others fall back to all answers
 { const {B}=load(true),rec={answers:[{op:'+',ms:2000,correct:true},{op:'×',ms:5000,correct:false},{op:'+',ms:3000,correct:true}]},next=B.replay(rec);
   assert.deepEqual([next('+').ms,next('+').ms,next('+').ms],[2000,3000,2000]);assert.equal(next('×').ms,5000);assert.equal(next('÷').ms,2000);
   // the ghost clock: a right answer sets the bar to its time (clamped); a wrong one keeps the usual time
-  const e={st:{brawl:{ghost:'seed-0'}},revealed:true,problem:{text:'3 + 4'},act:{}};
+  const sure=B.pool().find(r=>r.answers.find(x=>x.op==='+').correct),e={st:{brawl:{ghost:sure.runId}},revealed:true,problem:{text:'3 + 4'},act:{}};
   const b=B.secs(e,20);assert(b>=1.5&&b<=12,'ghost time in bounds: '+b);
   assert.equal(B.secs({st:{},revealed:true,problem:{text:'3 + 4'}},20),20,'not a ghost fight: unchanged');
   const w={st:{brawl:{ghost:'x'}},revealed:true,problem:{text:'3 + 4'},act:{},ghostNext:()=>({ms:900,correct:false})};assert.equal(B.secs(w,20),20,'wrong ghost answer: usual time'); }

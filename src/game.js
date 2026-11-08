@@ -2333,11 +2333,12 @@
     // Armour is one shared visual pool: cover hearts from the team's outer end, regardless of who owns the gear.
     if(slots.length)for(let h=armour-1;h>=0;h--)heart(slots[h%slots.length]+Math.floor(h/slots.length)*7*dir,y,HS,true,'#b8b9b4');
   }
+  function hudText(text,x,y,st){ctx.font=st.font;ctx.fillStyle=st.ink;ctx.textAlign='right';ctx.textBaseline='bottom';ctx.fillText(text,x,y);}
   function drawHearts() {
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.lineJoin = "round";
     const r = partyHeartsRect();
     if(r)teamHearts(S.party,S.hp,PA.armour(S.party),r.x,r.y,1);
-    const g=BR.team();if(g)teamHearts(g.members,g.hp,g.armour,L.scene.w-g.right-HS,g.top,-1); // brawl: the ghost team's hearts, mirrored top right
+    const g=BR.team();if(g){teamHearts(g.members,g.hp,g.armour,L.scene.w-g.right-HS,g.top,-1);hudText(g.label,L.scene.w-g.right,g.top-g.name.gap,g.name);} // brawl: the ghost team's name + hearts, mirrored top right
     // every living foe: its own small hearts above its head (a ghost team member's are in its team row)
     foeHeartsRects().forEach(fr => {
       if(!fr.owner.ghost)for (let i=0;i<fr.shown;i++)heart(fr.x+i*(FS+3),fr.y,FS,i<fr.full,"#7a1f14");
@@ -2451,7 +2452,7 @@
     const dx = fx ? fx.dx : 0, dy = fx ? fx.dy : 0, ds = dp ? dp.scale : 1;
     ctx.save(); ctx.translate(sx + dx, y + dy); ctx.scale(ds, ds);
     KM.Assets.drawEntity(ctx, did, 0, 0, { flip: faceParty, t: fx ? fx.t : moving && KM_ART.walkRate ? a.t * KM_ART.walkRate(did) : a.t, action, hurt: fx && fx.hurt, alpha: a.alpha * (ln ? ln.alpha : 1), flash: a.flash > 0, name: a.label,
-      filter: ln && ln.filter, seq: a.seqPlay && a.seqPlay.id, seqT: a.seqPlay && a.seqPlay.t });
+      filter: ln && ln.filter, recolor: a.recolor, seq: a.seqPlay && a.seqPlay.id, seqT: a.seqPlay && a.seqPlay.t });
     ctx.restore();
     // v18: a separate foreground occluder drawn right after its owner (riddle keeper -> rock), never merged with it
     const fr = a.wizardRock ? "keeper_rock" : (KM_ART.entities[did] || {}).front; if (fr) KM.Assets.drawEntity(ctx, fr, sx, y, { alpha: a.alpha * (ln ? ln.alpha : 1), filter: ln && ln.filter });
