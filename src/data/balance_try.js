@@ -12,10 +12,13 @@ KM_DATA.balanceTry = {
   gradual: false,     // slow step-by-step maths ladder (see `ladder` below); turns on whoActs
   whoActs: false,
   knightStart: false, // a new run starts as the covered-face knight (Maggi's starter art, chipped sword) instead of the villager
+  toughFoes: false,   // stronger foes take more blows: Fellowship health x `tough` below, on top of the curve (Magnus 2026-11-08)
   chestCards: false,  // upgrade cards only from chests behind stronger foes, none in shops (src/data/chest_cards.js); turns on cards
   castBar: false,     // looks only: the timing meter always on screen; moved band ends shake + slide with a green / red trail (src/data/cast_bar.js)     // Fellowship: each sum belongs to one member (+ knights, − healers, × fire / wizard / executioner); their strike counts double
   // curve: Fellowship enemy health = base hp x min(max, start + step x battles fought this run)
   health: { start: 2.0, step: 0.05, max: 2.6 },
+  // toughFoes: health multiplier per foe id (missing = 1). Aim: strong foes 3-4 right answers, bosses / dragons 5-7
+  tough: { goblin: 1.6, toad: 1.4, ogre: 1.4, troll: 1.4, skeleton_knight: 1.6, black_knight: 2.0, turd_dragon: 2.0, dragon: 1.0 },
   battlesBefore: { village: 0, hollowwood: 10, tomb: 18 }, // battles a run has usually fought before each chapter
   packsTakeTurns: true, // groups attack one at a time (Hollow Wood already does)
   boss: { atk: 1, roarEvery: 3, roarAtk: 2 }, // boss / mega boss: 1 per hit, every 3rd enemy turn is a 2-hit roar
