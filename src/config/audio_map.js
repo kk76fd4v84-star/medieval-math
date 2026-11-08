@@ -571,7 +571,7 @@ window.KM_AUDIO_MAP = {
       "sfx/key_cling_4.ogg"
     ],
     "vol": 0.6,
-    "_src": "Charlie, incoming/sfx_keys (README): number entry, sword battle / blacksmith forge (juice switch): each digit"
+    "_src": "Charlie, incoming/sfx_keys v2 (README): number entry, sword battle / blacksmith forge (juice switch): each digit"
   },
   "key_enter_kosh": {
     "files": [
@@ -579,27 +579,27 @@ window.KM_AUDIO_MAP = {
       "sfx/key_enter_kosh_2.ogg"
     ],
     "vol": 0.9,
-    "_src": "Charlie, incoming/sfx_keys (README): number entry, sword battle / blacksmith forge (juice switch): a right Enter"
+    "_src": "Charlie, incoming/sfx_keys v2 (README): number entry, sword battle / blacksmith forge (juice switch): a right Enter"
   },
   "enter_wrong": {
     "files": [
       "sfx/enter_wrong.ogg"
     ],
     "vol": 0.7,
-    "_src": "Charlie, incoming/sfx_keys (README): number entry, sword battle / blacksmith forge (juice switch): a wrong Enter (blocked ka-tunk)"
+    "_src": "Charlie, incoming/sfx_keys v2 (README): number entry, sword battle / blacksmith forge (juice switch): a wrong Enter (blocked ka-tunk)"
   },
   "enter_miss_whoosh": {
     "files": [
       "sfx/enter_miss_whoosh.ogg"
     ],
     "vol": 0.7,
-    "_src": "Charlie, incoming/sfx_keys (README): number entry, sword battle / blacksmith forge (juice switch): optional, a blade swishing past"
+    "_src": "Charlie, incoming/sfx_keys v2 (README): number entry, sword battle / blacksmith forge (juice switch): optional, a blade swishing past"
   },
   "key_backspace": {
     "files": [
       "sfx/key_backspace.ogg"
     ],
     "vol": 0.5,
-    "_src": "Charlie, incoming/sfx_keys (README): number entry, sword battle / blacksmith forge (juice switch): Backspace (soft wooden tick)"
+    "_src": "Charlie, incoming/sfx_keys v2 (README): number entry, sword battle / blacksmith forge (juice switch): Backspace (soft wooden tick)"
   }
 };

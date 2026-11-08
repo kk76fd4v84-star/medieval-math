@@ -15,6 +15,6 @@ const map=JSON.parse(read('assets/audio_map.json')),D=load(true).D;
 for(const c of Object.values(D))for(const ev of c.sfx){assert(map[ev]&&map[ev].files.length,'mapped: '+ev);for(const f of map[ev].files){assert(fs.existsSync(path.join(root,'assets/audio',f)),f);assert(fs.existsSync(path.join(root,'assets/audio',f.replace(/\.ogg$/,'.mp3'))),f+' mp3');}}
 assert.deepEqual([map.key_cling.vol,map.key_enter_kosh.vol,map.enter_wrong.vol,map.enter_miss_whoosh.vol,map.key_backspace.vol],[0.6,0.9,0.7,0.7,0.5],"Charlie's volumes");
 assert.equal(map.key_cling.files.length,4);assert.equal(map.key_enter_kosh.files.length,2);
-const g=read('src/game.js');assert.match(g,/KM\.Juice\.key\(k, el\)/);assert.match(g,/KM\.Juice\.enter\(right,/);
+const g=read('src/game.js');assert.match(g,/JU\.key\(k, el\)/);assert.match(g,/JU\.enter\(right,/);
 const ctx={};ctx.window=ctx;vm.createContext(ctx);vm.runInContext(read('src/data/balance_try.js'),ctx);assert.equal(ctx.KM_DATA.balanceTry.juice,false,'off by default');
 console.log('PASS: juice: off = nothing; digits clang + land, backspace soft, Enter kosh + nudge, wrong alternates; Charlie\'s sounds mapped + shipped.');

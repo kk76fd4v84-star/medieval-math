@@ -64,6 +64,7 @@
   const CHEST = CARDS && KM.ChestCards?.on() ? KM.ChestCards : null; // chest cards switch: cards only from guarded chests
   const BT = KM.BalanceTry || { on: () => false, unit: () => 1, healthMul: () => null, packRelay: () => false, bossAtk: (e, b) => b, heartsText: String };
   const BR = KM.Brawl?.on() ? KM.Brawl : { route: r => r, dress() {}, meet: () => false, team: () => null, banner() {}, secs: (e, s) => s, answered() {}, won() {}, runEnd() {}, actions: {}, init() {} }; // brawl switch (src/brawl.js)
+  const JU = KM.Juice || { key() {}, enter() {}, init() {} }; // juice switch (src/engine/juice.js); tests load game.js alone
   const MP = KM.MeterPressure || { on: () => false, seconds: s => s, sells: () => [], level: () => 0, cost: () => null, image: () => null }; // meter pressure switch
   const maxHp = () => PA.maxHp(S.party);
   const roleMembers = role => PA.members(S.party, role);
@@ -1424,11 +1425,11 @@
     if (k === "back") e.input = e.input.slice(0, -1);
     else if (k === "enter") { if (striking) { e.enterQueued = true; return; } return submitAnswer(); }
     else if (/^\d$/.test(k) && e.input.length < 6) e.input += k;
-    const el = $("answer"); if (el) el.innerHTML = G(e.input) || "&nbsp;"; KM.Juice.key(k, el); // juice switch: lands heavy + clang
+    const el = $("answer"); if (el) el.innerHTML = G(e.input) || "&nbsp;"; JU.key(k, el); // juice switch: lands heavy + clang
   }
   function submitAnswer() {
     const e = S.enc; if (!e || e.phase !== 'math' || !e.q || !e.input) return;
-    const q = e.q, right = parseInt(e.input, 10) === e.problem.answer; KM.Juice.enter(right, $("answer"), S); // juice switch: kosh / blocked
+    const q = e.q, right = parseInt(e.input, 10) === e.problem.answer; JU.enter(right, $("answer"), S); // juice switch: kosh / blocked
     e.failedFraction=e.tmr?Math.min(1,e.tmr.t/e.tmr.secs):1;
     e.answerTiming = right ? KM.Timing.grade(e.tmr, q) : null; BR.answered(e, right); // brawl: ghost recording
     e.q = null; e.tmr = null; e.phase = "busy";
@@ -2092,7 +2093,7 @@
     toggleMusic: () => { MU.toggleMute(); renderHUD(); },
     openPause, closePause, pauseMusic: () => { MU.toggleMute(); renderHUD(); renderPause(); }
   };
-  Object.assign(actions, BR.actions); KM.Juice.init();
+  Object.assign(actions, BR.actions); JU.init();
   BR.init({ S, say, T, esc, showPanel, actionCard, shortName, artId, renderHUD, loseCompanion, commit: () => commit(), finish: () => finishEncounter() });
 
   // v11b (Magnus): scene hotspots work with the mouse too: pointer cursor + the ink highlight on hover, click = use
