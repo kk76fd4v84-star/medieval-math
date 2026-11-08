@@ -10,7 +10,9 @@ KM.PartyAbilities = (() => {
   // Only new-run heroes carry this origin. Existing saves keep their approved knight.
   const villager = m => m?.id === 'hero' && m.origin === 'villager';
   const unarmed = m => villager(m) && !(m.weapon > 0);
-  const heroArt = m => !villager(m) || (m.armorTrained && m.weapon > 0) ? 'hero'
+  // knightStart switch: the starter knight (chipped sword) until the first weapon upgrade, then the existing knight art
+  const heroArt = m => m?.id === 'hero' && m.origin === 'starter' && !(m.weapon > 0) && KM_ART.entities.hero_starter ? 'hero_starter'
+    : !villager(m) || (m.armorTrained && m.weapon > 0) ? 'hero'
     : m.armorTrained ? 'villager_armour' : m.weapon > 0 ? 'villager_sword' : 'villager';
   const life = () => KM_DATA.party.heartsPerMember;
   const maxHp = party => party.reduce((n,m) => n + life(m), 0);

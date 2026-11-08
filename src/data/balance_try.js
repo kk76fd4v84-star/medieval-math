@@ -11,6 +11,7 @@ KM_DATA.balanceTry = {
   meterPressure: false, // difficulty from the timing meter: foe pressures + helm / lantern (src/data/meter_pressure.js)
   gradual: false,     // slow step-by-step maths ladder (see `ladder` below); turns on whoActs
   whoActs: false,
+  knightStart: false, // a new run starts as the covered-face knight (Maggi's starter art, chipped sword) instead of the villager
   castBar: false,     // looks only: the timing meter always on screen; moved band ends shake + slide with a green / red trail (src/data/cast_bar.js)     // Fellowship: each sum belongs to one member (+ knights, − healers, × fire / wizard / executioner); their strike counts double
   // curve: Fellowship enemy health = base hp x min(max, start + step x battles fought this run)
   health: { start: 2.0, step: 0.05, max: 2.6 },
