@@ -1001,7 +1001,7 @@
   function paintTimingLegend() {
     const e=S.enc,w=e?.tmr?.windows||e?.answerTiming?.windows||combatWindows();
     const foes=e?.revealed?living(e):[];
-    KM.TimingBar?.update(w,{visible:KM.CastBar?.on()||S.mode==='encounter'&&!!e?.revealed, // cast bar switch: always on screen
+    KM.TimingBar?.update(w,{visible:!(KM.CastBar?.on()&&D.castBar.plainIn.includes(S.view?.id))&&(KM.CastBar?.on()||S.mode==='encounter'&&!!e?.revealed), // plainIn: the plain divider there // cast bar switch: always on screen
       timed:S.mode==='encounter'&&!!(e?.tmr||e?.answerTiming),jp:!!KM.I18n?.jp(),forgiving:foes.length>0&&foes.every(f=>KM.Timing.pattern(f.id).forgiving),deadline:foes.some(f=>KM.Timing.pattern(f.id).deadline),hit:e?.answerTiming?.fraction??null,ink:w.ink||null,tags:w.tags||[]});
   }
   const NOTIMER = /[?&]debug\b/.test(location.search) && /[?&]notimer\b/.test(location.search);

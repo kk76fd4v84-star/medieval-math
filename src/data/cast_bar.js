@@ -13,6 +13,7 @@ KM_DATA.castBar = {
   shrinkMs: 1000,                       // 3) the trail catches up to the icon
   inkFadeMs: 400,                       // ink (shroud) just fades in
   ease: "cubic-bezier(.2,.75,.25,1)",
+  plainIn: ["tavern-interior"],         // Magnus: the plain divider (no cast bar) on these screens, e.g. choosing a companion
   colours: { good: "#3f8a2c", bad: "#b3261e" },
   // Charlie's 1 s sounds (assets/audio/sfx, mapped in audio_map): shake at the start of the shake, tick_up / tock_down at the start of the slide
   sfx: { shake: "meter_shake", good: "meter_tick_up", bad: "meter_tock_down" }
