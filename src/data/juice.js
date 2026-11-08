@@ -19,7 +19,7 @@ KM_DATA.juice = {
   },
   digits: ["key_digit_0", "key_digit_1", "key_digit_2", "key_digit_3", "key_digit_4", "key_digit_5", "key_digit_6", "key_digit_7", "key_digit_8", "key_digit_9"], // key 0..9
   text:  { pitch: 0.03, back: "key_delete", enter: "key_enter_heavy",                  // name entry: a character plays letters[char code % n] (A = a)
-           letters: ["name_ring_1", "name_ring_2", "name_ring_3", "name_ring_4", "name_ring_5"],
+           letters: null, // Magnus 2026-11-09: name letters use the same sounds as typing math (the digit sounds)
            rate: [0.94, 1.12], spread: 11 },  // + each letter its own fixed pitch: A..Z step through rate by (index * spread) % 26, so neighbours differ
   name:  { hot: "#ff3d0f", cooled: "#2a1d12", glow: "#ff8a2a", glowPx: 18, coolSecs: 1.1 }, // each typed name letter: fire red-orange, cools to black ink (always on)
   digit: { pitch: 0.03, ms: 130, drop: 18, squash: 0.78, spark: true },                 // lands heavy: drop + thud squash
