@@ -3,8 +3,8 @@ window.KM = window.KM || {};
 KM.BalanceTry = (() => {
   const B = KM_DATA.balanceTry, q = new URLSearchParams(location.search);
   const flag = (key, param) => q.has(param) ? q.get(param) !== '0' : !!B[key];
-  const sw = { curve: flag('curve', 'curve'), halfHearts: flag('halfHearts', 'halfhearts'), campArmour: flag('campArmour', 'camparmour'), whoActs: flag('whoActs', 'whoacts'), cards: flag('cards', 'cards') };
-  if (sw.cards) sw.whoActs = true;
+  const sw = { curve: flag('curve', 'curve'), halfHearts: flag('halfHearts', 'halfhearts'), campArmour: flag('campArmour', 'camparmour'), whoActs: flag('whoActs', 'whoacts'), cards: flag('cards', 'cards'), gradual: flag('gradual', 'gradual') };
+  if (sw.cards || sw.gradual) sw.whoActs = true;
   const on = name => !!sw[name];
   const unit = () => sw.halfHearts ? 2 : 1; // heart units per drawn heart
   if (sw.halfHearts && KM_DATA.party) KM_DATA.party.heartsPerMember *= 2;
@@ -33,7 +33,9 @@ KM.BalanceTry = (() => {
     let r = rand() * weighted.reduce((n, x) => n + x.w, 0), pick = weighted[0];
     for (const x of weighted) { if ((r -= x.w) < 0) { pick = x; break; } }
     const sign = B.roles[role(pick.m)].sign;
-    return { member: pick.m, sign, cue: B.roles[role(pick.m)].cue, level: B.sums[sign][lvl(pick.m) - 1], multiplier: B.leaderMultiplier };
+    const L = B.ladder[sign], step = Math.floor((ctx.correct || 0) / B.everyCorrect) + lvl(pick.m) - 1; // gradual: slow climb
+    const level = sw.gradual ? L[Math.min(L.length - 1, step)] : B.sums[sign][lvl(pick.m) - 1];
+    return { member: pick.m, sign, cue: B.roles[role(pick.m)].cue, level, multiplier: B.leaderMultiplier };
   }
   return { on, unit, healthMul, packRelay, bossAtk, heartsText, pickLeader };
 })();
