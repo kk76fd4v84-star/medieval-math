@@ -12,6 +12,7 @@ function load(on){const started=[],fetched=[];
   ctx.window=ctx;vm.createContext(ctx);vm.runInContext(read('src/data/juice.js'),ctx);
   vm.runInContext(`KM={BalanceTry:{on:k=>k==='juice'&&${on}},Audio:{muted:()=>false}};`,ctx);vm.runInContext(read('src/engine/juice.js'),ctx);
   return {J:ctx.KM.Juice,D:ctx.KM_DATA.juice,started,fetched};}
+const g0=read('src/game.js');
 (async()=>{
 { const {J,started,fetched}=load(false);J.init();assert.equal(J.press('4',null),false,'off: not handled');assert.equal(fetched.length+started.length,0,'off: nothing loaded or played'); }
 const {J,D,started,fetched}=load(true);J.init();await new Promise(r=>setTimeout(r,0));await new Promise(r=>setTimeout(r,0));
@@ -25,10 +26,13 @@ const n=started.length;J.press('enter',null);assert.equal(started.length,n,'Ente
 J.press('enter',false);J.press('enter',false);assert.deepEqual(started.slice(-2).map(s=>s[0]),['enter_wrong','enter_miss_whoosh'],'wrong: blocked, then whoosh');assert.deepEqual(started.slice(-2).map(s=>s[1]),[0.8,0.7]);
 for(const s of started)assert(Math.abs(s[2]-1)<=0.03+1e-9,'pitch jitter small');
 assert.deepEqual(D.digits.length,10);
+const m=started.length;assert(J.text('A')&&J.text('a')&&J.text('A'));assert.deepEqual(started.slice(m).map(s=>s[0]),[D.digits[65%10],D.digits[97%10],D.digits[65%10]],'name letters: char code % 10, same letter same sound');
+J.text('Backspace');assert.equal(J.last.id,'key_delete');J.text('Enter');assert.equal(J.last.id,'key_enter_heavy');assert.equal(J.text('Shift'),false,'no sound for Shift');
+assert.match(g0,/S\.mode === "name"[^]*?JU\.text\(k\)/,'name entry keydown plays');
 for(const [id,s] of Object.entries(D.sounds))for(const x of ['ogg','mp3'])assert(fs.existsSync(path.join(root,'assets/audio/sfx',s.file+'.'+x)),id+' -> '+s.file+'.'+x);
 const g=read('src/game.js'),tk=g.slice(g.indexOf('function typeKey'),g.indexOf('function submitAnswer'));
 assert(tk.indexOf('JU.press(')<tk.indexOf('e.input = e.input.slice')&&tk.indexOf('JU.press(')<tk.indexOf('innerHTML'),'the sound starts before input/render work');
 assert.match(g,/addEventListener\("pointerdown"[^]*?typeKey\(b\.dataset\.key\)/,'on-screen keys act on pointerdown');
 const ctx={};ctx.window=ctx;vm.createContext(ctx);vm.runInContext(read('src/data/balance_try.js'),ctx);assert.equal(ctx.KM_DATA.balanceTry.juice,false,'off by default');
-console.log('PASS: juice: off = nothing; 10 digit sounds + delete + heavy Enter + wrong pair from data, decoded at load, started in the key handler; files shipped.');
+console.log('PASS: juice: off = nothing; 10 digit sounds + delete + heavy Enter + wrong pair, name letters too, from data, decoded at load, started in the key handler; files shipped.');
 })().catch(e=>{console.error(e);process.exit(1);});

@@ -22,6 +22,13 @@ KM.Juice = (() => {
     else hit(d.digits[+k], d.digit.pitch);
     return true;
   }
+  // name entry: the key's sound at once (a character -> digits[char code % 10], Backspace, Enter); true = handled
+  function text(k) {
+    if (!on()) return false; const d = D(), t = d.text;
+    if (k === 'Backspace') hit(t.back, t.pitch); else if (k === 'Enter') hit(t.enter, t.pitch);
+    else if (k.length === 1) hit(d.digits[k.codePointAt(0) % 10], t.pitch); else return false;
+    return true;
+  }
   const restart = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
   function key(k, el) { // motion only, after the answer box shows the new digit
     if (!on() || !el || k === 'back') return; const g = el.lastElementChild; if (!g) return;
@@ -36,6 +43,7 @@ KM.Juice = (() => {
     ac = new Ctx(); let ogg = true; try { ogg = !!new Audio().canPlayType('audio/ogg; codecs="vorbis"'); } catch (e) {}
     const resume = () => { if (ac.state !== 'running') ac.resume(); }; // first user gesture unlocks the context
     for (const ev of ['keydown', 'pointerdown', 'touchstart']) window.addEventListener(ev, resume, { capture: true, passive: true });
+    resume(); // already unlocked if the page had a gesture; else the first key / tap does it (that key's hit plays once it runs)
     const files = {};
     for (const [id, s] of Object.entries(D().sounds)) {
       const g = amp[id] = ac.createGain(); g.gain.value = s.vol ?? 1; g.connect(ac.destination);
@@ -49,5 +57,5 @@ KM.Juice = (() => {
     st.setProperty('--juice-punch', d.enter.ms + 'ms'); st.setProperty('--juice-punch-squash', d.enter.squash); st.setProperty('--juice-block', d.wrong.ms + 'ms');
     load();
   }
-  return { on, press, key, enter, init, last, ready: () => Object.keys(buf).length, state: () => ac && ac.state };
+  return { on, press, text, key, enter, init, last, ready: () => Object.keys(buf).length, state: () => ac && ac.state };
 })();

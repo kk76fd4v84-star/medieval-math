@@ -64,7 +64,7 @@
   const CHEST = CARDS && KM.ChestCards?.on() ? KM.ChestCards : null; // chest cards switch: cards only from guarded chests
   const BT = KM.BalanceTry || { on: () => false, unit: () => 1, healthMul: () => null, packRelay: () => false, bossAtk: (e, b) => b, heartsText: String };
   const BR = KM.Brawl?.on() ? KM.Brawl : { route: r => r, dress() {}, meet: () => false, team: () => null, banner() {}, secs: (e, s) => s, answered() {}, won() {}, runEnd() {}, actions: {}, init() {} }; // brawl switch (src/brawl.js)
-  const JU = KM.Juice || { press: () => false, key() {}, enter() {}, init() {} }; // juice switch (src/engine/juice.js); tests load game.js alone
+  const JU = KM.Juice || { on: () => false, press: () => false, text: () => false, key() {}, enter() {}, init() {} }; // juice switch (src/engine/juice.js); tests load game.js alone
   const MP = KM.MeterPressure || { on: () => false, seconds: s => s, sells: () => [], level: () => 0, cost: () => null, image: () => null }; // meter pressure switch
   const maxHp = () => PA.maxHp(S.party);
   const roleMembers = role => PA.members(S.party, role);
@@ -2127,7 +2127,7 @@
     if (b.disabled) return;
     if(S.enc?.gearChoice && !["assignGear","cancelGear","toggleMusic","openPause","closePause","pauseMusic"].includes(b.dataset.act))return;
     if (b.dataset.key) return JU.on?.() ? undefined : typeKey(b.dataset.key); // juice: the pad acts on pointerdown
-    if (b.dataset.act && actions[b.dataset.act]) { A.play("ui_click"); actions[b.dataset.act](b); }
+    if (b.dataset.act && actions[b.dataset.act]) { if (b.dataset.act !== "submitName" || !JU.text("Enter")) A.play("ui_click"); actions[b.dataset.act](b); } // juice: Begin = the heavy Enter
   });
   document.addEventListener("pointerdown", ev => { // juice switch: an on-screen key acts (and sounds) the moment it is touched
     const b = JU.on?.() && ev.target.closest?.("[data-key]"); if (b && !b.disabled) typeKey(b.dataset.key);
@@ -2142,7 +2142,9 @@
       else if(k==='Tab'){const buttons=[...panel.querySelectorAll('[role="dialog"] button:not([disabled])')];const i=buttons.indexOf(document.activeElement);ev.preventDefault();buttons[(i+(ev.shiftKey?-1:1)+buttons.length)%buttons.length]?.focus();}
       return;
     }
-    if (S.mode === "name") { if (k === "Enter" && !ev.isComposing) { ev.preventDefault(); submitName(); } return; }
+    if (S.mode === "name") { // juice switch: every key of the name has its metal sound, in this keydown
+      if (!ev.isComposing && !ev.ctrlKey && !ev.metaKey && !ev.altKey) JU.text(k);
+      if (k === "Enter" && !ev.isComposing) { ev.preventDefault(); submitName(); } return; }
     if (S.mode === "encounter" && S.enc && S.enc.phase === "spell") { // v12k fire bottle word: letters only (M, Z... are letters here); v12m: Backspace does nothing
       if (k === "Backspace") ev.preventDefault(); else if (/^[a-z]$/i.test(k)) spellKey(k.toUpperCase()); return; }
     if (K1 === "M") { MU.toggleMute(); renderHUD(); return; }
