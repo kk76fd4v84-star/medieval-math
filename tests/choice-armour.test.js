@@ -19,7 +19,7 @@ foe.hp=0;foe.gone=true;assert(g.canExecute());S.enc.foes[1].hp=0;assert(!g.canEx
 reset();at('goblin');flush(1);g.renderChoice();assert(!panel().includes('pickExecute'));
 // A successful recruit consumes only this tavern, persists independently of party membership, and leaves the other visible.
 run('src/engine/tavern-pov.js');
-reset();const st=at('tavern'),other=st.cands[1].name;S.view={id:'tavern-interior',a:1};g.renderTavernInside();assert.match(panel(),/Choose one companion/);
+reset();const st=at('tavern'),other=st.cands[1].name;S.view={id:'tavern-interior',a:1};g.renderTavernInside();assert.match(panel(),/Choose a companion/);
 const before=g.core();g.recruitFlowTalk(st,0);S.enc.q.onRight();assert.equal(S.party.length,2);assert(!g.canRecruit(st));assert.equal(st.cands[1].name,other);assert.match(panel(),/One recruit per tavern/);
 assert.equal(Object.keys(before.tavernRecruits).length,0,'checkpoint snapshot must not mutate');
 assert(!g.recruitCand(st,1));g.tvJoin(1);g.restRecruit(1);g.recruitFlowTalk(st,1);assert.equal(S.enc.phase,'rest');
