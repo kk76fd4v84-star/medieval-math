@@ -14,14 +14,11 @@ const E=engine('?castbar=1&meterpressure=1'),CB=E.KM.CastBar,CD=E.KM_DATA.castBa
 assert.equal(engine('').KM.CastBar.on(),false,'off by default');assert.equal(E.KM_DATA.balanceTry.castBar,false);assert.equal(CB.on(),true);
 for(const k of ['shakeMs','slideMs','holdMs','shrinkMs','inkFadeMs'])assert(CD[k]>=0,k+' in data');
 assert.deepEqual([CD.shakeMs,CD.slideMs,CD.shrinkMs],[1000,1000,1000],'Magnus: a full second shake, slide, catch-up');assert.equal(CD.holdMs,0,'strictly one after the other');
-assert.deepEqual({...CD.sfx},{shake:'meter_shake',good:'meter_slide_good',bad:'meter_slide_bad',tick:'meter_tick'});
-// clock ticks: good winds up and ends on a longer (slower) tick, bad winds down; rates inside the audio code's 0.8..1.2
-const tk=CD.ticks;assert(tk.good.length>=3&&tk.bad.length>=3);
-for(const r of [...tk.good,...tk.bad])assert(r>=.8&&r<=1.2,'rate '+r);
-assert(tk.good.slice(0,-1).every((r,i,a)=>!i||r>a[i-1]),'tick tick tick rising');assert(tk.good.at(-1)<tk.good.at(-2),'tiiick: the last one longer');
-assert(tk.bad.every((r,i,a)=>!i||r<a[i-1]),'tock tock tock falling');assert(Math.max(...tk.bad)<Math.min(...tk.good.slice(0,-1)),'tocks lower than ticks');
+assert.deepEqual({...CD.sfx},{shake:'meter_shake',good:'meter_tick_up',bad:'meter_tock_down'});
+// Charlie's 1 s sounds: mapped, both formats in assets/audio/sfx, the placeholder tick gone
 const map=JSON.parse(fs.readFileSync(path.join(root,'assets/audio_map.json'),'utf8'));
-assert.deepEqual(map.meter_tick.files,['sfx/meter_tick.ogg']);for(const f of ['ogg','mp3'])assert(fs.existsSync(path.join(root,'assets/audio/sfx/meter_tick.'+f)));
+for(const id of Object.values(CD.sfx)){assert.deepEqual(map[id].files,['sfx/'+id+'.ogg'],id);for(const f of ['ogg','mp3'])assert(fs.existsSync(path.join(root,'assets/audio/sfx/'+id+'.'+f)),id+'.'+f);}
+assert.equal(map.meter_shake.vol,0.55);assert.equal(map.meter_tick_up.vol,0.8);assert.equal(map.meter_tock_down.vol,0.8);assert(!map.meter_tick&&!CD.ticks,'placeholder tick dropped');
 assert.notEqual(CB.colour(true),CB.colour(false));assert.equal(CB.colour(true),CD.colours.good);assert.equal(CB.colour(false),CD.colours.bad);
 const pos=w=>({block:w.block,crit:w.crit,normal:w.normal,weak:1});
 const plain=x=>JSON.parse(JSON.stringify(x));
