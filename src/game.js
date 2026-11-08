@@ -1352,6 +1352,7 @@
 
   // ---- generic maths question (combat actions, recruits, Frank)
   function ask(level, onRight, onWrong, back, secs, kind="recruit") {
+    if (TUT && !TUT.seen()) return tutorial(() => ask(level, onRight, onWrong, back, secs, kind));
     const e = S.enc; e.phase = "math"; e.input = ""; e.tmr = null; e.enterQueued = false;
     if(isFellowship() && S.spells>0 && !S.spellLeft && !meadNow()){S.spells--;S.spellLeft=SPL.problems;A.play(SPL.sfx.cast);renderHUD();}
     const mead = meadNow(), stupid = mead || S.spellLeft > 0; // Scroll: the next maths problem only. Mead: all sums in this battle.
@@ -1771,7 +1772,7 @@
   }
   function renderTavernOut() {
     S.enc.phase = "tavernOut";
-    showPanel(`<div class="center"><div class="opts big3 moves${S.view && S.view.id === "tavern-arrival" && S.view.a < 1 ? " arrive" : ""}">${big("I", "Go in", "goInside")}${big("Enter", "Walk on", "leaveRest")}</div></div>`, "info");
+    showPanel(`<div class="center"><div class="opts big3 moves${S.view && S.view.id === "tavern-arrival" && S.view.a < 1 ? " arrive" : ""}">${big("I", "Enter the Tavern", "goInside")}${big("Enter", "Keep on walking", "leaveRest")}</div></div>`, "info");
   }
   let roomChanging = false;
   async function changeRoom(change) {
@@ -1839,6 +1840,18 @@
     return `<div style="height:min(560px,62vh);aspect-ratio:2/3;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:6% 8%;background:#ecdcc4;border:6px double #292018;color:#292018;font-family:Georgia,serif;text-align:center"><strong style="font-size:30px">${c.name}</strong><span style="font-size:15px">${String(c.owner||'').replace('darkWizard','Dark Wizard').toUpperCase()}</span><span style="font-size:22px;line-height:1.3">${c.text||''}</span><span style="font-size:20px;line-height:1.3;background:#292018;color:#ecdcc4;padding:14px">${c.costText||''}</span></div>`;
   }
   function takeCard(id){const e=S.enc;if(!e||!CARDS||e.used?.card||!e.cardOptions?.includes(id))return;S.cards=(S.cards||[]).concat(id);(e.used=e.used||{}).card=true;e.cardPick=false;A.play('buy_gear');save();if(e.chest)return finishEncounter();renderRest();}
+  // cast bar tutorial (switch castBar; text KM_DATA.tutorial.castBar): once per save, before the first sum
+  const TUT = KM.CastBar && KM.CastBar.on() && KM_DATA.tutorial && (() => { const t = KM_DATA.tutorial.castBar;
+    return { t, seen: () => { try { return localStorage.getItem(t.saveKey) === '1'; } catch (_) { return true; } }, done: () => { try { localStorage.setItem(t.saveKey, '1'); } catch (_) {} } }; })();
+  function tutorial(then) {
+    const e = S.enc, t = TUT.t, w = 'assets/timing-woodcut/', img = id => `<img src="${w}${id}.png" alt="" draggable="false">`; e.phase = 'tutorial'; e.tutorialThen = then;
+    const bar = `<div class="tut-bar" aria-hidden="true"><img class="tut-track" src="${w}track.png" alt=""><img class="tut-fill" src="${w}fill.png" alt="">${t.icons.map(r => `<span class="tut-mark" style="left:${r.at * 100}%">${img(r.icon)}</span>`).join('')}</div><div class="tut-ends"><span>${esc(T(t.ends[0]))}</span><span>${esc(T(t.ends[1]))}</span></div>`;
+    const rows = t.icons.map(r => `<div class="tut-row"><span class="tut-icon">${img(r.icon)}</span><span>${esc(T(r.text))}</span></div>`).join('');
+    const tricks = BT.on('meterPressure') && t.tricks ? `<div class="tut-small"><b>${esc(T(t.tricks.title))}</b>${t.tricks.lines.map(l => `<br>${esc(T(l))}`).join('')}</div>` : '';
+    showPanel('', 'info'); document.getElementById('tut-layer')?.remove();
+    document.getElementById('stage').insertAdjacentHTML('beforeend', `<div id="tut-layer" class="tut-shade"><div class="tut-dialog" role="dialog" aria-modal="true" aria-labelledby="tut-title"><div id="tut-title" class="tut-title">${esc(T(t.title))}</div><div class="tut-intro">${esc(T(t.intro))}</div>${bar}<div class="tut-rows">${rows}</div><div class="tut-small">${esc(T(t.strike))}</div>${tricks}<div class="tut-small">${esc(T(t.trail))}</div><button type="button" class="opt plaque tut-go" data-act="closeTutorial">${esc(T(t.button))}</button></div></div>`);
+  }
+  function closeTutorial() { const e = S.enc; if (!e || e.phase !== 'tutorial') return; TUT.done(); document.getElementById('tut-layer')?.remove(); const then = e.tutorialThen; e.tutorialThen = null; then(); }
   function gearDialog(kind){
     const g=restT().gear,key=kind==='weapon'?'maxWeapon':'maxArmor',cost=kind==='weapon'?g.weaponCost:g.armorCost;
     const icon=`<img src="assets/ui/shop/${kind==='weapon'?'sword':'armour'}-cutout.png" alt="">`;
@@ -2053,7 +2066,7 @@
     selectTavern:b=>{if(S.enc?.tv){S.enc.tv.sel=+b.dataset.i;renderTavernInside();}},
     buyFare:b=>buyFare(b.dataset.item),
     restHeal: b => restHeal(b.dataset.k), openCards: () => { if (S.enc) { S.enc.cardPick = true; renderRest(); } }, closeCards: () => { if (S.enc) { S.enc.cardPick = false; if (S.enc.chest) return finishEncounter(); renderRest(); } }, takeCard: b => takeCard(b.dataset.id), buyMead: () => buyMead(), restRecruit: b => restRecruit(+b.dataset.j),
-    chooseGear:b=>chooseGear(b.dataset.kind), buyMeterGear:b=>buyMeterGear(b.dataset.id), assignGear:b=>assignGear(+b.dataset.i), cancelGear:()=>cancelGear(),
+    chooseGear:b=>chooseGear(b.dataset.kind), buyMeterGear:b=>buyMeterGear(b.dataset.id), assignGear:b=>assignGear(+b.dataset.i), cancelGear:()=>cancelGear(), closeTutorial:()=>closeTutorial(),
     restBuyW: b => restBuy("weapon", +b.dataset.i), restBuyA: b => restBuy("armor", +b.dataset.i),
     goInside: () => goInside(), leaveInside: () => leaveInside(),
     leaveRest: () => leaveRest(),
@@ -2148,6 +2161,7 @@
       case "recruit": if (k === "Enter") press("recruitSum"); else if (K1 === "N") press("noRecruit"); return;
       case "contestOffer": if (K1 === "D" || k === "Enter") press("contest"); else if (K1 === "N" || k === "Escape") press("noContest"); return;
       case "frank": if (k === "1") press("frankAgree"); else if (k === "2") press("frankNo"); return;
+      case "tutorial": if (k === "Enter" || k === " " || k === "Escape") press("closeTutorial"); return;
       case "tavernOut": if (K1 === "I") press("goInside"); else if (k === "Enter") press("leaveRest"); return;
       case "rest": {
         if (S.view && S.view.id === "tavern-interior" && e.tv) { // v11b tavern: pick a thing, then its options

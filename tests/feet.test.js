@@ -36,7 +36,7 @@ const SHOTS = require("path").resolve(__dirname, "../screenshots/v11b/feet");
     else if (s.ph === "riddle") await page.keyboard.press("abc"[await ev(() => __km.S.enc.riddle.answer)]);
     else if (s.ph === "frank") await page.keyboard.press("2");
     else if (s.ph === "recruit") await page.keyboard.press("n");
-    else if (/Walk on|Break camp/.test(await ev(() => __km.panelText()))) await page.keyboard.press("Enter");
+    else if (/Walk on|Keep on walking|Break camp/.test(await ev(() => __km.panelText()))) await page.keyboard.press("Enter");
     await sleep(100); }
   const bad = off.filter(o => Math.abs(o.d) > 3);
   checks.push([`live: ${off.length} foe samples (slide-in, approach, fight): feet on the ground line within 3 px (${bad.length} off${bad.length ? ": " + JSON.stringify(bad.slice(0, 4)) : ""})`, off.length > 50 && bad.length === 0 && off.some(o => o.tag === "walk") && off.some(o => o.tag === "fight")]);

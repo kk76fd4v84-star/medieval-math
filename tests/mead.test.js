@@ -26,7 +26,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       else if (st.ph === "math") await typeAns();
       else if (st.ph === "riddle") await page.keyboard.press(String(await ev(() => __km.S.enc.riddle.answer + 1)));
       else if (st.ph === "recruit") await page.keyboard.press("n");
-      else if (/Walk on|Break camp/.test(await ev(() => __km.panelText()))) await page.keyboard.press("Enter");
+      else if (/Walk on|Keep on walking|Break camp/.test(await ev(() => __km.panelText()))) await page.keyboard.press("Enter");
       else if (st.m === "walk") await ev(() => __km.setSpeed(4));
       await sleep(150); }
     throw new Error("drive timeout " + JSON.stringify(await ev(() => ({ m: __km.mode(), ph: __km.phase(), stop: __km.S.stop, type: __km.S.stops[__km.S.stop] && __km.S.stops[__km.S.stop].type, panel: __km.panelText().slice(0, 120) })))); };
