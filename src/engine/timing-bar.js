@@ -20,7 +20,7 @@ KM.TimingBar=(()=>{
       b.addEventListener('keydown',e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();e.stopPropagation();}});
     });
     rail.append(root);divider.append(rail);lastPos=null;
-    const cb=CB();if(cb){rail.classList.add('castbar');rail.style.setProperty('--cb-ink-ms',cb.inkFadeMs+'ms');rail.style.setProperty('--cb-shake-ms',cb.shakeMs+'ms');rail.style.setProperty('--cb-shake-px',cb.shakePx+'px');}
+    const cb=CB();if(cb){rail.classList.add('castbar');rail.style.setProperty('--cb-ink-ms',cb.inkFadeMs+'ms');rail.style.setProperty('--cb-shake-n',String(Math.max(1,Math.round(cb.shakeMs/180))));rail.style.setProperty('--cb-shake-px',cb.shakePx+'px');}
   }
   // cast bar (switch): a moved icon shakes, slides, and leaves a green (helps) / red (hurts) trail that then catches up
   const calm=()=>typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -30,6 +30,9 @@ KM.TimingBar=(()=>{
     const slide=`${cb.slideMs}ms ${cb.ease} ${cb.shakeMs}ms`;
     if(!still){play(cb.sfx.shake);ink.style.transition=`clip-path ${slide}`;}
     for(const good of [true,false])if(moved.some(m=>m.good===good))setTimeout(()=>play(cb.sfx[good?'good':'bad']),still?0:cb.shakeMs);
+    // clock ticks over the slide: winding up when the change helps, down when it hurts (KM_DATA.castBar.ticks)
+    const good=moved.some(m=>m.good)&&!moved.some(m=>!m.good)?'good':moved.some(m=>!m.good)?'bad':null,rates=(cb.ticks||{})[good]||[];
+    rates.forEach((rate,i)=>setTimeout(()=>KM.Audio&&KM.Audio.play(cb.sfx.tick,{rate}),(still?0:cb.shakeMs)+(rates.length>1?i*cb.slideMs/(rates.length-1):0)));
     for(const m of moved){
       const b=root.querySelector(`[data-outcome="${m.id}"]`);
       rail.querySelector(`.cb-trail[data-id="${m.id}"]`)?.remove();
