@@ -37,7 +37,7 @@ KM.MeterPressure = (() => {
   // optional painted tag / shop art: used once it has loaded, else the text tag or glyph stays
   const art = {};
   function image(id) {
-    if (typeof Image === 'undefined') return null;
+    if (typeof Image === 'undefined' || !(D().artIds || []).includes(id)) return null; // only files listed in data
     if (!(id in art)) { const im = new Image(); art[id] = null; im.onload = () => (art[id] = im.src); im.src = D().art + id + '.png'; }
     return art[id];
   }

@@ -12,20 +12,13 @@ KM_DATA.brawl = {
   // difficulty: ONE icon under the rival's hearts (top right, mirroring your purse under your hearts), more serious as the
   // rating rises. rating N = 1 + (count-1) x (skill - lo) / (hi - lo), rounded, clamped 1..count (skill = accuracy / median
   // answer seconds; seeds: Dawdle 1 ... Quicksum 10). tiers: the last entry with minRating <= N is shown (any number of
-  // tiers works). Maggi's art (handoff_to_maggi/brawl_rank) goes in assets/brawl/rank/; a file not there (yet) falls back
-  // to the placeholder: icon (ink skull) drawn at a size growing from px[0] (N = 1) to px[1] (N = count).
+  // tiers works). Art in assets/brawl/rank/; a file that fails to load falls back to the placeholder:
+  // icon (ink skull) drawn at a size growing from px[0] (N = 1) to px[1] (N = count).
   rating: { count: 10, skill: [0.06, 0.35],
-    tiers: [
-      { minRating: 1, img: "assets/brawl/rank/rank_01.png" },
-      { minRating: 2, img: "assets/brawl/rank/rank_02.png" },
-      { minRating: 3, img: "assets/brawl/rank/rank_03.png" },
-      { minRating: 4, img: "assets/brawl/rank/rank_04.png" },
-      { minRating: 5, img: "assets/brawl/rank/rank_05.png" },
-      { minRating: 6, img: "assets/brawl/rank/rank_06.png" },
-      { minRating: 7, img: "assets/brawl/rank/rank_07.png" },
-      { minRating: 8, img: "assets/brawl/rank/rank_08.png" },
-      { minRating: 9, img: "assets/brawl/rank/rank_09.png" },
-      { minRating: 10, img: "assets/brawl/rank/rank_10.png" }
+    tiers: [ // Maggi's rank icons v1 (approved), least to most serious: spoon, helmet, sword + shield, horned skull, crowned skull
+      { minRating: 1, img: "assets/brawl/rank/rank_01.png" }, { minRating: 3, img: "assets/brawl/rank/rank_02.png" },
+      { minRating: 5, img: "assets/brawl/rank/rank_03.png" }, { minRating: 7, img: "assets/brawl/rank/rank_04.png" },
+      { minRating: 9, img: "assets/brawl/rank/rank_05.png" }
     ],
     px: [22, 46],
     icon: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3c-7 0-11 4.6-11 10.4 0 3.6 1.7 6 4 7.4V25h3v-2.4h1.6V25h4.8v-2.4H20V25h3v-4.2c2.3-1.4 4-3.8 4-7.4C27 7.6 23 3 16 3z" fill="#efe0c0" stroke="#2a1d12" stroke-width="2.2" stroke-linejoin="round"/><path d="M9 13.4c1-2.1 4.3-2.3 5.2-.4.6 1.5-.6 3.4-2.5 3.4-2.1 0-3.2-1.5-2.7-3zM23 13.4c-1-2.1-4.3-2.3-5.2-.4-.6 1.5.6 3.4 2.5 3.4 2.1 0 3.2-1.5 2.7-3z" fill="#2a1d12"/></svg>' },

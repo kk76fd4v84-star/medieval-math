@@ -571,7 +571,7 @@ img.mp-tag{background:none;padding:0;height:28px}
 .tut-small{font-size:23px;margin:4px 0;}
 .tut-go{margin-top:12px;--bh:64px;font-size:32px;font-weight:bold;min-width:300px;}
 /* brawl: the rival's difficulty, one icon under its hearts (top right, where your purse sits on the left) */
-#hud .brawl-rank{right:22px;display:flex;align-items:flex-start;pointer-events:none;} #hud .brawl-rank img{height:48px;width:auto;display:block;} #hud .brawl-rank i{display:block;} #hud .brawl-rank svg{width:100%;height:100%;display:block;}
+#hud .brawl-rank{right:22px;display:flex;align-items:flex-start;pointer-events:none;} #hud .brawl-rank img{height:40px;width:auto;display:block;} #hud .brawl-rank i{display:block;} #hud .brawl-rank svg{width:100%;height:100%;display:block;}
 /* brawl: the rival's name centred over the fight */
 .panel .brawl-banner{position:absolute;left:0;right:0;top:0;margin:18px 0 0;pointer-events:none;}
 /* juice (switch juice, src/data/juice.js): a typed digit drops in and thuds, a spark; Enter punches; a wrong Enter is blocked */
