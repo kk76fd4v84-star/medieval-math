@@ -5,10 +5,10 @@ window.KM_DATA = window.KM_DATA || {};
 KM_DATA.brawl = {
   storage: { runs: "knightMath.brawl.runs", rank: "knightMath.brawl.rank", player: "knightMath.brawl.player", keep: 20 },
   // where ghosts show up on a route: after `from` stops, at most one per gap of `gap` stops; chance per eligible gap
-  route: { from: 2, gap: 4, sighting: 0.5, ambush: 0.3, gapPx: 1300, level: "normal", gold: 6 },
+  route: { from: 3, gap: 6, sighting: 0.35, ambush: 0.2, gapPx: 1300, level: "normal", gold: 6 },
   // the ghosts' look: existing party art, pale and see-through (art ids by party slot: leader first)
   art: ["hero_starter", "follower_1", "follower_2", "follower_3"],
-  look: { filter: "grayscale(1) brightness(1.45) contrast(.75)", alpha: 0.62 },
+  look: { filter: "grayscale(1) brightness(1.45) contrast(.75)", alpha: 0.62, hillScale: 0.5 },  // hillScale: size far off on the hill
   foe: { hpPerAnswer: 3, atk: 1 },          // a ghost's health = hpPerAnswer x its rank step (+ the run's usual health rules)
   replay: { minSecs: 1.5, maxSecs: 12 },     // a ghost answers at its recorded time, kept inside these bounds
   flee: { chance: 0.6, cost: 2 },            // Flee: chance to get away; it costs this many coins (or what you have)

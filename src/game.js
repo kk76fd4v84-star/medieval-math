@@ -2445,8 +2445,8 @@
     // v12r (Magnus: "All friendly knights you can get shall face the player"): one rule for every recruitable knight still
     // standing as an NPC on the road (ditch / camp wanderer / shop sellsword / tavern): mirrored to face the party
     // (KM_DATA.party.npcFaceParty). Once he joins he is a party member (not an actor) and faces the walking direction.
-    const faceParty = D.party.npcFaceParty && (["frank","timmy","executioner","dark_wizard"].includes(did) || (D.party.recruitArt && did.startsWith(D.party.recruitArt)));
-    const dx = fx ? fx.dx : 0, dy = fx ? fx.dy : 0, ds = dp ? dp.scale : 1;
+    const faceParty = D.party.npcFaceParty && (["frank","timmy","executioner","dark_wizard"].includes(did) || (D.party.recruitArt && did.startsWith(D.party.recruitArt)) || a.ghost);
+    const dx = fx ? fx.dx : 0, dy = fx ? fx.dy : 0, ds = dp ? dp.scale : (a.distant && a.hillScale) || 1; // brawl: a ghost far off on its hill is small
     ctx.save(); ctx.translate(sx + dx, y + dy); ctx.scale(ds, ds);
     KM.Assets.drawEntity(ctx, did, 0, 0, { flip: faceParty, t: fx ? fx.t : moving && KM_ART.walkRate ? a.t * KM_ART.walkRate(did) : a.t, action, hurt: fx && fx.hurt, alpha: a.alpha * (ln ? ln.alpha : 1), flash: a.flash > 0, name: a.label,
       filter: a.ghostFilter || (ln && ln.filter), seq: a.seqPlay && a.seqPlay.id, seqT: a.seqPlay && a.seqPlay.t });

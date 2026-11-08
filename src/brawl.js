@@ -76,14 +76,14 @@ KM.Brawl = (() => {
     if (!on()) return;
     const L = D().look, F = D().foe;
     actors.forEach(a => { const b = stops[a.stop]?.brawl; if (!b || !a.foe) return;
-      Object.assign(a, { ghost: true, ghostFilter: L.filter, alpha: (a.alpha ?? 1) * L.alpha, combat: { hp: F.hpPerAnswer * (2 + b.step), atk: F.atk } }); });
+      Object.assign(a, { ghost: true, ghostFilter: L.filter, alpha: (a.alpha ?? 1) * L.alpha, hillScale: a.hill ? L.hillScale : null, combat: { hp: F.hpPerAnswer * (2 + b.step), atk: F.atk } }); });
   }
 
   // ---- encounters: sighting (Challenge / Ignore), ambush (Fight / Flee / Sacrifice), the ghost's answer clock
   const T = s => ctx.T(s), lines = () => D().lines;
   const speaker = () => ctx.S.party[1] || ctx.S.party[0];
   function dialog(title, cards) {
-    return `<div class="gear-shade"><div class="gear-dialog action-gear" role="dialog" aria-modal="true"><div class="action-heading">${ctx.esc(title)}</div><div class="action-row">${cards.join('')}</div></div></div>`;
+    return `<div class="gear-shade"><div class="gear-dialog action-gear" role="dialog" aria-modal="true"><div class="action-heading tavern-heading tavern-under">${ctx.esc(title)}</div><div class="action-row">${cards.join('')}</div></div></div>`;
   }
   function sighting(e) {
     const b = e.st.brawl; if (!b || b.kind !== 'sighting') return false;
