@@ -748,7 +748,7 @@
     showPanel(actionRow([actionCard({label:'Fight',act:'commit',icon:MICON.hard}),...(can?[actionCard({label:'Avoid',act:'avoid',icon:'→',note:'Hunters advance'})]:[])]),'info action-panel');
   }
   // Balance switches (src/data/balance_try.js): Fellowship health ramps per battle when the curve switch is on
-  function foeHealth(hp,id){const k=BT.healthMul(S),t=BT.tough(id);return k?Math.ceil(hp*k*t):Math.ceil(KM.Fellowship.health(hp)*t);}
+  function foeHealth(hp,id){const k=BT.healthMul(S),t=BT.tough?.(id)||1;return k?Math.ceil(hp*k*t):Math.ceil(KM.Fellowship.health(hp)*t);}
   function commit() {
     const e = S.enc; if (!e || (e.phase !== "approach" && e.phase !== "frank")) return;
     if (e.st.id === "frank" && !e.depth) { beginDragonApproach(); return; }
