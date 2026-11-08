@@ -10,8 +10,9 @@ KM.Juice = (() => {
   function hit(id, pitch, rate = 1) {
     last.id = id; last.rate = rate; last.t = performance.now(); last.started = false;
     if (!ac || !buf[id] || KM.Audio?.muted?.()) return;
-    const s = ac.createBufferSource(); s.buffer = buf[id]; s.playbackRate.value = rate * (1 + (Math.random() * 2 - 1) * (pitch || 0));
-    s.connect(amp[id]); s.start(); last.started = true;
+    const go = () => { const s = ac.createBufferSource(); s.buffer = buf[id]; s.playbackRate.value = rate * (1 + (Math.random() * 2 - 1) * (pitch || 0));
+      s.connect(amp[id]); s.start(); last.started = true; };
+    if (ac.state === 'running') go(); else ac.resume().then(go, () => {}); // the very first key: unlock, then play that key
   }
   const next = c => c.sfx[turn[c.sfx] = ((turn[c.sfx] ?? -1) + 1) % c.sfx.length]; // a list alternates
   // the sound for a key, at once (k = '0'..'9', 'back', 'enter' + right: true / false / null = nothing to submit); true = handled
@@ -44,7 +45,8 @@ KM.Juice = (() => {
   function load() { // fetch + decode every sound once; a hit before its buffer is ready is skipped, never waited for
     const Ctx = window.AudioContext || window.webkitAudioContext; if (!Ctx || !/^https?:/.test(location.protocol)) return;
     ac = new Ctx(); let ogg = true; try { ogg = !!new Audio().canPlayType('audio/ogg; codecs="vorbis"'); } catch (e) {}
-    const resume = () => { if (ac.state !== 'running') ac.resume(); }; // first user gesture unlocks the context
+    const resume = () => { if (ac.state === 'running') return; ac.resume(); // first user gesture unlocks the context;
+      try { const q = ac.createBufferSource(); q.buffer = ac.createBuffer(1, 1, 22050); q.connect(ac.destination); q.start(); } catch (e) {} }; // Safari: a silent tick inside the gesture
     for (const ev of ['keydown', 'pointerdown', 'touchstart']) window.addEventListener(ev, resume, { capture: true, passive: true });
     resume(); // already unlocked if the page had a gesture; else the first key / tap does it (that key's hit plays once it runs)
     const files = {};
