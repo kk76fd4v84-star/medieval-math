@@ -57,7 +57,7 @@ KM_DATA.recruitCards = {
     knight:      "Helps holding your sword to strike harder.",
     priest:      "Heals the party.",
     firestarter: "Burns every foe.",
-    executioner: "Finishes wounded foes."
+    executioner: "Helps holding your sword to strike harder."  // Magnus's line for the hooded one he saw next to the wizard (he is the executioner: × sums, axe doubles on wounded foes)
   },
   ask: "Ask {name} to join?", leave: "{names} will leave.", yes: "Ask to join", no: "Cancel",
   roles: {
