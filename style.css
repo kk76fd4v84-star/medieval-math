@@ -548,6 +548,7 @@ img.mp-tag,#divider.magnus img.mp-tag{position:static;background:none;padding:0;
 .cb-trail[data-good="false"]{border-image-source:url('assets/timing-woodcut/fill_bad.png')}
 /* cast bar: icons, bands and gaps jump to new places; only a boss shift sets an inline transition (timing-bar.js animate) */
 .timing-rail.castbar .timing-emblem,.timing-rail.castbar .pressure-band,.timing-rail.castbar .timing-ink{transition:none}
+.timing-rail.castbar .pressure-band{visibility:hidden} /* cast bar: the boss trail shows the lost window (it stays while the pressure lasts) */
 .timing-rail .timing-emblem.cb-shake{animation:cb-shake 180ms linear var(--cb-shake-n,1)}
 @keyframes cb-shake{0%,100%{translate:0 0}20%{translate:calc(-1*var(--cb-shake-px,3px)) 0}40%{translate:var(--cb-shake-px,3px) 0}60%{translate:calc(-.6*var(--cb-shake-px,3px)) 0}80%{translate:calc(.6*var(--cb-shake-px,3px)) 0}}
 .timing-rail.castbar .mp-shroud{animation:cb-fade var(--cb-ink-ms,400ms) ease both;transition:left .4s ease,width .4s ease}

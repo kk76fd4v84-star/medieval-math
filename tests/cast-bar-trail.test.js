@@ -13,7 +13,7 @@ function engine(search){
 const E=engine('?castbar=1&meterpressure=1'),CB=E.KM.CastBar,CD=E.KM_DATA.castBar,MP=E.KM.MeterPressure;
 assert.equal(engine('').KM.CastBar.on(),false,'off by default');assert.equal(E.KM_DATA.balanceTry.castBar,false);assert.equal(CB.on(),true);
 for(const k of ['shakeMs','slideMs','holdMs','shrinkMs','inkFadeMs'])assert(CD[k]>=0,k+' in data');
-assert.deepEqual([CD.shakeMs,CD.slideMs,CD.shrinkMs],[1000,1000,1000],'Magnus: a full second shake, slide, catch-up');assert.equal(CD.holdMs,0,'strictly one after the other');
+assert.deepEqual([CD.shakeMs,CD.slideMs,CD.shrinkMs],[1000,1000,1000],'Magnus: a full second shake, slide, catch-up');assert.equal(CD.holdMs,1000,'Magnus brawl-14: the trail holds 1 s before it catches up');
 assert.deepEqual({...CD.sfx},{shake:'meter_shake',good:'meter_tick_up',bad:'meter_tock_down',roar:'dragon_roar'});
 assert.equal(CD.shiftBy.join(),'boss,mega','only bosses shift the icons');
 const G=fs.readFileSync(path.join(root,'src/game.js'),'utf8');assert.match(G,/e\.pressureReady!==false&&\(!KM\.CastBar\?\.on\(\)\|\|D\.castBar\.shiftBy\.includes/,'non-boss pressure off with the cast bar');
