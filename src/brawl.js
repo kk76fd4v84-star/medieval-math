@@ -88,7 +88,7 @@ KM.Brawl = (() => {
     const foes = S.actors.filter(a => a.stop === S.stop && a.ghost && !a.hidden); if (!foes.length) return null;
     const members = team(rec), PA = KM.PartyAbilities, max = members.reduce((n, m) => n + PA.life(m), 0);
     const left = foes.reduce((n, a) => n + (a.maxHp ? Math.max(0, a.hp) / a.maxHp : 1), 0) / foes.length;
-    return { members, hp: Math.ceil(max * left - 1e-9), armour: members.reduce((n, m) => n + (m.armour || 0), 0), label: sir(rec.name), ...D().hud };
+    return { members, hp: Math.ceil(max * left - 1e-9), armour: members.reduce((n, m) => n + (m.armour || 0), 0), label: sir(rec.name), ...D().hud, top: KM.BalanceTry.on('pauseMenu') ? D().hud.topPause : D().hud.top };
   }
 
   // ---- the ghost look: Maggi's sheets (KM_DATA.brawl.sheets) drawn instead of the art's own sheet; no sheet = the original
@@ -107,7 +107,7 @@ KM.Brawl = (() => {
   }
   function meet(e) { // sighting: Challenge / Ignore; ambush: Fight / Flee / Sacrifice
     const b = e.st.brawl; if (!b || e.brawlAsked) return false;
-    const L = lines(), sight = b.kind === 'sighting', name = { ghost: b.name };
+    const L = lines(), sight = b.kind === 'sighting', name = { sir: b.name };
     e.brawlAsked = true; e.phase = 'approach'; ctx.say(speaker(), fill(pick(sight ? L.sighting : L.ambush), name));
     const cards = sight ? [ctx.actionCard({ label: L.challenge, act: 'commit', icon: '⚔' }), ctx.actionCard({ label: L.ignore, act: 'brawlIgnore', icon: '→' })]
       : [ctx.actionCard({ label: L.fight, act: 'commit', icon: '⚔' }), ctx.actionCard({ label: L.flee, act: 'brawlFlee', icon: '→', note: fill('{n} coins', { n: D().flee.cost }) }),

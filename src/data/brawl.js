@@ -9,7 +9,7 @@ KM_DATA.brawl = {
   // a ghost team looks like a real party: a recorded run keeps each member's art; seeds (and old records) draw by role.
   // The leader is the knight; plain knights take the follower looks in turn. They stand on the right, facing the party.
   art: { leader: "hero", knight: ["follower_1", "follower_2", "follower_3"], priest: "frank", firestarter: "timmy", executioner: "executioner", darkWizard: "dark_wizard" },
-  hud: { top: 150, right: 18, name: { font: "bold 30px Georgia, serif", ink: "#2a1d12", gap: 10 } }, // ghost hearts top right (stage px), under the music button; "Sir <name>" above them
+  hud: { top: 150, topPause: 100, right: 18, name: { font: "bold 30px Georgia, serif", ink: "#2a1d12", gap: 10 } }, // rival hearts top right (stage px), under the music button (topPause: under the pause button, ?pausemenu=1); "Sir <name>" above them
   // the ghost look: Maggi's hand-recoloured sheets (handoff_to_maggi/ghost_black_knights/v1): fabric black, accents orange;
   // steel, weapons, hands and faces untouched. Same size + layout as the originals; a ghost draws its sheet instead.
   // Art without a sheet (follower_4 / follower_5, the shared rear atlas) draws its original, untinted.
@@ -38,22 +38,23 @@ KM_DATA.brawl = {
     { name: "Quicksum",          party: ["knight", "darkWizard", "priest", "knight"], secs: 2.2, spread: 0.12, accuracy: 0.96 }
   ],
   seedAnswers: { ops: ["+", "−", "×", "÷"], each: 6, opSecs: { "+": 1, "−": 1.15, "×": 1.35, "÷": 1.5 } },
-  // party chatter ({ghost} = the ghost's name). Own jokes only.
+  // party chatter and titles: ON SCREEN these are simply other parties ({sir} = their leader, e.g. "Sir Abacus").
+  // Never "ghost" / spooky words on screen (Magnus): "ghost" is a behind-the-scenes word only (tests/brawl.test.js).
   lines: {
     sighting: [
-      "Is that {ghost} up ahead? Dressed for his own funeral, by the look of it.",
-      "A ghost party! They're counting on their fingers. All of them.",
-      "{ghost}'s ghost. Still doing sums. Death is no excuse, apparently.",
-      "That lot are waving. Or adding. Hard to tell with spectres."
+      "Is that {sir} up ahead? Dressed for his own funeral, by the look of it.",
+      "Another party! They're counting on their fingers. All of them.",
+      "{sir}'s lot. Still doing sums. Nobody told them the war ended.",
+      "That lot are waving. Or adding. Hard to tell from here."
     ],
     ambush: [
-      "Ghosts on the road! {ghost}'s lot, and they've brought an abacus.",
-      "We've walked straight into {ghost}. Awkward. Very awkward."
+      "Ambush! {sir}'s lot, and they've brought an abacus.",
+      "We've walked straight into {sir}. Awkward. Very awkward."
     ],
     challenge: "Challenge", ignore: "Ignore", fight: "Fight", flee: "Flee", sacrifice: "Leave {name}",
-    sightingTitle: "A ghost party: {ghost}", ambushTitle: "Ambush! {ghost}",
+    sightingTitle: "{sir}'s party", ambushTitle: "Ambush! {sir}",
     fleeOk: "We ran. It cost us {coins} coins of dignity.", fleeFail: "They're faster than they look!",
-    sir: "Sir {name}",                       // every ghost is called this (names are stored bare)
-    thinking: "…", ghostWon: "Too slow, living one!", lost: "Back to the hill with you!"
+    sir: "Sir {name}",                       // every rival leader is called this (names are stored bare)
+    thinking: "…"
   }
 };

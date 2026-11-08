@@ -58,6 +58,12 @@ const J=x=>JSON.parse(JSON.stringify(x));
   assert.equal(B.sheet({src:'http://x/assets/other.png'},'hero'),null,'other images (e.g. the rear atlas) stay');
   assert.equal(B.sheet({src:'http://x/assets/v10/walks/stripe-walk.png'},'follower_4'),null,'no sheet yet: the original, untinted');
   const src=fs.readFileSync(path.join(root,'src/brawl.js'),'utf8');assert(!/getImageData|hsl\(/.test(src),'no code recolour'); }
+// on screen a rival party is just another party: no ghost / spooky words in any shown string (Magnus); "ghost" stays in code
+{ const {D}=load(true),shown=[];const walk=v=>typeof v==='string'?shown.push(v):v&&typeof v==='object'&&Object.values(v).forEach(walk);
+  walk(D.lines);D.seeds.forEach(s=>shown.push(s.name));
+  for(const s of shown)assert(!/ghost|spect|phantom|spirit|haunt|undead|wraith|spook|see-through|pale|grey|gray/i.test(s),'on-screen brawl text: '+s);
+  const src=fs.readFileSync(path.join(root,'src/brawl.js'),'utf8');
+  assert(!/(label|note): *['"`][^'"`]*ghost/i.test(src),'no ghost wording in card labels'); }
 // switch off: no effect at all
 { const {B,mem}=load(false),road=[{type:'math'},{type:'math'},{type:'math'},{type:'math'},{type:'math'},{type:'math'},{type:'math'}];
   assert.equal(B.route(road,{runId:'x'}),road);assert.equal(B.team(),null);B.answered({problem:{text:'1 + 1'}},true);B.won({brawl:{}});assert.deepEqual(Object.keys(mem),[]); }
