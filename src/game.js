@@ -82,7 +82,7 @@
   const PREVIEW = /[?&]debug\b/.test(location.search) && new URLSearchParams(location.search).get("preview");
   const shortName = n => n.replace(/^(Sir|Dame|Brother) /, "");
   const freeSkin = () => { for (let k = 1; k <= D.party.skins; k++) if (!knights().some(m => m.skin === k)) return k; return 1; };
-  function newMember(id, sx, villager = false) { return { ...(villager ? {origin:"villager",armorTrained:false} : {}), id: "hero", kind: "hero", base: D.party.heroBase, weapon: 0, armor: 0, sx: sx == null ? slotX(0) : sx, hopY: 0 }; }
+  function newMember(id, sx, villager = false) { return { ...(villager === "starter" ? {origin:"starter"} : villager ? {origin:"villager",armorTrained:false} : {}), id: "hero", kind: "hero", base: D.party.heroBase, weapon: 0, armor: 0, sx: sx == null ? slotX(0) : sx, hopY: 0 }; }
   function followerFrom(p, sx, look) { return { id: "f" + (++S.fid), kind: "follower", role: p.role, name: p.name, companionId: p.companionId, art: p.art, base: p.base, skin: look && !knights().some(m => m.skin === look) ? look : freeSkin(), trait: p.trait, sacrifice: p.sacrifice, weapon: 0, armor: 0, sx, hopY: 0 }; }
   const actorName = a => a.name || (a.narrator ? "The Narrator" : (D.enemies[a.id] && D.enemies[a.id].name) || a.id);
   const leagues = () => (S.dist / W.pxPerLeague).toFixed(1);
@@ -539,7 +539,7 @@
   function showTitle() {
     S.mode = "title"; S.enc = null; S.deathDepth = null; musicScene("title"); hush();
     const sv = KM.Save.load();
-    S.party = [newMember("hero", slotX(0), true)]; S.hp = maxHp(); buildWorld(0); S.camX = 0; addNarrator();
+    S.party = [newMember("hero", slotX(0), BT.on("knightStart") ? "starter" : true)]; S.hp = maxHp(); buildWorld(0); S.camX = 0; addNarrator();
     const heading=`<h1>Medieval Math</h1><div class="mode-choice" role="group" aria-label="Game mode">${opt('', 'The Village Idiot','chooseMode',`data-mode="math" aria-pressed="${S.challengeMode==='math'}"`)}${opt('', 'The Knight','chooseMode',`data-mode="knight" aria-pressed="${isKnight()}"`)}${opt('', 'The Fellowship','chooseMode',`data-mode="fellowship" aria-pressed="${isFellowship()}"`)}</div><div class="mode-description">${isFellowship()?'One sum · the whole party strikes':isKnight()?'Play a card · solve to strike':'Maths · solve to strike'}</div>`;
     if($("sky-title"))$("sky-title").innerHTML=KM.I18n?.html(heading)??heading;
     showPanel(`<div class="center titlep">
@@ -553,7 +553,7 @@
     S.cards = []; S.meterGear = {};
     S.name = "Nobody"; S.hp = D.party.heartsPerMember; S.gold = 5; S.loot = []; S.score = 0; S.scoreLedger = KM.Score.empty(); S.riddleSolved=[];S.wizardUnlocked=false;S.lightning=null; S.stop = 0; S.dist = 0; S.fid = 0; S.hunters = 0; S.spells = 0; S.spellLeft = 0; S.mead = 0; S.bottles = 0; S.runId = "run-" + Date.now(); S.fgSeed = seedOf(S.runId);
     S.stats = { correct: 0, wrong: 0, riddles: 0, sacrificed: 0 }; S.usedRiddles = []; S.pendingDismissal=null; S.tavernRecruits = {}; S.restUses={}; S.routeVersion=3;
-    S.party = [newMember("hero", slotX(0), true)]; S.hp = maxHp(); buildWorld(0); S.camX = 0; addNarrator(); S.floats = []; S.dice = []; S.enc = null; S.timers = []; S.view = null; S.dying = null; S.entering = null; S.voices = [];
+    S.party = [newMember("hero", slotX(0), BT.on("knightStart") ? "starter" : true)]; S.hp = maxHp(); buildWorld(0); S.camX = 0; addNarrator(); S.floats = []; S.dice = []; S.enc = null; S.timers = []; S.view = null; S.dying = null; S.entering = null; S.voices = [];
     S.furtherDone = false; startRunBookkeeping();
     S.mode = "name"; musicScene("intro"); S.intro = null;
     renderIntro();
@@ -2332,9 +2332,9 @@
   }
   // Mouth/visor anchors measured on the standing atlas cells, relative to each cell pivot.
   // Attachment metadata only: no character artwork or animation changes.
-  const speechOffsets = {villager:[170,-470],villager_sword:[170,-470],villager_armour:[230,-444],hero:[230,-444],follower_1:[170,-398],follower_2:[184,-400],
+  const speechOffsets = {hero_starter:[230,-444],villager:[170,-470],villager_sword:[170,-470],villager_armour:[230,-444],hero:[230,-444],follower_1:[170,-398],follower_2:[184,-400],
     follower_3:[180,-408],follower_4:[184,-395],frank:[50,-390],timmy:[80,-339],executioner:[55,-345],dark_wizard:[48,-365]};
-  const speechFaces={villager:[60,-590,130,155],villager_sword:[60,-590,130,155],villager_armour:[46,-592,175,185],hero:[46,-592,175,185],follower_1:[-24,-530,190,160],
+  const speechFaces={hero_starter:[46,-592,175,185],villager:[60,-590,130,155],villager_sword:[60,-590,130,155],villager_armour:[46,-592,175,185],hero:[46,-592,175,185],follower_1:[-24,-530,190,160],
     follower_2:[6,-570,170,205],follower_3:[6,-570,170,205],follower_4:[6,-570,170,205],
     frank:[-71,-464,110,109],timmy:[-26,-437,92,145],executioner:[-61,-449,105,135],dark_wizard:[-5,-415,90,90]};
   function faceOf(id,x,y,flip=false,scale=1) {

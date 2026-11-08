@@ -5,7 +5,7 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path');
 const BASE=process.argv[2]||'http://localhost:8799/',ROOT=path.resolve(__dirname,'..');
 const PREVIEWS=['start','opening','frank','ogre','boss','dragon','shop','tavern','tavern-wizard','campsite','campwounded','heal-locked','riddle-far','riddle-left','squirrel-pack','fellowship','knight-hand','roles','formation','priests','twins','armour','graveyard','score','score-win','bubbles','wizard','jp-word','hollowwood','tomb'];
 const RUNS=[...PREVIEWS.map(p=>[`debug&preview=${p}&mode=fellowship&curve=1&halfhearts=1&camparmour=1&whoacts=1&cards=1&gradual=1&meterpressure=1`,10000]),...PREVIEWS.map(p=>[`debug&preview=${p}&mode=knight`,5000]),
-  ['mode=fellowship',70000],['mode=knight',70000],['mode=fellowship&curve=1&halfhearts=1&camparmour=1&whoacts=1&cards=1&gradual=1&meterpressure=1',70000]];
+  ['mode=fellowship',70000],['mode=fellowship&knightstart=1',40000],['mode=knight',70000],['mode=fellowship&curve=1&halfhearts=1&camparmour=1&whoacts=1&cards=1&gradual=1&meterpressure=1',70000]];
 (async()=>{const b=await chromium.launch();const all=new Set();
  for(const [q,ms] of RUNS){const p=await b.newPage({viewport:{width:1280,height:720}});
   p.on('request',r=>{const u=r.url();if(u.startsWith(BASE)&&/\.(png|webp|jpe?g)(\?|$)/i.test(u))all.add(decodeURI(u.slice(BASE.length)));});
