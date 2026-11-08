@@ -27,7 +27,7 @@ KM_DATA.tutorial = {
     gear: {
       saveKey: "knightMath.tutorial.gearTip",
       title: "Better gear",
-      text: "Better gear makes up for a party that can't agree on anything. Armour, weapons and other nice... stuff win your time back.",
+      text: "Better gear compensates for your party not being able to agree on anything.",
       button: "Got it"
     }
   }
