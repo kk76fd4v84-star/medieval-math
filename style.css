@@ -295,6 +295,9 @@ button.opt.plaque, .restgrid button.opt.plaque, .restp .opts.end button.opt.plaq
 #hud button.music-toggle {pointer-events:auto;position:absolute;right:18px;top:60px;border:1.5px solid #463323;border-radius:2px;background:rgba(239,224,192,.88);color:#2a1d12;font:22px Georgia,serif;padding:5px 10px;cursor:pointer;}
 #hud button.music-toggle:hover,#hud button.music-toggle:focus-visible {background:#e5cd9d;outline:2px solid #a75f29;outline-offset:3px;}
 #hud button.music-toggle[aria-pressed="true"] span {text-decoration:line-through;}
+#hud button.pause-btn {pointer-events:auto;position:absolute;right:18px;top:14px;border:1.5px solid #463323;border-radius:2px;background:rgba(239,224,192,.88);color:#2a1d12;font:22px Georgia,serif;padding:5px 12px;cursor:pointer;}
+#hud button.pause-btn:hover,#hud button.pause-btn:focus-visible {background:#e5cd9d;outline:2px solid #a75f29;outline-offset:3px;}
+.tut-dialog.pause-dialog{width:560px;display:flex;flex-direction:column;align-items:center;} .pause-dialog .tut-go{margin-top:22px;}
 /* Roadside shops: goods first; choose the recipient only after choosing equipment. */
 .shop-layout{display:flex;align-items:center;justify-content:space-between;gap:30px;width:100%;}
 .shop-actions{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:320px;}
