@@ -61,6 +61,7 @@
   const PA = KM.PartyAbilities;
   // balance switches; tests that load without src/engine/balance-try.js get the switches-off behaviour
   const CARDS = KM.Cards && KM.BalanceTry?.on('cards') ? KM.Cards : null; // upgrade cards switch
+  const CHEST = CARDS && KM.ChestCards?.on() ? KM.ChestCards : null; // chest cards switch: cards only from guarded chests
   const BT = KM.BalanceTry || { on: () => false, unit: () => 1, healthMul: () => null, packRelay: () => false, bossAtk: (e, b) => b, heartsText: String };
   const MP = KM.MeterPressure || { on: () => false, seconds: s => s, sells: () => [], level: () => 0, cost: () => null, image: () => null }; // meter pressure switch
   const maxHp = () => PA.maxHp(S.party);
@@ -1293,7 +1294,26 @@
 
     // Wounds persist. Recovery comes from priests, food and choosing to camp.
     if (S.enc && S.enc.st.id === "frank") S.dragonSlain = true;
+    if (CHEST && isFellowship() && CHEST.guarded(st)) return later(D.chestCards.delayMs / 1000, () => openChest(e));
     later(0.9, finishEncounter);
+  }
+  // chest cards: the guarded chest shines, unlocks, then the upgrade pick opens; the fight ends after the pick
+  function openChest(e) {
+    if (S.enc !== e || S.dying) return;
+    const options = CARDS.offer(S).map(c => c.id); e.st.chestOpen = true;
+    e.phase = 'chest'; e.chest = { t0: S.t }; e.used = e.used || {}; showPanel('', 'info');
+    A.play(D.chestCards.sfx.unlock); A.play(D.chestCards.sfx.shine);
+    later(D.chestCards.shine.ms / 1000, () => { if (S.enc !== e || S.dying) return;
+      if (!options.length) return finishEncounter();
+      e.cardOptions = options; e.cardPick = true; showPanel(cardDialog(e), 'rest action-panel'); });
+  }
+  function drawChests() {
+    if (!CHEST || !isFellowship()) return;
+    S.stops.forEach((st, i) => { if (i < S.stop - 1 || !CHEST.guarded(st)) return;
+      const C = D.chestCards.chest, x = screenX((st.homeX || st.stopX) + C.dx); if (x < -400 || x > VW + 400) return;
+      const e = S.enc, mine = e && e.st === st && e.chest, glow = mine ? Math.min(1, (S.t - e.chest.t0) / (D.chestCards.shine.ms / 2000)) : 0;
+      CHEST.draw(ctx, x, W.groundY - C.dy, { open: !!st.chestOpen, glow });
+    });
   }
   function queueLoot(a) {
     const e=S.enc;if(!e || e.dismissal || !(e.foes||[e.act]).includes(a) || a.lootQueued)return;
@@ -1786,7 +1806,7 @@
   function renderRest(){
     if(S.view && S.view.id==='tavern-interior')return renderTavernInside();
     const e=S.enc,st=e.st,stop=restT(),g=stop.gear;e.phase='rest';
-    if(CARDS&&isFellowship()&&!e.used.card&&!e.cardOptions){e.cardOptions=CARDS.offer(S).map(c=>c.id);e.cardPick=e.cardOptions.length>0;} // the pick opens on arrival
+    if(CARDS&&!CHEST&&isFellowship()&&!e.used.card&&!e.cardOptions){e.cardOptions=CARDS.offer(S).map(c=>c.id);e.cardPick=e.cardOptions.length>0;} // the pick opens on arrival (chest switch: never in shops)
     if(stop.view==='camp'){
       const cards=[actionCard({label:e.used.H?'Rested':'Make camp',act:'restHeal',icon:MICON.heal,meta:'Rest',detail:T('Full health'),note:'Once per camp',attrs:'data-k="H"',off:!!e.used.H})];
       st.cands.forEach((p,j)=>{if(p)cards.push(recruitCard(p,j,'restRecruit',!canRecruit(st)));});
@@ -1807,7 +1827,7 @@
   }
   // Upgrade cards (switch): one pick per rest stop, from cards the party can use
   function cardOffer(e,cards){
-    if(!CARDS||!isFellowship()||e.used.card)return;
+    if(!CARDS||CHEST||!isFellowship()||e.used.card)return; // chest switch: shops only sell
     if(!e.cardOptions)e.cardOptions=CARDS.offer(S).map(c=>c.id);
     if(e.cardOptions.length)cards.push(actionCard({label:'Upgrade card',act:'openCards',icon:'<img src="assets/ui/cards/cleave.png" alt="" style="height:64px">',meta:'Pick one',detail:T('Free')}));
   }
@@ -1818,7 +1838,7 @@
   function plainCard(c){ // a card with no painting yet: parchment, name, effect, cost
     return `<div style="height:min(560px,62vh);aspect-ratio:2/3;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:6% 8%;background:#ecdcc4;border:6px double #292018;color:#292018;font-family:Georgia,serif;text-align:center"><strong style="font-size:30px">${c.name}</strong><span style="font-size:15px">${String(c.owner||'').replace('darkWizard','Dark Wizard').toUpperCase()}</span><span style="font-size:22px;line-height:1.3">${c.text||''}</span><span style="font-size:20px;line-height:1.3;background:#292018;color:#ecdcc4;padding:14px">${c.costText||''}</span></div>`;
   }
-  function takeCard(id){const e=S.enc;if(!e||!CARDS||e.used.card||!e.cardOptions?.includes(id))return;S.cards=(S.cards||[]).concat(id);e.used.card=true;e.cardPick=false;A.play('buy_gear');save();renderRest();}
+  function takeCard(id){const e=S.enc;if(!e||!CARDS||e.used?.card||!e.cardOptions?.includes(id))return;S.cards=(S.cards||[]).concat(id);(e.used=e.used||{}).card=true;e.cardPick=false;A.play('buy_gear');save();if(e.chest)return finishEncounter();renderRest();}
   function gearDialog(kind){
     const g=restT().gear,key=kind==='weapon'?'maxWeapon':'maxArmor',cost=kind==='weapon'?g.weaponCost:g.armorCost;
     const icon=`<img src="assets/ui/shop/${kind==='weapon'?'sword':'armour'}-cutout.png" alt="">`;
@@ -2032,7 +2052,7 @@
     tvAskNo:()=>{if(S.enc?.tv){S.enc.tv.ask=null;renderTavernInside();}},
     selectTavern:b=>{if(S.enc?.tv){S.enc.tv.sel=+b.dataset.i;renderTavernInside();}},
     buyFare:b=>buyFare(b.dataset.item),
-    restHeal: b => restHeal(b.dataset.k), openCards: () => { if (S.enc) { S.enc.cardPick = true; renderRest(); } }, closeCards: () => { if (S.enc) { S.enc.cardPick = false; renderRest(); } }, takeCard: b => takeCard(b.dataset.id), buyMead: () => buyMead(), restRecruit: b => restRecruit(+b.dataset.j),
+    restHeal: b => restHeal(b.dataset.k), openCards: () => { if (S.enc) { S.enc.cardPick = true; renderRest(); } }, closeCards: () => { if (S.enc) { S.enc.cardPick = false; if (S.enc.chest) return finishEncounter(); renderRest(); } }, takeCard: b => takeCard(b.dataset.id), buyMead: () => buyMead(), restRecruit: b => restRecruit(+b.dataset.j),
     chooseGear:b=>chooseGear(b.dataset.kind), buyMeterGear:b=>buyMeterGear(b.dataset.id), assignGear:b=>assignGear(+b.dataset.i), cancelGear:()=>cancelGear(),
     restBuyW: b => restBuy("weapon", +b.dataset.i), restBuyA: b => restBuy("armor", +b.dataset.i),
     goInside: () => goInside(), leaveInside: () => leaveInside(),
@@ -2687,7 +2707,7 @@
       if (!arena && SCN()) S.trees.forEach(tr => { const x = screenX(tr.x); if (x > -600 && x < VW + 600) KM.Scenery.tree(ctx, tr.i, x); });
       if(!arena)S.props.forEach(p => { const x = screenX(p.x); if (x > -400 && x < VW + 400) KM.Assets.drawEntity(ctx, p.id, x, W.propLaneY, { scale: W.propScale, alpha: W.propAlpha }); });
       if(!arena)S.obstacles.forEach(o => { const x = screenX(o.x); if (x > -400 && x < VW + 400) KM.Assets.drawEntity(ctx, o.id, x, W.groundY + 10); });
-      if(!arena){drawCompanionGraves(2);drawGraves();drawLoot();} // v12g: graves are road props on the ground line (behind the party and road actors)
+      if(!arena){drawCompanionGraves(2);drawGraves();drawLoot();drawChests();} // v12g: graves are road props on the ground line (behind the party and road actors)
       const behind = a => a.riddleVariant!==2 && (a.back || a.narrator) && !(a.distant && a.hill);
       if(!arena)KM.RoadCamp.draw(ctx,S.stops,S.camX,"back");
       live.filter(a => a.facade).forEach(drawFacade);
