@@ -38,7 +38,10 @@ const J=x=>JSON.parse(JSON.stringify(x));
 { const {B,D}=load(true),seeds=B.pool().filter(r=>r.player==='seed'),n=seeds.map(B.rating);
   assert.deepEqual(J(n),[1,2,4,4,7,10],'seed ratings: '+n);for(let i=1;i<n.length;i++)assert(n[i]>=n[i-1]);
   assert.equal(B.rating({answers:[]}),1,'no answers: 1');assert.equal(B.rating({answers:[{op:'+',ms:500,correct:true}]}),D.rating.count,'clamped to the top');
-  assert(D.rating.icon.length>10,'one swappable icon entry'); }
+  assert(D.rating.icon.length>10,'placeholder icon entry');
+  const T=t=>B.tier(t)&&B.tier(t).img;assert.equal(T(1),D.rating.tiers[0].img);assert.equal(T(10),D.rating.tiers.at(-1).img);
+  const keep=D.rating.tiers;D.rating.tiers=[{minRating:1,img:'a'},{minRating:3,img:'b'},{minRating:5,img:'c'},{minRating:7,img:'d'},{minRating:9,img:'e'}];
+  assert.deepEqual([1,2,3,4,5,6,7,8,9,10].map(T).join(''),'aabbccddee','five tiers: no code change');D.rating.tiers=keep; }
 // replay: the ghost's own answers for that operator in recorded order, looping; others fall back to all answers
 { const {B}=load(true),rec={answers:[{op:'+',ms:2000,correct:true},{op:'×',ms:5000,correct:false},{op:'+',ms:3000,correct:true}]},next=B.replay(rec);
   assert.deepEqual([next('+').ms,next('+').ms,next('+').ms],[2000,3000,2000]);assert.equal(next('×').ms,5000);assert.equal(next('÷').ms,2000);

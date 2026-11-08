@@ -447,7 +447,7 @@ button.knight-card.lifted,button.knight-card:disabled{opacity:.55}
 /* Painted emblems mark the exact outcome cutoffs; horizontal swords as in the concept. */
 .timing-legend{position:absolute;inset:0;pointer-events:none;z-index:4}
 .timing-legend[hidden]{display:none}
-.timing-emblem{position:absolute;top:-23px;transform:translateX(-50%);width:40px;height:46px;padding:0;border:0;background:none;color:#292018;pointer-events:auto;cursor:help;transition:left .9s cubic-bezier(.2,.75,.25,1)}
+.timing-emblem{position:absolute;top:-23px;transform:translateX(-50%);width:40px;height:46px;padding:0;margin:0;border:0;background:transparent;box-shadow:none;outline:none;-webkit-appearance:none;appearance:none;border-radius:0;color:#292018;pointer-events:auto;cursor:help;transition:left .9s cubic-bezier(.2,.75,.25,1)} /* no native button bezel (Safari's white box): only the symbol */
 .timing-emblem[data-outcome="crit"]{width:90px}
 .timing-emblem[data-outcome="normal"]{width:96px}
 .timing-emblem[data-outcome="weak"]{width:64px;transform:translateX(-100%)}
@@ -570,9 +570,9 @@ img.mp-tag{background:none;padding:0;height:28px}
 .tut-icon img{height:40px;width:auto;}
 .tut-small{font-size:23px;margin:4px 0;}
 .tut-go{margin-top:12px;--bh:64px;font-size:32px;font-weight:bold;min-width:300px;}
-/* brawl: the rival's difficulty under its name (KM_DATA.brawl.rating), and its name centred over the fight */
-.brawl-rating{display:inline-flex;gap:3px;vertical-align:middle;} .brawl-rating i{display:inline-block;width:26px;height:26px;opacity:.22;}
-.brawl-rating i.on{opacity:1;} .brawl-rating svg,.brawl-rating img{width:100%;height:100%;display:block;}
+/* brawl: the rival's difficulty, one icon under its hearts (top right, where your purse sits on the left) */
+#hud .brawl-rank{right:22px;display:flex;align-items:flex-start;pointer-events:none;} #hud .brawl-rank img{height:48px;width:auto;display:block;} #hud .brawl-rank i{display:block;} #hud .brawl-rank svg{width:100%;height:100%;display:block;}
+/* brawl: the rival's name centred over the fight */
 .panel .brawl-banner{position:absolute;left:0;right:0;top:0;margin:18px 0 0;pointer-events:none;}
 /* juice (switch juice, src/data/juice.js): a typed digit drops in and thuds, a spark; Enter punches; a wrong Enter is blocked */
 #answer .juice-land{animation:juice-land var(--juice-land,130ms) cubic-bezier(.3,0,.6,1);transform-origin:50% 100%;}

@@ -63,7 +63,7 @@
   const CARDS = KM.Cards && KM.BalanceTry?.on('cards') ? KM.Cards : null; // upgrade cards switch
   const CHEST = CARDS && KM.ChestCards?.on() ? KM.ChestCards : null; // chest cards switch: cards only from guarded chests
   const BT = KM.BalanceTry || { on: () => false, unit: () => 1, healthMul: () => null, packRelay: () => false, bossAtk: (e, b) => b, heartsText: String };
-  const BR = KM.Brawl?.on() ? KM.Brawl : { route: r => r, dress() {}, meet: () => false, team: () => null, banner() {}, secs: (e, s) => s, answered() {}, won() {}, runEnd() {}, actions: {}, init() {} }; // brawl switch (src/brawl.js)
+  const BR = KM.Brawl?.on() ? KM.Brawl : { route: r => r, dress() {}, meet: () => false, team: () => null, banner() {}, badge: () => '', secs: (e, s) => s, answered() {}, won() {}, runEnd() {}, actions: {}, init() {} }; // brawl switch (src/brawl.js)
   const JU = KM.Juice || { on: () => false, press: () => false, text: () => false, key() {}, enter() {}, init() {} }; // juice switch (src/engine/juice.js); tests load game.js alone
   const MP = KM.MeterPressure || { on: () => false, seconds: s => s, sells: () => [], level: () => 0, cost: () => null, image: () => null }; // meter pressure switch
   const maxHp = () => PA.maxHp(S.party);
@@ -511,7 +511,7 @@
       // v11b (mockup): purse + number under the party hearts (top left), the meter top centre, distance top right.
       // The spell shows as the "Stupidity" move while you hold a scroll and as the rolled-scroll countdown while active.
       const ph = partyHeartsRect();
-      h = `<span class="purse-at" style="top:${(ph ? ph.y + ph.h : 50) + 10}px">${purse(S.gold)}</span>${track}${pm ? '' : `<span class="dist" title="leagues travelled"><i class="mile">⚐</i>${leagues()}</span>`}${mute}`;
+      h = `<span class="purse-at" style="top:${(ph ? ph.y + ph.h : 50) + 10}px">${purse(S.gold)}</span>${BR.badge((ph ? ph.y + ph.h : 50) + 10)}${track}${pm ? '' : `<span class="dist" title="leagues travelled"><i class="mile">⚐</i>${leagues()}</span>`}${mute}`;
     }
     if (h !== hudCache) { $("hud").innerHTML = KM.I18n?.html(h)||h; hudCache = h; }
   }
