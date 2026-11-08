@@ -26,7 +26,10 @@ const n=started.length;J.press('enter',null);assert.equal(started.length,n,'Ente
 J.press('enter',false);J.press('enter',false);assert.deepEqual(started.slice(-2).map(s=>s[0]),['enter_wrong','enter_miss_whoosh'],'wrong: blocked, then whoosh');assert.deepEqual(started.slice(-2).map(s=>s[1]),[0.8,0.7]);
 for(const s of started)assert(Math.abs(s[2]-1)<=0.03+1e-9,'pitch jitter small');
 assert.deepEqual(D.digits.length,10);
-const m=started.length;assert(J.text('A')&&J.text('a')&&J.text('A'));assert.deepEqual(started.slice(m).map(s=>s[0]),[D.digits[65%10],D.digits[97%10],D.digits[65%10]],'name letters: char code % 10, same letter same sound');
+const m=started.length;assert(J.text('A')&&J.text('a')&&J.text('A'));assert.deepEqual(started.slice(m).map(s=>s[0]),[D.digits[5],D.digits[5],D.digits[5]],'name letters: char code % 10 (A = a)');
+assert(started.slice(m).every(x=>x[2]===started[m][2]),'same letter, same pitch (no jitter)');
+const R=[...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].map(c=>J.letterRate(c));assert.equal(new Set(R).size,26,'every letter its own pitch');assert(R.every(r=>r>=0.85-1e-9&&r<=1.2+1e-9),'within 0.85-1.2');
+assert(R.every((r,i)=>i===0||Math.abs(r-R[i-1])>0.05),'neighbouring letters differ');J.text('A');assert.equal(J.last.rate,J.letterRate('A'));J.press('7');assert.equal(J.last.rate,1,'maths digits unchanged');
 J.text('Backspace');assert.equal(J.last.id,'key_delete');J.text('Enter');assert.equal(J.last.id,'key_enter_heavy');assert.equal(J.text('Shift'),false,'no sound for Shift');
 assert.match(g0,/S\.mode === "name"[^]*?JU\.text\(k\)/,'name entry keydown plays');
 for(const [id,s] of Object.entries(D.sounds))for(const x of ['ogg','mp3'])assert(fs.existsSync(path.join(root,'assets/audio/sfx',s.file+'.'+x)),id+' -> '+s.file+'.'+x);

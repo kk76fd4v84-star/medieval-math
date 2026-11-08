@@ -7,10 +7,10 @@ KM.Juice = (() => {
   const D = () => KM_DATA.juice, on = () => !!(KM.BalanceTry && KM.BalanceTry.on('juice'));
   const buf = {}, amp = {}, turn = {}; let ac = null;
   const last = { id: null, t: 0, started: false };   // the latest hit (tests + timing check)
-  function hit(id, pitch) {
-    last.id = id; last.t = performance.now(); last.started = false;
+  function hit(id, pitch, rate = 1) {
+    last.id = id; last.rate = rate; last.t = performance.now(); last.started = false;
     if (!ac || !buf[id] || KM.Audio?.muted?.()) return;
-    const s = ac.createBufferSource(); s.buffer = buf[id]; s.playbackRate.value = 1 + (Math.random() * 2 - 1) * (pitch || 0);
+    const s = ac.createBufferSource(); s.buffer = buf[id]; s.playbackRate.value = rate * (1 + (Math.random() * 2 - 1) * (pitch || 0));
     s.connect(amp[id]); s.start(); last.started = true;
   }
   const next = c => c.sfx[turn[c.sfx] = ((turn[c.sfx] ?? -1) + 1) % c.sfx.length]; // a list alternates
@@ -22,11 +22,14 @@ KM.Juice = (() => {
     else hit(d.digits[+k], d.digit.pitch);
     return true;
   }
+  const letterRate = c => { // A..Z: a fixed pitch each (data: text.rate, text.spread); anything else at 1
+    const i = c.charCodeAt(0) - 65, [lo, hi] = D().text.rate; return i >= 0 && i < 26 && c.length === 1 ? lo + (hi - lo) * ((i * D().text.spread) % 26) / 25 : 1;
+  };
   // name entry: the key's sound at once (a character -> digits[char code % 10], Backspace, Enter); true = handled
   function text(k) {
     if (!on()) return false; const d = D(), t = d.text;
     if (k === 'Backspace') hit(t.back, t.pitch); else if (k === 'Enter') hit(t.enter, t.pitch);
-    else if (k.length === 1) hit(d.digits[k.codePointAt(0) % 10], t.pitch); else return false;
+    else if (k.length === 1) { const c = k.toUpperCase(); hit(d.digits[c.codePointAt(0) % 10], 0, letterRate(c)); } else return false;
     return true;
   }
   const restart = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
@@ -57,5 +60,5 @@ KM.Juice = (() => {
     st.setProperty('--juice-punch', d.enter.ms + 'ms'); st.setProperty('--juice-punch-squash', d.enter.squash); st.setProperty('--juice-block', d.wrong.ms + 'ms');
     load();
   }
-  return { on, press, text, key, enter, init, last, ready: () => Object.keys(buf).length, state: () => ac && ac.state };
+  return { on, press, text, letterRate, key, enter, init, last, ready: () => Object.keys(buf).length, state: () => ac && ac.state };
 })();
