@@ -34,7 +34,7 @@ KM_DATA.tutorial = {
     party: {
       saveKey: "knightMath.tutorial.partyTip",
       title: "A bigger party",
-      text: "With a larger party comes the bigger damage. However, more people also means more arguing about who swings first, so you get less time to block or land a critical hit.",
+      text: "With a larger party comes bigger damage. However, more people also means more arguing about who swings first, so you get less time to block or land a critical hit.",
       button: "Got it"
     },
     gear: {
