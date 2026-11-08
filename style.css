@@ -457,10 +457,10 @@ button.knight-card.lifted,button.knight-card:disabled{opacity:.55}
 .timing-emblem[data-outcome="weak"] [role="tooltip"]{left:auto;right:0;transform:none}
 .timing-emblem:hover [role="tooltip"],.timing-emblem:focus-visible [role="tooltip"]{display:block}
 
-/* Narrow red hatching still measures the exact window lost to party/enemy pressure. */
-.pressure-band{position:absolute;left:25%;width:0;height:5px;border-left:1px solid #943c2c;border-right:1px solid #943c2c;box-sizing:border-box;background:repeating-linear-gradient(115deg,#a34332 0 1px,#a3433240 1px 4px);transition:left .9s cubic-bezier(.2,.75,.25,1),width .9s cubic-bezier(.2,.75,.25,1);pointer-events:none}
-.pressure-band[data-loss="0"]{border:0}
-.pressure-crit{top:-9px}.pressure-block{top:8px;left:50%}
+/* The window lost to party/enemy pressure: the timer fill picture in red (fill_bad), on the track like the orange fill. */
+.pressure-band{position:absolute;top:-6px;left:25%;width:0;height:12px;box-sizing:border-box;border:4px solid transparent;border-image:url('assets/timing-woodcut/fill_bad.png') 6 fill / 4px / 0 round;transition:left .9s cubic-bezier(.2,.75,.25,1),width .9s cubic-bezier(.2,.75,.25,1);pointer-events:none}
+.pressure-band[data-loss="0"]{display:none}
+.pressure-block{left:50%}
 .boss-entrance{text-align:center;padding:26px 40px;color:#292018;font-family:Georgia,serif}
 .boss-entrance strong{font-size:34px}.boss-entrance p{font-size:25px;line-height:1.4;margin:10px 0 0}
 .boss-entrance small{font-size:20px}.pressure-reveal strong{color:#943c2c}
@@ -544,7 +544,10 @@ html[lang="ja"] .action-card .action-detail{font-size:18px;}
 img.mp-tag{background:none;padding:0;height:28px}
 
 /* cast bar (switch castBar): moved icons shake, then slide; the trail is the timer fill recoloured green / red */
-.cb-trail{position:absolute;top:-6px;z-index:2;height:12px;box-sizing:border-box;border:4px solid transparent;border-image:url('assets/timing-woodcut/fill.png') 6 fill / 4px / 0 round;pointer-events:none}
+.cb-trail{position:absolute;top:-6px;z-index:2;height:12px;box-sizing:border-box;border:4px solid transparent;border-image:url('assets/timing-woodcut/fill_good.png') 6 fill / 4px / 0 round;pointer-events:none} /* = #dvfill: ink -7px + fill 1px */
+.cb-trail[data-good="false"]{border-image-source:url('assets/timing-woodcut/fill_bad.png')}
+/* cast bar: icons, bands and gaps jump to new places; only a boss shift sets an inline transition (timing-bar.js animate) */
+.timing-rail.castbar .timing-emblem,.timing-rail.castbar .pressure-band,.timing-rail.castbar .timing-ink{transition:none}
 .timing-rail .timing-emblem.cb-shake{animation:cb-shake 180ms linear var(--cb-shake-n,1)}
 @keyframes cb-shake{0%,100%{translate:0 0}20%{translate:calc(-1*var(--cb-shake-px,3px)) 0}40%{translate:var(--cb-shake-px,3px) 0}60%{translate:calc(-.6*var(--cb-shake-px,3px)) 0}80%{translate:calc(.6*var(--cb-shake-px,3px)) 0}}
 .timing-rail.castbar .mp-shroud{animation:cb-fade var(--cb-ink-ms,400ms) ease both;transition:left .4s ease,width .4s ease}

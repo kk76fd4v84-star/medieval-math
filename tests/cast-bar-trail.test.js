@@ -21,7 +21,7 @@ const G=fs.readFileSync(path.join(root,'src/game.js'),'utf8');assert.match(G,/e\
 const map=JSON.parse(fs.readFileSync(path.join(root,'assets/audio_map.json'),'utf8'));
 for(const id of [CD.sfx.shake,CD.sfx.good,CD.sfx.bad]){assert.deepEqual(map[id].files,['sfx/'+id+'.ogg'],id);for(const f of ['ogg','mp3'])assert(fs.existsSync(path.join(root,'assets/audio/sfx/'+id+'.'+f)),id+'.'+f);}
 assert.equal(map.meter_shake.vol,0.55);assert.equal(map.meter_tick_up.vol,0.8);assert.equal(map.meter_tock_down.vol,0.8);assert(!map.meter_tick&&!CD.ticks,'placeholder tick dropped');assert.deepEqual(map.dragon_roar.files,['sfx/boss_roar_31.wav']);
-assert.notEqual(CB.colour(true),CB.colour(false));assert.equal(CB.colour(true),CD.colours.good);assert.equal(CB.colour(false),CD.colours.bad);
+assert.equal(CB.fill(true),CD.fills.good);assert.equal(CB.fill(false),CD.fills.bad);for(const f of Object.values(CD.fills))assert(fs.existsSync(path.join(root,f)),f);
 const pos=w=>({block:w.block,crit:w.crit,normal:w.normal,weak:1});
 const plain=x=>JSON.parse(JSON.stringify(x));
 // nothing moved / no previous meter / tiny rounding -> no animation; weak never moves

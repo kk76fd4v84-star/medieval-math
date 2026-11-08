@@ -14,8 +14,11 @@ KM_DATA.castBar = {
   inkFadeMs: 400,                       // ink (shroud) just fades in
   ease: "cubic-bezier(.2,.75,.25,1)",
   plainIn: ["tavern-interior"],         // Magnus: the plain divider (no cast bar) on these screens, e.g. choosing a companion
-  colours: { good: "#3f8a2c", bad: "#b3261e" },
+  // the trail (and the lost-window band) = the orange timer fill picture with only the orange swapped (Maggi, castbar_preview v1)
+  fills: { good: "assets/timing-woodcut/fill_good.png", bad: "assets/timing-woodcut/fill_bad.png" },
   // Charlie's 1 s sounds (assets/audio/sfx, mapped in audio_map): shake at the start of the shake, tick_up / tock_down at the start of the slide
+  // Magnus 2026-11-08: the icons ONLY slide in a boss shift (roar + shake + tick / tock + trail), and back when that boss
+  // is gone. Any other change of the windows (companions, gear, scenes) snaps silently: KM.CastBar.motion decides.
   // Magnus: only bosses change the icons, with a roar. Other foes / NPCs (the riddle guy, ...) never move them: their
   // meter pressure is not applied while the cast bar is on. Party gear (shop buys) still moves them.
   shiftBy: ["boss", "mega"],            // stop types whose foes may shift the cast bar icons

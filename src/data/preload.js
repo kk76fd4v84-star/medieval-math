@@ -5,7 +5,7 @@ KM_DATA.preload = {
   // images matching these join the loading bar's first set (on top of KM.Loader's title / road set)
   firstSet: ["/numerals/", "/ink/glyph", "/alphabet/", "/timing-woodcut/", "/v18/answer-frame", "/party-roles/"],
   // fight UI pictures drawn as plain <img> (not through KM.Assets): loaded + decoded with the bar
-  images: ["block", "crit", "normal", "weak", "fill", "track", "divider"].map(n => `assets/timing-woodcut/${n}.png`),
+  images: ["block", "crit", "normal", "weak", "fill", "fill_good", "fill_bad", "track", "divider"].map(n => `assets/timing-woodcut/${n}.png`),
   // combat sounds warmed with the bar (missing ids are skipped); music keeps streaming as before
   sfx: ["correct", "wrong", "key_tap", "type_blip", "hit_flesh", "hit_armour", "hit_boss", "hit_party", "hit_blocked",
         "heart_crack", "heart_break", "cue_knight", "cue_healer", "cue_fire", "cue_wizard", "cue_executioner"],
