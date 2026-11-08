@@ -30,7 +30,7 @@ KM.Juice = (() => {
   function text(k) { // always on (Magnus: the name's metal sounds matter for immersion), not only with the juice switch
     const d = D(), t = d.text;
     if (k === 'Backspace') hit(t.back, t.pitch); else if (k === 'Enter') hit(t.enter, t.pitch);
-    else if (k.length === 1) { const c = k.toUpperCase(); hit(d.digits[c.codePointAt(0) % 10], 0, letterRate(c)); } else return false;
+    else if (k.length === 1) { const c = k.toUpperCase(); const L = t.letters || d.digits; hit(L[c.codePointAt(0) % L.length], 0, letterRate(c)); } else return false;
     return true;
   }
   const restart = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
