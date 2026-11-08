@@ -2453,7 +2453,7 @@
     const dx = fx ? fx.dx : 0, dy = fx ? fx.dy : 0, ds = dp ? dp.scale : 1;
     ctx.save(); ctx.translate(sx + dx, y + dy); ctx.scale(ds, ds);
     KM.Assets.drawEntity(ctx, did, 0, 0, { flip: faceParty, t: fx ? fx.t : moving && KM_ART.walkRate ? a.t * KM_ART.walkRate(did) : a.t, action, hurt: fx && fx.hurt, alpha: a.alpha * (ln ? ln.alpha : 1), flash: a.flash > 0, name: a.label,
-      filter: ln && ln.filter, recolor: a.recolor, seq: a.seqPlay && a.seqPlay.id, seqT: a.seqPlay && a.seqPlay.t });
+      filter: ln && ln.filter, sheet: a.sheet, seq: a.seqPlay && a.seqPlay.id, seqT: a.seqPlay && a.seqPlay.t });
     ctx.restore();
     // v18: a separate foreground occluder drawn right after its owner (riddle keeper -> rock), never merged with it
     const fr = a.wizardRock ? "keeper_rock" : (KM_ART.entities[did] || {}).front; if (fr) KM.Assets.drawEntity(ctx, fr, sx, y, { alpha: a.alpha * (ln ? ln.alpha : 1), filter: ln && ln.filter });

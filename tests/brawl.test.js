@@ -5,7 +5,7 @@ function load(on){
   const mem={},ctx={localStorage:{getItem:k=>k in mem?mem[k]:null,setItem:(k,v)=>{mem[k]=String(v);}},document:{querySelector:()=>({content:'test-build'})}};
   ctx.window=ctx;vm.createContext(ctx);
   for(const f of ['src/data/combat.js','src/data/brawl.js'])vm.runInContext(fs.readFileSync(path.join(root,f),'utf8'),ctx);
-  vm.runInContext(`KM={BalanceTry:{on:k=>k==='brawl'&&${on}},PartyAbilities:{role:m=>m.role||'knight',life:()=>2}};`,ctx);
+  vm.runInContext(`KM={BalanceTry:{on:k=>k==='brawl'&&${on}},PartyAbilities:{role:m=>m.role||'knight',life:()=>2},Assets:{loadImg:src=>({src,_ok:true})}};KM_ART={entities:{hero:{seq:{idle:'stand_hero'}},follower_4:{seq:{idle:'stand_stripe'}}}};KM_ART7={sequences:{stand_hero:{img:'assets/v10/walks/hero-walk.png'},stand_stripe:{img:'assets/v10/walks/stripe-walk.png'}}};`,ctx);
   vm.runInContext(fs.readFileSync(path.join(root,'src/brawl.js'),'utf8'),ctx);
   const B=ctx.KM.Brawl,S={runId:'r1',name:'Magnus',challengeMode:'fellowship',chapter:'village',stop:7,party:[{name:'Magnus',role:'knight',weapon:1}],meterGear:{}};
   B.init({S,T:s=>s,say(){},shortName:s=>s,artId:m=>m.art||'hero'});return {B,S,mem,D:ctx.KM_DATA.brawl};
@@ -51,7 +51,14 @@ const J=x=>JSON.parse(JSON.stringify(x));
   assert.equal(rec.v,1);assert.deepEqual(rec.answers[0],{op:'×',a:6,b:7,level:'hard',ms:3250,correct:true,outcome:'crit'});
   assert.equal(rec.party[0].art,'hero');assert.deepEqual(rec.result,{area:'village',depth:7,bossesKilled:1,died:true});assert.deepEqual(rec.gear,{weapon:1,armour:0,helm:0,lantern:0});
   assert(B.pool().some(r=>r.runId==='r1'),'the recorded run joins the ghost pool'); }
+// the ghost look: Maggi's sheets, one per art id, swapped in for that art's own sheet only; no sheet = the original
+{ const {B,D}=load(true);
+  for(const id of ['hero','hero_starter','follower_1','follower_2','follower_3','frank','timmy','executioner','dark_wizard'])assert(fs.existsSync(path.join(root,D.sheets[id])),'ghost sheet for '+id);
+  assert.equal(B.sheet({src:'http://x/assets/v10/walks/hero-walk.png'},'hero').src,D.sheets.hero,'a ghost knight draws the black sheet');
+  assert.equal(B.sheet({src:'http://x/assets/other.png'},'hero'),null,'other images (e.g. the rear atlas) stay');
+  assert.equal(B.sheet({src:'http://x/assets/v10/walks/stripe-walk.png'},'follower_4'),null,'no sheet yet: the original, untinted');
+  const src=fs.readFileSync(path.join(root,'src/brawl.js'),'utf8');assert(!/getImageData|hsl\(/.test(src),'no code recolour'); }
 // switch off: no effect at all
 { const {B,mem}=load(false),road=[{type:'math'},{type:'math'},{type:'math'},{type:'math'},{type:'math'},{type:'math'},{type:'math'}];
   assert.equal(B.route(road,{runId:'x'}),road);assert.equal(B.team(),null);B.answered({problem:{text:'1 + 1'}},true);B.won({brawl:{}});assert.deepEqual(Object.keys(mem),[]); }
-console.log('PASS: brawl: seeds easy -> hard, matchmaking steps up per win, deterministic ghost stops, the ghost team (art + hearts), per-operator replay + ghost clock, run record format, off = no effect.');
+console.log('PASS: brawl: seeds easy -> hard, matchmaking steps up per win, deterministic ghost stops, the ghost team (art + hearts + sheets), per-operator replay + ghost clock, run record format, off = no effect.');

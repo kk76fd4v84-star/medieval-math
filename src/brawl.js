@@ -81,7 +81,7 @@ KM.Brawl = (() => {
     if (!on()) return;
     const F = D().foe;
     actors.forEach(a => { const b = stops[a.stop]?.brawl; if (!b || !a.foe) return; const m = team(ghost(b.ghost) || { party: [] })[a.extra || 0] || {};
-      Object.assign(a, { ghost: true, recolor: img => paint(img, a.id), label: m.name ? ctx.shortName(m.name) : a.label, combat: { hp: F.hpPerAnswer * (2 + b.step), atk: F.atk } }); });
+      Object.assign(a, { ghost: true, sheet: img => sheet(img, a.id), label: m.name ? ctx.shortName(m.name) : a.label, combat: { hp: F.hpPerAnswer * (2 + b.step), atk: F.atk } }); });
   }
   function teamHud() { // the facing team's hearts, for the game's own hearts row (mirrored): members, hp left in heart units, armour
     const S = ctx?.S, e = S?.enc, b = e?.st?.brawl, rec = b && ghost(b.ghost); if (!rec) return null;
@@ -91,44 +91,11 @@ KM.Brawl = (() => {
     return { members, hp: Math.ceil(max * left - 1e-9), armour: members.reduce((n, m) => n + (m.armour || 0), 0), label: sir(rec.name), ...D().hud };
   }
 
-  // ---- the ghost look: black cloth, orange details. One recolour per sprite image and look, cached (never per frame).
-  const looks = new Map(); // look (JSON) -> WeakMap(image -> canvas)
-  function hsl(r, g, b) {
-    const mx = Math.max(r, g, b) / 255, mn = Math.min(r, g, b) / 255, l = (mx + mn) / 2, c = mx - mn; if (!c) return [0, 0, l];
-    const h = mx === r / 255 ? ((g - b) / 255 / c + 6) % 6 : mx === g / 255 ? (b - r) / 255 / c + 2 : (r - g) / 255 / c + 4;
-    return [h * 60, c / (1 - Math.abs(2 * l - 1)), l];
-  }
-  const inside = (v, [lo, hi]) => v >= lo && v <= hi;
-  const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
-  function holes(kind, w, h, reach, r) { // solid ink with dye on all four sides within reach (an emblem sewn on the dye)
-    const near = new Uint8Array(w * h), scan = (step, start, len) => { let last = -1e9;
-      for (let k = 0; k < len; k++) { const i = start + k * step; if (kind[i] === 2) last = k; else if (kind[i] === 3 && k - last <= reach) near[i]++; } };
-    for (let y = 0; y < h; y++) { scan(1, y * w, w); scan(-1, y * w + w - 1, w); }
-    for (let x = 0; x < w; x++) { scan(w, x, h); scan(-w, x + (h - 1) * w, h); }
-    const sum = new Uint32Array((w + 1) * (h + 1)); // ink count table: hatching lines are thin, an emblem is solid
-    for (let y = 0; y < h; y++) for (let x = 0, row = 0; x < w; x++) { row += kind[y * w + x] === 3; sum[(y + 1) * (w + 1) + x + 1] = sum[y * (w + 1) + x + 1] + row; }
-    const box = (x0, y0, x1, y1) => sum[y1 * (w + 1) + x1] - sum[y0 * (w + 1) + x1] - sum[y1 * (w + 1) + x0] + sum[y0 * (w + 1) + x0];
-    for (let i = 0; i < near.length; i++) { if (near[i] !== 4) continue; const x = i % w, y = (i / w) | 0;
-      if (x >= r && y >= r && x + r < w && y + r < h && box(x - r, y - r, x + r + 1, y + r + 1) === (2 * r + 1) ** 2) kind[i] = 4; }
-  }
-  function paint(img, art) {
-    const P = D().paint, look = P.sprites[art] || P.sprites.default, key = JSON.stringify(look), rg = look.range || {};
-    const cloth = { ...P.cloth, ...rg.cloth }, dye = { ...P.dye, ...rg.dye };
-    const memo = looks.get(key) || looks.set(key, new WeakMap()).get(key); if (memo.has(img)) return memo.get(img);
-    const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height; if (!w || !h) return null;
-    const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0);
-    let d; try { d = g.getImageData(0, 0, w, h); } catch (_) { memo.set(img, null); return null; } // a tainted image (file://) keeps its colours
-    const px = d.data, kind = new Uint8Array(w * h), L = new Float32Array(w * h), S = new Float32Array(w * h); // kind: 1 cloth, 2 dye, 3 ink, 4 emblem
-    for (let i = 0; i < kind.length; i++) { if (!px[i * 4 + 3]) continue; const [hh, ss, ll] = hsl(px[i * 4], px[i * 4 + 1], px[i * 4 + 2]); L[i] = ll; S[i] = ss;
-      kind[i] = ll < P.ink ? 3 : inside(hh, dye.h) && inside(ss, dye.s) && inside(ll, dye.l) ? 2 : inside(hh, cloth.h) && inside(ss, cloth.s) && inside(ll, cloth.l) ? 1 : 0; }
-    if (look.holes) holes(kind, w, h, P.holes, P.solid);
-    if (look.head) for (let i = 0; i < w * Math.round(h * look.head.top); i++) if (kind[i] === 1 && S[i] >= look.head.s) kind[i] = 0; // the face keeps its colours
-    const to = { cloth: look.cloth, dye: look.dye, ink: 'keep', emblem: look.holes || 'keep' }, names = [null, 'cloth', 'dye', 'ink', 'emblem'];
-    const ends = { black: P.black.map(rgb), orange: P.orange.map(rgb) };
-    for (let i = 0; i < kind.length; i++) { const tgt = kind[i] && ends[to[names[kind[i]]]]; if (!tgt) continue;
-      const t = kind[i] === 4 ? 0.45 + L[i] : Math.min(1, Math.max(0, (L[i] - 0.25) / 0.6));
-      for (let k = 0; k < 3; k++) px[i * 4 + k] = Math.round(tgt[0][k] + (tgt[1][k] - tgt[0][k]) * t); }
-    g.putImageData(d, 0, 0); Object.assign(c, { naturalWidth: w, naturalHeight: h, src: img.src, _ok: true }); memo.set(img, c); return c;
+  // ---- the ghost look: Maggi's sheets (KM_DATA.brawl.sheets) drawn instead of the art's own sheet; no sheet = the original
+  const sheetOf = art => { const q = window.KM_ART7?.sequences?.[KM_ART.entities[art]?.seq?.idle]; return q && q.img; };
+  function sheet(img, art) {
+    const to = D().sheets[art], from = sheetOf(art); if (!to || !from || !decodeURI(img.src || '').endsWith(from)) return null;
+    const g = KM.Assets.loadImg(to); return g._ok ? g : null;
   }
 
   // ---- encounters: sighting (Challenge / Ignore), ambush (Fight / Flee / Sacrifice), the ghost's answer clock
@@ -172,7 +139,8 @@ KM.Brawl = (() => {
       ctx.loseCompanion(m); leave(e); }
   };
   const artIds = () => Object.values(D().art).flat();
-  const init = c => { ctx = c; if (!on()) return; artIds().forEach(id => { KM_DATA.combat.patterns[id] ||= { deadline: true }; }); }; // ghosts strike when their bar fills
+  const init = c => { ctx = c; if (!on()) return; artIds().forEach(id => { KM_DATA.combat.patterns[id] ||= { deadline: true }; }); // ghosts strike when their bar fills
+    Object.values(D().sheets).forEach(src => KM.Assets.loadImg(src)); }; // the ghost sheets load with brawl on only
 
-  return { on, init, route, dress, meet, team: teamHud, paint, secs, answered, won, runEnd, actions, pool, opponent, replay, skill, seedRecord, members: team };
+  return { on, init, route, dress, meet, team: teamHud, sheet, secs, answered, won, runEnd, actions, pool, opponent, replay, skill, seedRecord, members: team };
 })();
