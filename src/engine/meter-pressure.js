@@ -52,5 +52,7 @@ KM.MeterPressure = (() => {
   const level = (S, id) => (S.meterGear && S.meterGear[id]) || 0;
   const cost = (S, id) => { const g = D().gear[id], n = level(S, id); return n < g.max ? g.cost[n] : null; };
   function buy(S, id) { const c = cost(S, id); if (c == null || S.gold < c) return false; S.gold -= c; S.meterGear = { ...(S.meterGear || {}), [id]: level(S, id) + 1 }; return true; }
+  // switch on: look for the optional art right away, so it is found (or known missing) while the loading bar is up
+  if (on() && typeof Image !== 'undefined') [...TYPES, ...Object.keys(D().gear).filter(k => D().gear[k].cost)].forEach(image);
   return { on, TYPES, strongest, windows, seconds, tagHTML, sells, level, cost, buy, image };
 })();
