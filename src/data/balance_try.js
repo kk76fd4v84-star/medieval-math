@@ -7,6 +7,7 @@ KM_DATA.balanceTry = {
   curve: false,       // smoother difficulty: packs take turns, Fellowship enemy health ramps, bosses hit hard only when they roar
   halfHearts: false,  // ordinary hits take half a heart; boss roar blows take a full heart; heals scale to match
   campArmour: false,  // resting at camp mends bought armour back to its best level
+  cards: false,       // Fellowship upgrade cards at rest stops (src/data/upgrade_cards.js); turns on whoActs for their maths costs
   whoActs: false,     // Fellowship: each sum belongs to one member (+ knights, − healers, × fire / wizard / executioner); their strike counts double
   // curve: Fellowship enemy health = base hp x min(max, start + step x battles fought this run)
   health: { start: 2.0, step: 0.05, max: 2.6 },

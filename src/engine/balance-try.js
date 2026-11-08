@@ -3,7 +3,8 @@ window.KM = window.KM || {};
 KM.BalanceTry = (() => {
   const B = KM_DATA.balanceTry, q = new URLSearchParams(location.search);
   const flag = (key, param) => q.has(param) ? q.get(param) !== '0' : !!B[key];
-  const sw = { curve: flag('curve', 'curve'), halfHearts: flag('halfHearts', 'halfhearts'), campArmour: flag('campArmour', 'camparmour'), whoActs: flag('whoActs', 'whoacts') };
+  const sw = { curve: flag('curve', 'curve'), halfHearts: flag('halfHearts', 'halfhearts'), campArmour: flag('campArmour', 'camparmour'), whoActs: flag('whoActs', 'whoacts'), cards: flag('cards', 'cards') };
+  if (sw.cards) sw.whoActs = true;
   const on = name => !!sw[name];
   const unit = () => sw.halfHearts ? 2 : 1; // heart units per drawn heart
   if (sw.halfHearts && KM_DATA.party) KM_DATA.party.heartsPerMember *= 2;
@@ -20,8 +21,8 @@ KM.BalanceTry = (() => {
   }
   const heartsText = n => { const u = unit(), w = n / u; return u === 1 ? String(n) : (w % 1 ? (Math.floor(w) || '') + '½' : String(w)); };
   // whoActs: pick the member whose sum comes next, weighted by role, level and the fight's situation
-  function pickLeader(members, ctx, rand = Math.random) {
-    const role = m => KM.PartyAbilities.role(m), lvl = m => Math.min(3, 1 + Math.max(0, m.weapon || 0));
+  function pickLeader(members, ctx, rand = Math.random, bonus = () => 0) {
+    const role = m => KM.PartyAbilities.role(m), lvl = m => Math.min(3, 1 + Math.max(0, m.weapon || 0) + bonus(role(m)));
     const sit = [ctx.foes <= 2 && 'small', ctx.foes >= 3 && 'pack', ctx.boss && 'boss', ctx.hurt && 'hurt'].filter(Boolean);
     const weighted = members.filter(m => B.roles[role(m)]).map(m => {
       let w = B.roles[role(m)].weight + B.levelWeight * (lvl(m) - 1);
