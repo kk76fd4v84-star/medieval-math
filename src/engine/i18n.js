@@ -44,7 +44,8 @@ KM.I18n=(()=>{
   for(const [name,ja]of Object.entries(names))for(const title of ['', 'Sir ', 'Dame ', 'Brother '])entries.push([title+name,ja]);
   const dict=new Map(entries),escape=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
   // One pass, whole phrases: "Rest" must not turn "Restoration" into mixed script.
-  return {dict,re:new RegExp('(?<![A-Za-z0-9_])(?:'+[...dict.keys()].sort((a,b)=>b.length-a.length).map(escape).join('|')+')(?![A-Za-z0-9_])','g')};
+  // The leading boundary is a captured character, not a lookbehind (Safari before 16.4 cannot parse lookbehind at all).
+  return {dict,re:new RegExp('(^|[^A-Za-z0-9_])(?:'+[...dict.keys()].sort((a,b)=>b.length-a.length).map(escape).join('|')+')(?![A-Za-z0-9_])','g')};
  };
  let parts=null;
  function t(value){
@@ -54,7 +55,7 @@ KM.I18n=(()=>{
   const name=s.replace(/^(Sir|Dame|Brother) /,'');if(names[name])return names[name];
   // Text adjacent to icons, names and dynamic quantities is split into DOM text nodes.
   // Replace only whole English phrases, never asset paths, IDs or input values.
-  parts=parts||fragments();return text.replace(parts.re,en=>parts.dict.get(en));
+  parts=parts||fragments();return text.replace(parts.re,(m,pre)=>pre+parts.dict.get(m.slice(pre.length)));
  }
  function translate(root){
   if(!jp()||!root||!document.createTreeWalker)return;
