@@ -89,3 +89,12 @@ Claude can only see GitHub, so the latest version of everything from the team's 
   4. Party levels already make the push smaller.
 - **Older items:** the roar sometimes plays twice at boss start, the shared rear-walk sheet for limbs isn't wired, and the tough-foes balance and online server choice are still undecided.
 - To wire approved art, copy it from `handoff/art/` into `assets/`.
+
+### Full open list (Magnus asked 2026-11-09, collected by the team)
+- Meter badges (art in `handoff/art/meter_tips/v1/badges/`) on the tavern recruit cards AND the gear cards: show which icon moves and how far.
+- Limb-loss frames (`handoff/art/limbs/v2`) plus the limb-loss moment at a trap: drawn, not wired, needs Magnus's OK.
+- Treasure chest closed/open with ink shine (`handoff/art/chest/v1`): waits for Magnus's OK.
+- Playtest the terrify, party and gear tips (brawl-32), including that the terrify slide-back shows the red trail.
+- Key sounds and loader pop-in fix on a real Safari, fresh game: unconfirmed.
+- Provisional numbers for traps and cards v2: wait for Magnus's OK.
+- Older asks: crypt enemies and a boss, swamp and beach biomes, online brawl opponents recorded from other players.
