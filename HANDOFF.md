@@ -9,6 +9,14 @@ Medieval Math is Magnus Jansson's math game. A knight and a fellowship walk a ro
 - Run it locally: `python3 -m http.server 8798` in the repo root. Sounds and art packs need http, not file://.
 - Full test link (all switches on): `index.html?mode=fellowship&curve=1&halfhearts=1&camparmour=1&whoacts=1&cards=1&gradual=1&meterpressure=1&castbar=1&knightstart=1&chestcards=1&toughfoes=1&brawl=1&pausemenu=1&juice=1&recruitcode=1&partylevels=1&cardsv2=1&traps=1`
 
+
+### brawl-32 (Magnus 2026-11-09)
+- Terrify tip (`tutorial.tips.scared`) now uses Magnus's text and `assets/ui/tips/v4/art_terrify.png`. It shows first; closing it plays the roar (`roar`/`roarGain`) plus a shake, and the sum's meter then plays the icon shake and red slide back.
+- Party tip (`art_party.png`) now shows in the tavern before your first recruit (`ask()`), not after.
+- Gear tip (`art_gear.png`) now shows as you first reach a scroll stall or shop (`startRest()`), not after.
+- `tipDialog` renders `t.art` as `<img class="tut-art">` (css in style.css).
+- OPEN: small icon on each tavern recruit card for what the member affects (striking/crit, armour/block). Not built yet; reuse the crit/block icons from `assets/timing-woodcut/` in the recruit card render. Also verify all three tips by playing (only a smoke test was run).
+
 ## URL switches (all default off; `?name=1` turns one on)
 - `mode=fellowship`: Fellowship mode, the main focus of the game.
 - `curve`: smoother difficulty. Packs take turns, Fellowship enemy health ramps up, and bosses hit hard only when they roar.

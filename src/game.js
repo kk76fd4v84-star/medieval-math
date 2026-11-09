@@ -1471,6 +1471,7 @@
   function ask(level, onRight, onWrong, back, secs, kind="recruit") {
     if (TUT && !TUT.seen()) return tutorial(() => ask(level, onRight, onWrong, back, secs, kind));
     const again = () => ask(level, onRight, onWrong, back, secs, kind), code = kind === "recruitCode", fight = !NOT_FIGHT.includes(kind);
+    if ((code || kind === 'recruit') && TUT && !tipSeen('party')) return tipDialog('party', again); // Magnus: the party tip before you sign anyone up
     if (code && TUT && !tipSeen('recruitCode')) return tipDialog('recruitCode', again);
     if (fight && scaredTip()) { const e0 = S.enc; e0.phase = "busy"; showPanel('', 'info'); return later(KM_DATA.tutorial.tips.scared.afterSecs, () => { if (S.enc === e0 && !S.dying) tipDialog('scared', again); }); }
     const tip = fight && crewTip(); if (tip) return tipDialog(tip, again);
@@ -1892,6 +1893,7 @@
     keeper ? say(keeper, text) : heroSay(text);
   }
   function startRest() {
+    if (TUT && S.enc && ['stall', 'shop'].includes(S.enc.st.rest) && !tipSeen('gear')) return tipDialog('gear', startRest); // Magnus: the gear tip as you reach a scroll stall / shop, not after
     const e = S.enc, T = restT(); e.used = S.restUses[e.st.idx] || (S.restUses[e.st.idx]={}); A.play("rest_" + e.st.rest); setCheckpoint();
     if (ART7 && T.view === "camp") { S.view = null; keeperSay(T.greet); return renderRest(); }
     if (ART7 && T.view === "tavern") { S.view = null; return renderTavernOut(); } // v11b: Magnus's full-screen exterior
@@ -1997,7 +1999,7 @@
   function tipDialog(id, then) {
     const e = S.enc, t = KM_DATA.tutorial.tips[id]; e.phase = 'tutorial'; e.tutorialThen = then; e.tip = id;
     showPanel('', 'info'); document.getElementById('tut-layer')?.remove();
-    document.getElementById('stage').insertAdjacentHTML('beforeend', `<div id="tut-layer" class="tut-shade"><div class="tut-dialog" role="dialog" aria-modal="true" aria-labelledby="tut-title"><div id="tut-title" class="tut-title">${esc(T(t.title))}</div><div class="tut-intro">${esc(T(t.text))}</div><button type="button" class="opt plaque tut-go" data-act="closeTutorial">${esc(T(t.button))}</button></div></div>`);
+    document.getElementById('stage').insertAdjacentHTML('beforeend', `<div id="tut-layer" class="tut-shade"><div class="tut-dialog" role="dialog" aria-modal="true" aria-labelledby="tut-title"><div id="tut-title" class="tut-title">${esc(T(t.title))}</div>${t.art ? `<img class="tut-art" src="${t.art}" alt="" draggable="false">` : ''}<div class="tut-intro">${esc(T(t.text))}</div><button type="button" class="opt plaque tut-go" data-act="closeTutorial">${esc(T(t.button))}</button></div></div>`);
     document.querySelector('#tut-layer .tut-go')?.focus();
   }
   function tutorial(then) {
@@ -2027,7 +2029,7 @@
     return e.phase === "rest" && !!S.view && S.view.id === "tavern-interior";
   }
   function closePause() { paused = false; document.getElementById('pause-layer')?.remove(); }
-  function closeTutorial() { const e = S.enc; if (!e || e.phase !== 'tutorial') return; if (e.tip) { try { localStorage.setItem(KM_DATA.tutorial.tips[e.tip].saveKey, '1'); } catch (_) {} e.tip = null; } else TUT.done(); document.getElementById('tut-layer')?.remove(); const then = e.tutorialThen; e.tutorialThen = null; then(); }
+  function closeTutorial() { const e = S.enc; if (!e || e.phase !== 'tutorial') return; if (e.tip) { const tp = KM_DATA.tutorial.tips[e.tip]; try { localStorage.setItem(tp.saveKey, '1'); } catch (_) {} e.tip = null; if (tp.roar) { A.play(tp.roar, { gain: tp.roarGain ?? .4 }); S.shake = Math.max(S.shake || 0, .3); } } else TUT.done(); document.getElementById('tut-layer')?.remove(); const then = e.tutorialThen; e.tutorialThen = null; then(); }
   function gearDialog(kind){
     const g=restT().gear,key=kind==='weapon'?'maxWeapon':'maxArmor',cost=kind==='weapon'?g.weaponCost:g.armorCost;
     const icon=`<img src="assets/ui/shop/${kind==='weapon'?'sword':'armour'}-cutout.png" alt="">`;

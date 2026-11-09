@@ -27,19 +27,20 @@ KM_DATA.tutorial = {
     scared: {       // switch partyLevels: first time a foe's intimidation moves the cast bar
       saveKey: "knightMath.tutorial.scaredTip",
       title: "Terrified",
-      text: "Right now this critter terrifies you, and it weakens your attacks. Watch the icons it pushes back. The longer your companions live, the stronger they grow, and things like this won't scare you.",
+      text: "Some creatures terrify you, and make the fight harder than it should be. But the more you and your fellowship level up the braver you become and these things will affect you less.",
+      art: "assets/ui/tips/v4/art_terrify.png", roar: "dragon_roar", roarGain: 0.35, // Magnus 2026-11-09: tip first, then the roar, then the icons shake + slide back
       button: "Got it",
-      afterSecs: 2.6   // let the bar's shake + slide play first
+      afterSecs: 0.4   // tip first: the bar's shake + slide plays when the sum's meter appears after it
     },
     party: {
       saveKey: "knightMath.tutorial.partyTip",
-      title: "A bigger party",
+      title: "A bigger party", art: "assets/ui/tips/v4/art_party.png", // shown before your first recruit in the tavern
       text: "With a larger party comes bigger damage. However, more people also means more arguing about who swings first, so you get less time to block or land a critical hit.",
       button: "Got it"
     },
     gear: {
       saveKey: "knightMath.tutorial.gearTip",
-      title: "Better gear",
+      title: "Better gear", art: "assets/ui/tips/v4/art_gear.png", // shown when you first reach a scroll stall or shop
       text: "Better gear compensates for your party not being able to agree on anything.",
       button: "Got it"
     }

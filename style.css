@@ -593,3 +593,5 @@ img.mp-tag,#divider.magnus img.mp-tag{position:static;background:none;padding:0;
 @keyframes juice-punch{0%{transform:translateY(-50%) scale(1.2,var(--juice-punch-squash,.84));}100%{transform:translateY(-50%);}}
 #answer.juice-block{animation:juice-block var(--juice-block,200ms) ease-out;}
 @keyframes juice-block{0%,100%{transform:translateY(-50%);}25%{transform:translateY(-50%) translateX(-7px);}60%{transform:translateY(-50%) translateX(5px);}}
+
+.tut-art { display: block; width: 100%; max-height: 34vh; object-fit: contain; margin: 6px 0 10px; }
