@@ -5,6 +5,9 @@
 // hidden monster strength until commit, D20, recruiting by maths (+ D20 contest), Frank's restraint branch,
 // layered camp / tavern views, approved drawn deaths, graves with killer emblems.
 (function () {
+  // Safari before 16 has no ctx.roundRect: same shape, drawn with arcs (used by hover/fallback frames)
+  if (typeof CanvasRenderingContext2D !== "undefined" && !CanvasRenderingContext2D.prototype.roundRect) CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+    r = Math.min(Array.isArray(r) ? r[0] : r || 0, w / 2, h / 2); this.moveTo(x + r, y); this.arcTo(x + w, y, x + w, y + h, r); this.arcTo(x + w, y + h, x, y + h, r); this.arcTo(x, y + h, x, y, r); this.arcTo(x, y, x + w, y, r); this.closePath(); return this; };
   const D = KM_DATA, SPL = KM_DATA.spell, IT = KM_DATA.items.fireBottle, W = D.world, A = KM.Audio, MU = KM.Music, RS = D.restStops, GR = D.graves, C = D.combat, L = KM_LAYOUT, K = L.k, VW = L.viewW;
   const $ = id => document.getElementById(id);
   const cv = $("game"), ctx = cv.getContext("2d");
@@ -210,7 +213,7 @@
         const id = pickOne(W.obstacleKinds), half = KM.Assets.entitySize(id)[0] / 2 + 140;
         if (free(ox, half)) S.obstacles.push({ x: ox, id });
       }
-      if(!arena)S.obstacles.forEach(o => clear.push([o.x - 140, o.x + 140]));
+      if(!KM.DragonApproach.arena(S))S.obstacles.forEach(o => clear.push([o.x - 140, o.x + 140]));
       for (let px = 400; px < end; px += rnd(...W.propEvery)) {
         const id = pickOne(W.propKinds), half = KM.Assets.entitySize(id, W.propScale)[0] / 2 + W.propClearance;
         if (free(px, half)) S.props.push({ x: px, id });
@@ -431,7 +434,8 @@
   function chunksOf(text) { // sentence by sentence, each wrapped to <= maxW, max SP.maxLines lines per bubble; short sentences share a bubble
     // v11b: a sentence ends at . ! ? … only when the next word starts a new sentence (capital, quote, *, digit), so
     // "the big... riddle." stays one sentence and no bubble ever starts mid-sentence
-    const sents = String(text).replace(/\s+/g, " ").trim().split(/(?<=[.!?…]["”’')]?)\s+(?=["“'(*\d\p{Lu}])/u), out = [];
+    // (no regex lookbehind: Safari before 16.4 fails to parse it and the whole game.js would not load)
+    const sents = String(text).replace(/\s+/g, " ").trim().replace(/([.!?…]["”’')]?)\s+(?=["“'(*\d\p{Lu}])/gu, "$1\n").split("\n"), out = [];
     for (const snt of sents.map(x => x.trim()).filter(Boolean)) {
       const ls = wrap(snt); if (ls.length > SP.maxLines && !speechOverflow.includes(snt)) speechOverflow.push(snt); // v11b: a sentence must fit ONE bubble (tests)
       for (let i = 0; i < ls.length; i += SP.maxLines) out.push(ls.slice(i, i + SP.maxLines));
@@ -546,7 +550,7 @@
     hush(); S.deathDepth = null; S.dragonSlain = false;
     S.name = "Nobody"; S.hp = D.party.heartsPerMember; S.gold = 5; S.loot = []; S.score = 0; S.scoreLedger = KM.Score.empty(); S.riddleSolved=[];S.wizardUnlocked=false;S.lightning=null; S.stop = 0; S.dist = 0; S.fid = 0; S.hunters = 0; S.spells = 0; S.spellLeft = 0; S.mead = 0; S.bottles = 0; S.runId = "run-" + Date.now(); S.fgSeed = seedOf(S.runId);
     S.stats = { correct: 0, wrong: 0, riddles: 0, sacrificed: 0 }; S.usedRiddles = []; S.pendingDismissal=null; S.tavernRecruits = {}; S.restUses={}; S.routeVersion=3;
-    S.party = [newMember("hero", slotX(0), true)]; S.hp = maxHp(); buildWorld(0); S.camX = 0; addNarrator(); S.floats = []; S.dice = []; S.enc = null; S.timers = []; S.view = null; S.dying = null; S.entering = null; S.voices = [];
+    S.party = [newMember("hero", slotX(0), true)]; S.hp = maxHp(); buildWorld(0); S.camX = 0; S.winT = 0; addNarrator(); S.floats = []; S.dice = []; S.enc = null; S.timers = []; S.view = null; S.dying = null; S.entering = null; S.voices = [];
     S.furtherDone = false; startRunBookkeeping();
     S.mode = "name"; musicScene("intro"); S.intro = null;
     renderIntro();
@@ -1144,7 +1148,9 @@
     if (!S.dying) later(0.6, enemyTurn);
   }
   function wizardLightning(failed) {
-    const e=S.enc,m=KM.DarkWizard.present(S.party)[0];if(!e||!m)return;
+    const e=S.enc,m=KM.DarkWizard.present(S.party)[0];if(!e)return;
+    if(!m){ // the wizard died before the answer landed (deadline strike): fall back like heal/fire do instead of locking the fight in "busy"
+      if(failed){say(e.act,`${pickOne(D.dialogue.wrong)} It's ${e.problem.answer}!`);showCorrected(e.problem);huntersStep(1);if(!S.dying)later(0.6,enemyTurn);}else renderChoice();return;}
     e.phase='busy';const foes=living(e).slice();
     const amount=failed?KM.DarkWizard.backfire(e.failedFraction):KM.DarkWizard.damage(S.party);
     const targets=foes.map(a=>({x:centreX(a),y:(dragonPose(a)?.y||W.groundY)-tallOf(a.id)*.5}));
@@ -1962,11 +1968,11 @@
       const e = S.enc; if (!e || e.phase!=="recruit") return;
       recruitFlow(e.st, 0, (ok, cancelled) => { if (cancelled) return renderRecruit(); if (!ok) e.act.state = "stay"; finishEncounter(); });
     },
-    noRecruit: () => { S.enc.act.state = "stay"; finishEncounter(); },
+    noRecruit: () => { if (!S.enc || !S.enc.act) return; S.enc.act.state = "stay"; finishEncounter(); },
     contest: () => contest(),
-    noContest: () => { const c = S.enc.contest; S.enc.contest = null; c.done(false); },
+    noContest: () => { const c = S.enc && S.enc.contest; if (!c) return; S.enc.contest = null; c.done(false); },
     roll: () => roll(),
-    frankAgree: () => { if (S.enc.phase === "frank") { say(S.enc.frank, "Splendid! For God and science!"); commit(); } }, frankNo: () => frankNo(),
+    frankAgree: () => { if (S.enc && S.enc.phase === "frank") { say(S.enc.frank, "Splendid! For God and science!"); commit(); } }, frankNo: () => frankNo(),
     tvBack: () => tvBack(), tvJoin: b => tvJoin(+b.dataset.j), tvTalk: b => { const j = +b.dataset.j, p = S.enc.st.cands[j]; if (p) speak(candSpeaker(S.enc.st, j), p.join); },
     talkTable: () => talkPoint("table"), talkBar: () => talkPoint("bar"), castSpell: () => castSpell(), buySpell: () => buySpell(), pickFire: () => pickFire(), buyBottle: () => buyBottle(),
     selectTavern:b=>{if(S.enc?.tv){S.enc.tv.sel=+b.dataset.i;renderTavernInside();}},
@@ -2685,10 +2691,18 @@
   }
   addEventListener("resize", fit); fit();
   let last = performance.now();
+  // ?debug&fps : frame-time readout in the corner of the canvas (median / worst of the last 60 frames), for checking a
+  // browser by eye (Safari has no console access from the tools). Not shown in normal play.
+  const FPS = /[?&]debug\b/.test(location.search) && /[?&]fps\b/.test(location.search), fpsLog = [];
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000) * S.speedMul; last = now;
-    update(dt); draw(); requestAnimationFrame(frame);
+    update(dt); draw();
+    if (FPS) { const ms = (now - last2) || 0; last2 = now; if (ms > 0 && ms < 1000) fpsLog.push(ms); if (fpsLog.length > 60) fpsLog.shift();
+      const sorted = fpsLog.slice().sort((a, b) => a - b), med = sorted[sorted.length >> 1] || 0, worst = sorted[sorted.length - 1] || 0;
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.font = "bold 22px monospace"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.fillStyle = "rgba(0,0,0,.65)"; ctx.fillRect(8, cv.height - 40, 330, 32); ctx.fillStyle = "#9f9"; ctx.fillText(`${(1000 / med).toFixed(0)} fps  ${med.toFixed(1)} ms  worst ${worst.toFixed(0)} ms`, 14, cv.height - 17); ctx.restore(); }
+    requestAnimationFrame(frame);
   }
+  let last2 = 0;
 
   window.__km = { completeRecruit, replaceMember, keepParty, beginDismissalBattle, finishDismissalBattle,
     startTomb,tombEnd,chapterGate,enterWood,showWin,

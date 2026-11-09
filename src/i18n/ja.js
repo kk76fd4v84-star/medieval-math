@@ -82,6 +82,8 @@ window.KM_JA={
   "Honest Edmund": "正直者のエドマンド",
   "Sword +1": "剣 ＋1",
   "Weapon +1": "武器 ＋1",
+  "Weapon": "武器",
+  "Armour": "鎧",
   "Armour +1": "鎧 ＋1",
   "For sale": "売り物",
   "Buy": "買う",
