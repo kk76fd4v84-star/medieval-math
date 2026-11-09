@@ -564,7 +564,7 @@
     S.cards = []; S.meterGear = {}; S.swingUsed = false;
     S.name = "Nobody"; S.hp = D.party.heartsPerMember; S.gold = 5; S.loot = []; S.score = 0; S.scoreLedger = KM.Score.empty(); S.riddleSolved=[];S.wizardUnlocked=false;S.lightning=null; S.stop = 0; S.dist = 0; S.fid = 0; S.hunters = 0; S.spells = 0; S.spellLeft = 0; S.mead = 0; S.bottles = 0; S.runId = "run-" + Date.now(); S.fgSeed = seedOf(S.runId);
     S.stats = { correct: 0, wrong: 0, riddles: 0, sacrificed: 0 }; S.usedRiddles = []; S.pendingDismissal=null; S.tavernRecruits = {}; S.restUses={}; S.routeVersion=3;
-    S.party = [newMember("hero", slotX(0), true)]; S.hp = maxHp(); buildWorld(0); S.camX = 0; S.winT = 0; addNarrator(); S.floats = []; S.dice = []; S.enc = null; S.timers = []; S.view = null; S.dying = null; S.entering = null; S.voices = [];
+    S.party = [newMember("hero", slotX(0), BT.on("knightStart") ? "starter" : true)]; S.hp = maxHp(); buildWorld(0); S.camX = 0; S.winT = 0; addNarrator(); S.floats = []; S.dice = []; S.enc = null; S.timers = []; S.view = null; S.dying = null; S.entering = null; S.voices = [];
     S.furtherDone = false; startRunBookkeeping();
     S.mode = "name"; musicScene("intro"); S.intro = null;
     renderIntro();
@@ -2992,7 +2992,7 @@
   const FPS = /[?&]debug\b/.test(location.search) && /[?&]fps\b/.test(location.search), fpsLog = [];
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000) * S.speedMul; last = now;
-    update(dt); draw();
+    if (!paused) update(dt); draw();
     if (FPS) { const ms = (now - last2) || 0; last2 = now; if (ms > 0 && ms < 1000) fpsLog.push(ms); if (fpsLog.length > 60) fpsLog.shift();
       const sorted = fpsLog.slice().sort((a, b) => a - b), med = sorted[sorted.length >> 1] || 0, worst = sorted[sorted.length - 1] || 0;
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.font = "bold 22px monospace"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.fillStyle = "rgba(0,0,0,.65)"; ctx.fillRect(8, cv.height - 40, 330, 32); ctx.fillStyle = "#9f9"; ctx.fillText(`${(1000 / med).toFixed(0)} fps  ${med.toFixed(1)} ms  worst ${worst.toFixed(0)} ms`, 14, cv.height - 17); ctx.restore(); }
