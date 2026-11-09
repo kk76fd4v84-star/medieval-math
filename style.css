@@ -540,7 +540,8 @@ html[lang="ja"] .action-card .action-detail{font-size:18px;}
 .tavern-deck{position:relative;}
 .tavern-lift{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(100% + 18px);white-space:nowrap;padding:4px 20px;background:url('assets/v10/paper/parchment.png');}
 .panel:has(.tavern-deck){overflow:visible;}
-.tavern-under{margin:18px 0 6px;} /* Magnus: the heading sits right under the divider */
+.tavern-under{margin:4px 0 4px;} /* Magnus: the heading sits right under the divider */
+.action-deck.tavern-deck .action-row .knight-card{height:160px;} /* brawl-31: heading + cards fit above the bottom edge (the cards were cut off) */
 .tavern-deck .action-card[data-act="tvAsk"] .action-detail{font-size:19px;line-height:1.15;}
 .action-gear #gear-title.tavern-lift{width:auto;height:auto;overflow:visible;clip-path:none;}
 #strip:has(.tavern-deck){z-index:5;}

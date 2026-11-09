@@ -2860,11 +2860,12 @@
     if(e.tv.sel>=spots.length)e.tv.sel=-1;const sp=spots[e.tv.sel];e.tv.open=sp?sp.id:null;
     if(e.tv.ask!=null&&e.st.cands[e.tv.ask])return showPanel(tavernAsk(e,e.tv.ask),'rest action-panel');
     const cards=spots.map((q,i)=>q.kind==='npc'?tavernCard(q.p,q.j):actionCard({label:q.kind==='fare'?'Menu':'Go outside',act:q.kind==='door'?'leaveInside':'selectTavern',icon:q.kind==='door'?'→':'☰',attrs:`data-i="${i}" aria-pressed="${e.tv.sel===i}"`}));
-    const pl=sp?.kind==='fare'?fareItems().map((it,i)=>move(String(i+1),`${it.label} · ${it.cost}`,'buyFare',it.id,`data-item="${it.id}" data-n="${i+1}"`,it.off)):[];
+    // brawl-31: the fare sits in the card row right after Menu (it used to be a second row that fell below the screen)
+    if(sp?.kind==='fare')cards.splice(e.tv.sel+1,0,...fareItems().map((it,i)=>shopItem(it.label,`<img src="${esc(fareIcon(it.id).src)}" alt="" style="height:56px">`,it.cost,'buyFare',`data-item="${it.id}" data-n="${i+1}"`,it.off)));
     const chosen=tavernRecruit(e.st);
     const note=chosen ? `${esc(shortName(chosen))} joined you. One recruit per tavern.` : RC.title;
     const div=TAV_ORN;
-    showPanel(`<div class="action-deck tavern-deck"><div class="action-heading tavern-heading tavern-under">${div}<span>${T(note)}</span>${div}</div><div class="action-row">${cards.join('')}</div>${pl.length?`<div class="tavern-options">${pl.join('')}</div>`:''}</div>`,'rest action-panel');
+    showPanel(`<div class="action-deck tavern-deck"><div class="action-heading tavern-heading tavern-under">${div}<span>${T(note)}</span>${div}</div><div class="action-row">${cards.join('')}</div></div>`,'rest action-panel');
   }
   function tavernCard(p,j){ // a tavern companion in the same ink action card as attacks / shop items (data: KM_DATA.recruitCards)
     const RC=D.recruitCards,role=KM.PartyAbilities.role(p),line=RC.lines[role]||RC.lines.knight;
