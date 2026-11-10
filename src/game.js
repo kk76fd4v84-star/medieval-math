@@ -5,6 +5,9 @@
 // hidden monster strength until commit, D20, recruiting by maths (+ D20 contest), Frank's restraint branch,
 // layered camp / tavern views, approved drawn deaths, graves with killer emblems.
 (function () {
+  // Safari before 16 has no ctx.roundRect: same shape, drawn with arcs (used by hover/fallback frames)
+  if (typeof CanvasRenderingContext2D !== "undefined" && !CanvasRenderingContext2D.prototype.roundRect) CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+    r = Math.min(Array.isArray(r) ? r[0] : r || 0, w / 2, h / 2); this.moveTo(x + r, y); this.arcTo(x + w, y, x + w, y + h, r); this.arcTo(x + w, y + h, x, y + h, r); this.arcTo(x, y + h, x, y, r); this.arcTo(x, y, x + w, y, r); this.closePath(); return this; };
   const D = KM_DATA, SPL = KM_DATA.spell, IT = KM_DATA.items.fireBottle, W = D.world, A = KM.Audio, MU = KM.Music, RS = D.restStops, GR = D.graves, C = D.combat, L = KM_LAYOUT, K = L.k, VW = L.viewW;
   const $ = id => document.getElementById(id);
   const cv = $("game"), ctx = cv.getContext("2d");
@@ -61,8 +64,11 @@
   const PA = KM.PartyAbilities;
   // balance switches; tests that load without src/engine/balance-try.js get the switches-off behaviour
   const CARDS = KM.Cards && KM.BalanceTry?.on('cards') ? KM.Cards : null; // upgrade cards switch
+  const TRAPS = KM.BalanceTry?.on('traps') && window.KM_DATA?.traps ? KM_DATA.traps : null; // trap stops switch
   const CHEST = CARDS && KM.ChestCards?.on() ? KM.ChestCards : null; // chest cards switch: cards only from guarded chests
   const BT = KM.BalanceTry || { on: () => false, unit: () => 1, healthMul: () => null, packRelay: () => false, bossAtk: (e, b) => b, heartsText: String };
+  const BR = KM.Brawl?.on() ? KM.Brawl : { route: r => r, dress() {}, meet: () => false, team: () => null, banner() {}, badge: () => '', secs: (e, s) => s, answered() {}, won() {}, runEnd() {}, actions: {}, init() {} }; // brawl switch (src/brawl.js)
+  const JU = KM.Juice || { on: () => false, press: () => false, text: () => false, key() {}, enter() {}, init() {} }; // juice switch (src/engine/juice.js); tests load game.js alone
   const MP = KM.MeterPressure || { on: () => false, seconds: s => s, sells: () => [], level: () => 0, cost: () => null, image: () => null }; // meter pressure switch
   const maxHp = () => PA.maxHp(S.party);
   const roleMembers = role => PA.members(S.party, role);
@@ -135,7 +141,8 @@
   }
   function buildWorld(fromStop) {
     S.stops = []; let x = 1800;
-    const road = inTomb() ? KM.Tomb.route() : sketch ? sketch.route : S.chapter==="hollowwood" ? KM.HollowWood.route(S.runId) : KM.Road.build(S.routeVersion,S.runId);
+    const road0 = BR.route(inTomb() ? KM.Tomb.route() : sketch ? sketch.route : S.chapter==="hollowwood" ? KM.HollowWood.route(S.runId) : KM.Road.build(S.routeVersion,S.runId), S); // brawl: ghost stops
+    const road = TRAPS && !inTomb() && !sketch ? withTraps(road0) : road0;
     road.forEach((e, i) => { x += (e.gap || 1300) * (W.gapScale || 1); S.stops.push(Object.assign({ idx: i, stopX: x }, e)); });
     S.actors = []; S.obstacles = []; S.props = []; S.trees = [];
     const taken = new Set(S.party.filter(m => m.name).map(m => m.name));
@@ -190,6 +197,7 @@
         S.actors.push(mkActor({ stop: i, id: st.enemy, x: st.stopX + 420, main: true, foe: true, distant: true, hill: true })); // optional creature: on its hill
         return;
       }
+      if (st.type === "trap") { clear.push([st.stopX - 300, st.stopX + 300]); return; } // drawn by drawTraps, no actor
       const aid = st.type === "recruit" ? candArt(0, st) : st.enemy || st.npc;
       const w = KM.Assets.entitySize(aid)[0]; clear.push([st.stopX - w / 2 - 150, st.stopX + w / 2 + (st.walksIn ? 600 : 150)]);
       if (st.type === "math" && !st.group) st.group = rollGroup(st);
@@ -199,6 +207,7 @@
         wizardRock:!!st.wizardRock, riddleVariant:st.type==='riddle'?S.stops.slice(0,i).filter(q=>q.type==='riddle').length%3:null,
         back: ["bridgekeeper", "enchanter", "hermit"].includes(aid), candIdx: st.type === "recruit" ? 0 : undefined, name: st.type === "recruit" ? st.cands[0].name : undefined, label: st.type === "recruit" ? shortName(st.cands[0].name) : undefined }));
     });
+    BR.dress(S.actors, S.stops);
     if(inTomb()){S.graves=[];S.companionGraves=[];S.swaps=null;return;}
     if(sketch)return;
     buildGraves();
@@ -217,7 +226,7 @@
         const id = pickOne(W.obstacleKinds), half = KM.Assets.entitySize(id)[0] / 2 + 140;
         if (free(ox, half)) S.obstacles.push({ x: ox, id });
       }
-      if(!arena)S.obstacles.forEach(o => clear.push([o.x - 140, o.x + 140]));
+      if(!KM.DragonApproach.arena(S))S.obstacles.forEach(o => clear.push([o.x - 140, o.x + 140]));
       for (let px = 400; px < end; px += rnd(...W.propEvery)) {
         const id = pickOne(W.propKinds), half = KM.Assets.entitySize(id, W.propScale)[0] / 2 + W.propClearance;
         if (free(px, half)) S.props.push({ x: px, id });
@@ -290,7 +299,7 @@
   // v10: the frontGround run seed (choose-strip.js: "store/reuse the run seed") = a hash of the saved runId, also saved
   const seedOf = id => { let h = 2166136261; for (const ch of String(id)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; return h & 0x7fffffff; };
   const fgSeed = () => (S.fgSeed != null ? S.fgSeed : (S.fgSeed = seedOf(S.runId)));
-  const core = () => ({ chapter:S.chapter, challengeMode:S.challengeMode, name: S.name, hp: S.hp, gold: S.gold, score: S.score, scoreLedger: KM.Score.copy(S.scoreLedger), cards:(S.cards||[]).slice(), ...(S.meterGear&&Object.keys(S.meterGear).length?{meterGear:{...S.meterGear}}:{}), riddleSolved:S.riddleSolved.slice(),wizardUnlocked:S.wizardUnlocked, stop: S.stop, dist: Math.round(S.dist), fid: S.fid, further: S.furtherDone, hunters: S.hunters, spells: S.spells, spellLeft: S.spellLeft, mead: S.mead ? 1 : 0, bottles: S.bottles, runId: S.runId, fgSeed: fgSeed(),
+  const core = () => ({ chapter:S.chapter, challengeMode:S.challengeMode, name: S.name, hp: S.hp, gold: S.gold, score: S.score, scoreLedger: KM.Score.copy(S.scoreLedger), cards:(S.cards||[]).slice(),...(S.swingUsed?{swingUsed:true}:{}), ...(S.meterGear&&Object.keys(S.meterGear).length?{meterGear:{...S.meterGear}}:{}), riddleSolved:S.riddleSolved.slice(),wizardUnlocked:S.wizardUnlocked, stop: S.stop, dist: Math.round(S.dist), fid: S.fid, further: S.furtherDone, hunters: S.hunters, spells: S.spells, spellLeft: S.spellLeft, mead: S.mead ? 1 : 0, bottles: S.bottles, runId: S.runId, fgSeed: fgSeed(),
     pendingDismissal:S.pendingDismissal?JSON.parse(JSON.stringify(S.pendingDismissal)):null,loot:S.loot.map(q=>({...q})),routeVersion:S.routeVersion,restUses:JSON.parse(JSON.stringify(S.restUses)),rolesVersion: 3, dragonSlain: !!S.dragonSlain, tavernRecruits: {...S.tavernRecruits},
     party: S.party.map(m => { const { sx, hopY, act, hopping, dying, ...rec } = m; return rec; }), stats: Object.assign({}, S.stats), usedRiddles: S.usedRiddles.slice() });
   function save() { if (sketch || PREVIEW) return; KM.Save.write(Object.assign(core(), { checkpoint: S.checkpoint })); }
@@ -301,7 +310,7 @@
     S.pendingDismissal=c.pendingDismissal&&c.pendingDismissal.stop===c.stop?JSON.parse(JSON.stringify(c.pendingDismissal)):null;
     S.loot=(c.loot||[]).filter(q=>Number.isFinite(q.x)&&q.amount>0).map(q=>({...q}));
     S.routeVersion=c.routeVersion||0;S.restUses=JSON.parse(JSON.stringify(c.restUses||{}));
-    S.riddleSolved=(c.riddleSolved||[]).slice();S.cards=(c.cards||[]).slice();S.meterGear={...(c.meterGear||{})};S.wizardUnlocked=!!c.wizardUnlocked;
+    S.riddleSolved=(c.riddleSolved||[]).slice();S.cards=(c.cards||[]).slice();S.swingUsed=!!c.swingUsed;S.meterGear={...(c.meterGear||{})};S.wizardUnlocked=!!c.wizardUnlocked;
     S.enc = null; S.deathDepth = null; S.dragonSlain = !!c.dragonSlain; S.tavernRecruits = {...(c.tavernRecruits || {})};
     S.name = c.name; S.hp = c.hp; S.gold = c.gold; S.score = Number.isFinite(c.score) ? Math.trunc(c.score) : 0; S.scoreLedger = KM.Score.copy(c.scoreLedger); S.stop = c.stop; S.stats = Object.assign({ correct: 0, wrong: 0, riddles: 0, sacrificed: 0 }, c.stats); S.usedRiddles = (c.usedRiddles || []).slice();
     S.dist = c.dist || 0; S.furtherDone = !!c.further; S.hunters = c.hunters || 0; S.spells = c.spells != null ? c.spells : SPL.start; S.spellLeft = Math.min(SPL.problems, Math.max(0, c.spellLeft || 0)); S.mead = c.mead ? 1 : 0; S.bottles = c.bottles || 0; S.runId = c.runId || "run-" + Date.now(); S.fgSeed = c.fgSeed != null ? c.fgSeed : seedOf(S.runId);
@@ -326,7 +335,7 @@
   // v11 (Magnus: "absolute destruction of unnecessary small texts"): the strip only holds the big carved sum, a few
   // LARGE key options and one icon status row. Every line of dialogue is a speech bubble above its speaker.
   const panel = $("panel");
-  function showPanel(html, cls) { const sky=$("sky-title"); if(sky)sky.hidden=cls!=="title"; panel.className = "panel " + (cls || ""); panel.innerHTML = KM.I18n?.html(html) ?? html; fitSums(); fitMoves(); fitRiddleQ(); }
+  function showPanel(html, cls) { const sky=$("sky-title"); if(sky)sky.hidden=cls!=="title"; panel.className = "panel " + (cls || ""); panel.innerHTML = KM.I18n?.html(html) ?? html; BR.banner(panel); fitSums(); fitMoves(); fitRiddleQ(); }
   // v12s: the strip is 184 px, so a riddle that wraps to 2-3 lines steps its font down (KM_UI.riddleQ.minFont) until the
   // question frame + answer row fit inside the strip; every current riddle is one line at the full size.
   function fitRiddleQ() {
@@ -438,7 +447,8 @@
   function chunksOf(text) { // sentence by sentence, each wrapped to <= maxW, max SP.maxLines lines per bubble; short sentences share a bubble
     // v11b: a sentence ends at . ! ? … only when the next word starts a new sentence (capital, quote, *, digit), so
     // "the big... riddle." stays one sentence and no bubble ever starts mid-sentence
-    const sents = String(text).replace(/\s+/g, " ").trim().split(/(?<=[.!?…]["”’')]?)\s+(?=["“'(*\d\p{Lu}])/u), out = [];
+    // (no regex lookbehind: Safari before 16.4 fails to parse it and the whole game.js would not load)
+    const sents = String(text).replace(/\s+/g, " ").trim().replace(/([.!?…]["”’')]?)\s+(?=["“'(*\d\p{Lu}])/gu, "$1\n").split("\n"), out = [];
     for (const snt of sents.map(x => x.trim()).filter(Boolean)) {
       const ls = wrap(snt); if (ls.length > SP.maxLines && !speechOverflow.includes(snt)) speechOverflow.push(snt); // v11b: a sentence must fit ONE bubble (tests)
       for (let i = 0; i < ls.length; i += SP.maxLines) out.push(ls.slice(i, i + SP.maxLines));
@@ -508,7 +518,7 @@
       // v11b (mockup): purse + number under the party hearts (top left), the meter top centre, distance top right.
       // The spell shows as the "Stupidity" move while you hold a scroll and as the rolled-scroll countdown while active.
       const ph = partyHeartsRect();
-      h = `<span class="purse-at" style="top:${(ph ? ph.y + ph.h : 50) + 10}px">${purse(S.gold)}</span>${track}${pm ? '' : `<span class="dist" title="leagues travelled"><i class="mile">⚐</i>${leagues()}</span>`}${mute}`;
+      h = `<span class="purse-at" style="top:${(ph ? ph.y + ph.h : 50) + 10}px">${purse(S.gold)}</span>${BR.badge((ph ? ph.y + ph.h : 50) + 10)}${track}${pm ? '' : `<span class="dist" title="leagues travelled"><i class="mile">⚐</i>${leagues()}</span>`}${mute}`;
     }
     if (h !== hudCache) { $("hud").innerHTML = KM.I18n?.html(h)||h; hudCache = h; }
   }
@@ -551,10 +561,10 @@
     if(KM.Tomb?.requested())return startTomb();
     S.chapter=KM.HollowWood?.requested()?"hollowwood":"village";syncChapterFlag();
     hush(); S.deathDepth = null; S.dragonSlain = false;
-    S.cards = []; S.meterGear = {};
+    S.cards = []; S.meterGear = {}; S.swingUsed = false;
     S.name = "Nobody"; S.hp = D.party.heartsPerMember; S.gold = 5; S.loot = []; S.score = 0; S.scoreLedger = KM.Score.empty(); S.riddleSolved=[];S.wizardUnlocked=false;S.lightning=null; S.stop = 0; S.dist = 0; S.fid = 0; S.hunters = 0; S.spells = 0; S.spellLeft = 0; S.mead = 0; S.bottles = 0; S.runId = "run-" + Date.now(); S.fgSeed = seedOf(S.runId);
     S.stats = { correct: 0, wrong: 0, riddles: 0, sacrificed: 0 }; S.usedRiddles = []; S.pendingDismissal=null; S.tavernRecruits = {}; S.restUses={}; S.routeVersion=3;
-    S.party = [newMember("hero", slotX(0), BT.on("knightStart") ? "starter" : true)]; S.hp = maxHp(); buildWorld(0); S.camX = 0; addNarrator(); S.floats = []; S.dice = []; S.enc = null; S.timers = []; S.view = null; S.dying = null; S.entering = null; S.voices = [];
+    S.party = [newMember("hero", slotX(0), BT.on("knightStart") ? "starter" : true)]; S.hp = maxHp(); buildWorld(0); S.camX = 0; S.winT = 0; addNarrator(); S.floats = []; S.dice = []; S.enc = null; S.timers = []; S.view = null; S.dying = null; S.entering = null; S.voices = [];
     S.furtherDone = false; startRunBookkeeping();
     S.mode = "name"; musicScene("intro"); S.intro = null;
     renderIntro();
@@ -568,12 +578,23 @@
   function renderIntro() {
     if (S.mode === "name") {
       speak(narrator(), A.text(D.dialogue.namePrompt), { hold: true });
-      showPanel(`<div class="center dlg"><div class="namerow"><input id="nameInput" aria-label="Your name" maxlength="16" placeholder="your name" autocomplete="off" spellcheck="false">${big("Enter", "Begin", "submitName", 'id="nameOk"')}</div></div>`, "dialog");
-      setTimeout(() => { const i = $("nameInput"); if (i) i.focus(); }, 30);
+      showPanel(`<div class="center dlg"><div class="namerow"><div class="namebox"><input id="nameInput" aria-label="Your name" maxlength="16" placeholder="your name" autocomplete="off" spellcheck="false"><div id="nameInk" class="nameink" aria-hidden="true"></div></div>${big("Enter", "Begin", "submitName", 'id="nameOk"')}</div></div>`, "dialog");
+      setTimeout(() => { const i = $("nameInput"); if (i) { i.focus(); nameInk(i); } }, 30);
       return;
     }
     speak(narrator(), S.intro.lines[S.intro.i] || "", { hold: true });
     showPanel(`<div class="center dlg"><div class="opts">${big("Space", "Next", "nextLine")}${S.intro.after === "go" ? "" : big("Esc", "Skip", "skipIntro", 'id="skipBtn"')}</div></div>`, "dialog");
+  }
+  // the name's letters (data KM_DATA.juice.name): each new letter is drawn fire red-orange and cools to black ink; the
+  // input's own text is transparent (caret stays) and this row of letters sits on top of it
+  function nameInk(inp) {
+    const ink = $("nameInk"), N = KM_DATA.juice && KM_DATA.juice.name; if (!ink || !N) return;
+    const st = ink.style; st.setProperty('--nhot', N.hot); st.setProperty('--ncool', N.cooled); st.setProperty('--nglow', N.glow); st.setProperty('--nglowpx', N.glowPx + 'px'); st.setProperty('--nsecs', N.coolSecs + 's');
+    inp.classList.add('inked'); let old = '', born = [];
+    const draw = () => { const v = inp.value, now = performance.now();
+      born = [...v].map((c, i) => c === old[i] && born[i] != null ? born[i] : now); old = v;
+      ink.innerHTML = [...v].map((c, i) => `<span style="animation-delay:${-((now - born[i]) / 1000).toFixed(3)}s">${c === ' ' ? '&nbsp;' : c.replace(/[&<>"]/g, m => '&#' + m.charCodeAt(0) + ';')}</span>`).join(''); };
+    inp.addEventListener('input', draw); draw();
   }
   function advanceIntro(auto, wholeLine) {
     const it = S.intro; if (!it || S.mode !== "intro") return;
@@ -724,6 +745,7 @@
       case "riddle": musicScene("riddle"); startRiddle(); break;
       case "recruit": musicScene("recruit"); renderRecruit(); break;
       case "rest": musicScene(encounterMusic(st)); startRest(); break;
+      case "trap": startTrap(); break;
     }
   }
   function optionalBoss(){
@@ -742,6 +764,7 @@
   // ---- hidden strength: commit or avoid
   function approach() {
     const e = S.enc; e.phase = "approach";
+    if (BR.meet(e)) return; // brawl: a ghost team on the road
     if(isFellowship())return commit();
     const can = C.avoidable[e.st.type];
     heroSay(e.st.type === "math" ? "Something lurks in the mist..." : "It blocks the whole road. No way around!", inPhase("approach"));
@@ -876,6 +899,7 @@
     ask(level,()=>fellowshipVolley(e),()=>fellowshipWrong(e),null,undefined,'fellowship');
   }
   function fellowshipWrong(e) {
+    cardsV2Miss(e);
     if(CARDS&&CARDS.missChip(S)&&S.party.filter(PA.alive).length>1&&S.hp>1){const ally=S.party.filter(PA.alive)[1],n=Math.min(CARDS.missChip(S),S.hp-1);hearts(-n);e.lost=(e.lost||0)+n;float(`−${BT.heartsText(n)} ♥`,partyPose(ally).x,W.groundY-tallOf(artId(ally))+60,'#b3321f');renderHUD();} // Swing and a Miss
     if(!S.party.some(m=>PA.alive(m)&&KM.Fellowship.risky(m)))return turnWrong('fellowship');
     showCorrected(e.problem);huntersStep(1);
@@ -884,11 +908,42 @@
     if(witness)speak(witness,'The OTHER side!');
     fellowshipVolley(e,true);
   }
-  function fellowshipVolley(e,failed=false) {
+  // ---- cards v2 (switch cardsV2; data KM_DATA.upgradeCardsV2): per-run card levels feed the volley plan and a few hooks
+  const CV = id => CARDS && CARDS.v2 && CARDS.lv(S, id) > 0, CA = (id, key) => CARDS.at(S, id, key);
+  function cardsV2Plan(e, failed) {
+    if (!CARDS || !CARDS.v2) return null;
+    return { cleave: CV('cleave') ? CA('cleave', 'cleave') : [1, CARDS.data.knightSecondHit], knight: CA('swing_and_a_miss', 'knightDamage'),
+      fire: CA('embers', 'fireDamage'), axe: CV('weighted_axe') ? { under: CA('weighted_axe', 'lowHealth'), bonus: CA('weighted_axe', 'axeBonus') } : null,
+      skip: !failed && e.axeStuck ? e.axeStuck : null };
+  }
+  const memberFloat = (m, text, colour) => { const p = partyPose(m); float(text, p.x, W.groundY - tallOf(artId(m)) + 60, colour); };
+  function chipAlly(e, m, n, text) { // a card's cost hurts one ally: never the last heart
+    n = Math.min(n, S.hp - 1); if (!m || n <= 0) return; hearts(-n); e.lost = (e.lost || 0) + n; act(m, 'hurt', .3); A.play('hit_party');
+    memberFloat(m, `${text} −${BT.heartsText(n)} ♥`, '#b3321f'); renderHUD();
+  }
+  function cardsV2Miss(e) { // Swing and a Miss backswing (once a run), Embers friendly fire, Weighted Axe stuck
+    if (!CARDS || !CARDS.v2) return;
+    const alive = S.party.filter(PA.alive), D2 = id => CARDS.byId(id);
+    if (CV('swing_and_a_miss') && !S.swingUsed && alive.some(m => PA.role(m) === 'knight') && alive.length > 1) {
+      S.swingUsed = true; const b = D2('swing_and_a_miss').backswing; chipAlly(e, alive[1], Math.max(1, Math.round(2 * BT.unit() * b.share)), T('Backswing!'));
+    }
+    if (CV('embers') && alive.some(m => PA.role(m) === 'firestarter') && Math.random() < CA('embers', 'friendlyFire')) {
+      const others = alive.filter(m => PA.role(m) !== 'firestarter'); chipAlly(e, others[Math.floor(Math.random() * others.length)] || alive[0], D2('embers').friendlyFireUnits, T('Singed!'));
+    }
+    if (CV('weighted_axe')) { const ex = alive.filter(m => PA.role(m) === 'executioner'); if (ex.length) { e.axeStuck = new Set(ex); ex.forEach(m => memberFloat(m, T('Axe stuck!'), '#ecdcc4')); } }
+  }
+  function cardsV2Right(e, again) { // after a right answer's volley: Thunder Fist stuns; Rallying Cry may strike again (true = it does)
+    if (!CARDS || !CARDS.v2) return false;
+    if (!again && CV('thunder_fist') && S.party.some(m => PA.alive(m) && PA.role(m) === 'darkWizard') && Math.random() < CA('thunder_fist', 'stunChance'))
+      living(e).filter(f => !f.stunned).slice(0, CA('thunder_fist', 'stuns')).forEach(f => { f.stunned = true; float(T('Thunder Fist!'), centreX(f), W.groundY - tallOf(f.id) + 60, '#ef9139'); });
+    return !again && CV('rallying_cry') && living(e).length > 0 && Math.random() < CA('rallying_cry', 'strikeAgain');
+  }
+  function fellowshipVolley(e,failed=false,again=false) {
     if(S.enc!==e || S.dying)return;
     e.phase='busy';if(!failed)hush();
     const foes=living(e),timing=e.answerTiming;
-    const hits=KM.Fellowship.plan(S.party,foes,timing?.multiplier??1,{failed,hp:S.hp,maxHp:maxHp(),heals:e.heals,leader:e.leader?.member,leaderMultiplier:e.leader?.multiplier||1,knightTargets:CARDS?CARDS.knightTargets(S):0,burn:CARDS?CARDS.burn(S):0,wizardDamage:CARDS?CARDS.wizardDamage(S):0});
+    const hits=KM.Fellowship.plan(S.party,foes,timing?.multiplier??1,{failed,hp:S.hp,maxHp:maxHp(),heals:e.heals,leader:e.leader?.member,leaderMultiplier:e.leader?.multiplier||1,knightTargets:CARDS?CARDS.knightTargets(S):0,burn:CARDS?CARDS.burn(S):0,wizardDamage:CARDS?CARDS.wizardDamage(S):0,v2:cardsV2Plan(e,failed)});
+    if(!failed&&e.axeStuck)e.axeStuck=null; // the stuck axe costs exactly one volley
     if(!hits.length)return;
     const volley=e.fellowshipVolley={hits:hits.length,landed:0,total:0,backfire:0,failed};
     const targets=[...new Set(hits.flatMap(h=>h.impacts.map(i=>i.target)))];
@@ -945,6 +1000,10 @@
         const x=Math.max(VW*.65,Math.min(VW-300,targets.reduce((sum,a)=>sum+centreX(a),0)/targets.length));
         S.floats.push({fellowship:true,total:true,text:Number(volley.total.toFixed(2)),caption:T('PARTY DAMAGE'),crit:!!timing?.crit,index:0,x,y:130,t:0,life:1.1});
       }
+      if(!failed&&cardsV2Right(e,again)){ // Rallying Cry: the fallen fall, then the party swings once more
+        targets.filter(a=>a.hp<=0&&!a.gone).forEach(a=>{a.gone=true;say(a,(D.enemies[a.id]||{}).defeat);enemyDeath(a);});stepUp(e);syncFront(e);
+        heroSay(T('Again!'));return later(.8,()=>{if(valid())fellowshipVolley(e,false,true);});
+      }
       const settle=()=>{if(valid()){if(targets.length)settleHits(e,targets);else enemyTurn();}};
       // Resolve self-inflicted casualties even when the same spell killed the last foe.
       if(failed)afterHits(hits.some(h=>h.kind==='lightning')?'lightning':'fire',settle);else settle();
@@ -988,12 +1047,25 @@
     ask(level, () => turnRight(kind), () => turnWrong(kind), () => renderChoice(), undefined, kind);
   }
   // Timing measures answer quality. Filling the bar never submits or fails the question.
+  // party levels (switch partyLevels; data KM_DATA.partyLevels): fights won while alive raise a member's level (1..max);
+  // the living party's average level cancels part of a foe's intimidation (all of it for normal foes at max, part for big bosses)
+  const LV = BT.on('partyLevels'), PL = D.partyLevels;
+  const lvlOf = m => m.lvl || 1;
+  function courage() {
+    const alive = S.party.filter(PA.alive); if (!alive.length) return 0;
+    const avg = alive.reduce((n, m) => n + lvlOf(m), 0) / alive.length, big = PL.big.includes(S.enc?.st?.type);
+    return Math.max(0, (avg - 1) / (PL.max - 1)) * (big ? PL.cancel.big : PL.cancel.normal);
+  }
+  function partyWins() {
+    S.party.filter(PA.alive).forEach(m => { m.wins = (m.wins || 0) + 1; const n = PL.winsFor.filter(w => m.wins >= w).length;
+      if (n > lvlOf(m)) { m.lvl = Math.min(PL.max, n); float(PL.levelUp.replace('{n}', m.lvl), m.sx, W.groundY - tallOf("hero") + 40, "#f2c14e"); } });
+  }
   function combatWindows(kind=S.enc?.action) {
     const e=S.enc;
     const role={fire:'firestarter',execute:'executioner',lightning:'darkWizard',heal:'priest',resurrect:'priest'}[kind]||'knight';
     const owners=isFellowship()?S.party.filter(PA.alive):isKnight()&&e?.activeCard ? S.party.filter(m=>e.activeCard.owners.includes(m.id)) : PA.members(S.party,role);
-    const ready=e?.revealed&&e.pressureReady!==false&&(!KM.CastBar?.on()||D.castBar.shiftBy.includes(e.st?.type)),weapon=Math.max(0,...owners.filter(PA.alive).map(m=>m.weapon||0)),armour=PA.armour(S.party.filter(PA.alive)),companions=S.party.filter(m=>m.id!=='hero'&&PA.alive(m)).length;
-    if(MP.on())return MP.windows({weapon,armour,companions,helm:MP.level(S,'helm'),lantern:MP.level(S,'lantern'),foes:ready?living(e):[]});
+    const ready=e?.revealed&&e.pressureReady!==false&&(!KM.CastBar?.on()||LV||D.castBar.shiftBy.includes(e.st?.type)),weapon=Math.max(0,...owners.filter(PA.alive).map(m=>m.weapon||0)),armour=PA.armour(S.party.filter(PA.alive)),companions=S.party.filter(m=>m.id!=='hero'&&PA.alive(m)).length;
+    if(MP.on())return MP.windows({weapon,armour,companions,helm:MP.level(S,'helm'),lantern:MP.level(S,'lantern'),foes:ready?living(e):[],extra:LV?PL.foes:undefined,courage:LV?courage():0,shrink:bandShrink()});
     const pressure=ready?KM.Timing.pressure(living(e)):{};
     return KM.Timing.windows({weapon:Math.max(0,...owners.filter(PA.alive).map(m=>m.weapon||0)),armour:PA.armour(S.party.filter(PA.alive)),
       companions:S.party.filter(m=>m.id!=='hero'&&PA.alive(m)).length,pressure});
@@ -1008,13 +1080,14 @@
   let tmrHold = 0;
   const sumDrawn = () => [...panel.querySelectorAll(".sum img")].every(i => i.complete && i.naturalWidth > 0); // the on-screen glyphs have painted
   function startAnswerTimer(secs) {
-    const e = S.enc; if (!e) return null;
+    const e = S.enc; if (!e) return null; secs = BR.secs(e, secs); // brawl: a ghost answers at its recorded time
     e.tmr = null; e.answerTiming = null; tmrHold = 0; dividerFill(0);
     if (!(secs > 0) || NOTIMER || !e.q) return null;
-    const windows=e.revealed?combatWindows():KM.Timing.windows();
+    const windows=combatWindows(); // the party's current windows (foe pressure only once revealed): riddle / recruit sums never move the cast bar icons
     // the timer starts only once the sum's glyphs are loaded + decoded and the sum has been drawn (wait: true -> 1 -> 0)
     const wait = !!(e.phase === "math" && e.problem && KM.Assets.sumReady && !(KM.Assets.sumReady(e.problem.text) && sumDrawn()));
-    return (e.tmr = { t: 0, q: e.q, secs: MP.seconds(secs, windows), held: 0, wait, windows }); // meter pressure: a Quick foe shortens the time
+    const anger = e.action === 'fellowship' && CV('rallying_cry') && Math.random() < CA('rallying_cry', 'angerChance'); // Rallying Cry's cost
+    return (e.tmr = { t: 0, q: e.q, secs: MP.seconds(secs, windows), held: 0, wait, windows, anger }); // meter pressure: a Quick foe shortens the time
   }
   function tickAnswerTimer(dt) {
     paintTimingLegend();
@@ -1036,7 +1109,7 @@
     if(S.enc!==e||S.dying||!e.revealed||!e.q||clock.deadlineFired||e.deadlineBusy)return;
     clock.deadlineFired=true;
     const struck=e.deadlineStruck||(e.deadlineStruck=new Set());
-    const foes=living(e).filter(f=>KM.Timing.pattern(f.id).deadline&&intentDamage(e,f)>0&&!struck.has(f));
+    const foes=living(e).filter(f=>(KM.Timing.pattern(f.id).deadline||clock.anger)&&intentDamage(e,f)>0&&!struck.has(f));
     if(!foes.length)return;
     const phase=e.phase;e.phase='deadline';e.deadlineBusy=true;e.deadlineFrom=phase; // typing keeps working during the strike (typeKey)
     foes.forEach(f=>struck.add(f));
@@ -1169,7 +1242,9 @@
     if (!S.dying) later(0.6, enemyTurn);
   }
   function wizardLightning(failed) {
-    const e=S.enc,m=KM.DarkWizard.present(S.party)[0];if(!e||!m)return;
+    const e=S.enc,m=KM.DarkWizard.present(S.party)[0];if(!e)return;
+    if(!m){ // the wizard died before the answer landed (deadline strike): fall back like heal/fire do instead of locking the fight in "busy"
+      if(failed){say(e.act,`${pickOne(D.dialogue.wrong)} It's ${e.problem.answer}!`);showCorrected(e.problem);huntersStep(1);if(!S.dying)later(0.6,enemyTurn);}else renderChoice();return;}
     e.phase='busy';const foes=living(e).slice();
     const amount=failed?KM.DarkWizard.backfire(e.failedFraction):KM.DarkWizard.damage(S.party);
     const targets=foes.map(a=>({x:centreX(a),y:(dragonPose(a)?.y||W.groundY)-tallOf(a.id)*.5}));
@@ -1235,7 +1310,9 @@
     const atk=intentDamage(e,f);
     later(STRIKE.impact,()=>{
       if(S.enc!==e||S.dying)return;
-      const protectedHit=!deadline&&(e.timingBlock||(e.answerTiming&&KM.Timing.pattern(f.id).forgiving));
+      let walled=false; // Shield Wall (cards v2): a chance to block the very first enemy attack of each fight
+      if(CV('shield_wall')&&!e.wallTried){e.wallTried=true;walled=Math.random()<CA('shield_wall','firstBlock');if(walled)float(T('Shield Wall!'),slotX(0),W.groundY-tallOf('hero')+20,'#bcc0c3');}
+      const protectedHit=walled||(!deadline&&(e.timingBlock||(e.answerTiming&&KM.Timing.pattern(f.id).forgiving)));
       S.shake=.25;const guard=protectedHit?atk:Math.min(e.cardGuard||0,atk);
       if(!protectedHit)e.cardGuard=(e.cardGuard||0)-guard;
       const hit=PA.absorb(S.party,atk-guard);hit.blocked+=guard;
@@ -1288,7 +1365,7 @@
   }
   function defeatEnemy() {
     const e = S.enc, st = e.st, E = D.enemies[e.act.id] || {};
-    if(e.won)return;e.won=true;
+    if(e.won)return;e.won=true;BR.won(st);if(LV)partyWins();
     if(CARDS&&CARDS.cleanRefill(S)&&!e.lost)S.party.forEach(m=>m.armor=Math.max(m.armor||0,m.armorTop||0)); // Shield Wall
     e.phase = "busy"; say(e.act, e.act.defeat || E.defeat); enemyDeath(e.act);
 
@@ -1306,6 +1383,46 @@
     later(D.chestCards.shine.ms / 1000, () => { if (S.enc !== e || S.dying) return;
       if (!options.length) return finishEncounter();
       e.cardOptions = options; e.cardPick = true; showPanel(cardDialog(e), 'rest action-panel'); });
+  }
+  // ---- trap stops (data KM_DATA.traps): disarm with multiplication sums; a snap costs a companion an arm or a leg
+  function withTraps(road) {
+    const out = road.slice(), at = [...new Set(TRAPS.at.map(f => Math.max(1, Math.min(road.length - 1, Math.round(f * road.length)))))].sort((a, b) => b - a);
+    at.forEach((i, k) => out.splice(i, 0, { type: "trap", id: "trap_" + (at.length - k), gap: TRAPS.gap }));
+    return out;
+  }
+  function startTrap() {
+    const e = S.enc; e.phase = "trap"; showPanel('', 'info'); heroSay(pickOne(TRAPS.say.spot), inPhase("trap"));
+    later(1.4, () => { if (S.enc === e && !S.dying) trapSum(e, 0); });
+  }
+  function trapSum(e, n) {
+    ask(TRAPS.level, () => n + 1 < TRAPS.sums ? trapSum(e, n + 1) : trapJammed(e), () => trapSnap(e), null, undefined, "trap");
+  }
+  function trapJammed(e) {
+    if (S.enc !== e) return; e.st.trapState = "sprung"; e.phase = "busy"; showPanel('', 'info'); A.play(TRAPS.sfx.jam); heroSay(pickOne(TRAPS.say.jammed));
+    const options = CARDS && isFellowship() ? CARDS.offer(S).map(c => c.id) : [];
+    later(1.1, () => { if (S.enc !== e || S.dying) return;
+      if (options.length) { e.chest = { t0: S.t }; e.used = e.used || {}; e.cardOptions = options; e.cardPick = true; return showPanel(cardDialog(e), 'rest action-panel'); }
+      S.gold += TRAPS.gold; float(`+${TRAPS.gold}`, slotX(0), W.groundY - tallOf("hero") + 70, "#f3c94b"); save(); renderHUD(); later(0.8, finishEncounter); });
+  }
+  function trapSnap(e) {
+    if (S.enc !== e) return; e.st.trapState = "sprung"; e.phase = "busy"; showPanel('', 'info'); A.play(TRAPS.sfx.snap);
+    const can = S.party.filter(m => m.id !== "hero" && PA.alive(m) && !m.limb && !m.dying);
+    if (can.length) { const m = pickOne(can); m.limb = pickOne(["arm", "leg"]); act(m, "hurt", 0.5); speak(m, pickOne(TRAPS.say.snap[m.limb])); }
+    else { act(S.party[0], "hurt", 0.5); heroSay(pickOne(TRAPS.say.heroSnap)); hearts(-Math.min(TRAPS.heroHearts, Math.max(0, S.hp - 1))); }
+    save(); renderHUD(); later(1.6, finishEncounter);
+  }
+  const limbShrink = () => S.party.reduce((o, m) => { const c = m.limb && PA.alive(m) && TRAPS.limbCost[m.limb] || {}; return { crit: o.crit + (c.crit || 0), block: o.block + (c.block || 0) }; }, { crit: 0, block: 0 });
+  function bandShrink() {
+    const c = CARDS && CARDS.v2 ? CARDS.shrink(S) : null; if (!TRAPS) return c || undefined;
+    const l = limbShrink(); return { crit: l.crit + (c ? c.crit : 0), block: l.block + (c ? c.block : 0) };
+  }
+  function drawTraps() {
+    if (!TRAPS) return; const T = TRAPS.art;
+    S.stops.forEach((st, i) => { if (st.type !== "trap" || i < S.stop - 1) return;
+      const x = screenX(st.stopX + T.dx); if (x < -300 || x > VW + 300) return;
+      const im = KM.Assets.loadImg(st.trapState === "sprung" ? T.sprung : T.open); if (!im._ok) return;
+      const h = T.w * im.naturalHeight / im.naturalWidth; ctx.drawImage(im, x - T.w / 2, W.groundY + T.dy - h, T.w, h);
+    });
   }
   function drawChests() {
     if (!CHEST || !isFellowship()) return;
@@ -1353,7 +1470,13 @@
   // ---- generic maths question (combat actions, recruits, Frank)
   function ask(level, onRight, onWrong, back, secs, kind="recruit") {
     if (TUT && !TUT.seen()) return tutorial(() => ask(level, onRight, onWrong, back, secs, kind));
+    const again = () => ask(level, onRight, onWrong, back, secs, kind), code = kind === "recruitCode", fight = !NOT_FIGHT.includes(kind);
+    if ((code || kind === 'recruit') && TUT && !tipSeen('party')) return tipDialog('party', again); // Magnus: the party tip before you sign anyone up
+    if (code && TUT && !tipSeen('recruitCode')) return tipDialog('recruitCode', again);
+    if (fight && scaredTip()) { const e0 = S.enc; e0.phase = "busy"; showPanel('', 'info'); return later(KM_DATA.tutorial.tips.scared.afterSecs, () => { if (S.enc === e0 && !S.dying) tipDialog('scared', again); }); }
+    const tip = fight && crewTip(); if (tip) return tipDialog(tip, again);
     const e = S.enc; e.phase = "math"; e.input = ""; e.tmr = null; e.enterQueued = false;
+    if (code) { e.problem = recruitCode(); e.q = { onRight, onWrong, back, level }; renderMath(); return startAnswerTimer(D.recruitCode.secs); }
     if(isFellowship() && S.spells>0 && !S.spellLeft && !meadNow()){S.spells--;S.spellLeft=SPL.problems;A.play(SPL.sfx.cast);renderHUD();}
     const mead = meadNow(), stupid = mead || S.spellLeft > 0; // Scroll: the next maths problem only. Mead: all sums in this battle.
     const grade=KM.Progression.level(level,e.st,S.stops),stage=KM.Progression.stage(e.st,S.stops);
@@ -1410,24 +1533,25 @@
       <div class="ops">${OPS.map(([ch]) => `<span class="op ${used.includes(ch) ? "on" : ""}">${G(ch)}</span>`).join("")}</div>` : "";
     showPanel(`<div class="center mathp ${L.touchPad ? "touch" : ""}">
         ${isKnight()&&e.activeCard?'<small class="committed-card">'+T(e.activeCard.name)+'</small>':''}
-        <div class="sum"><span class="problem">${G(used)}<span class="answer" id="answer">${G(e.input) || "&nbsp;"}</span></span></div>
+        <div class="sum${e.problem.code ? " code" : ""}"><span class="problem">${G(e.problem.code ? e.problem.text : used)}<span class="answer" id="answer">${G(e.input) || "&nbsp;"}</span></span></div>
         ${pad}
       </div>`, "math"); // v11: only the carved sum (no title, hint or key captions; Esc still goes back)
   }
   function typeKey(k) {
     const e = S.enc, striking = e && e.phase === "deadline" && e.deadlineFrom === "math"; // a deadline strike must not eat keystrokes
     if (!e || (e.phase !== "math" && !striking) || e.sub) return;
-    A.play("key_tap");
+    const right = k !== "enter" || !e.input ? null : parseInt(e.input, 10) === e.problem.answer; // Enter: right / wrong / nothing to submit
+    if (!JU.press(k, right)) A.play("key_tap"); // juice switch: the key's own sound, in this keydown
     if (k === "back") e.input = e.input.slice(0, -1);
     else if (k === "enter") { if (striking) { e.enterQueued = true; return; } return submitAnswer(); }
     else if (/^\d$/.test(k) && e.input.length < 6) e.input += k;
-    const el = $("answer"); if (el) el.innerHTML = G(e.input) || "&nbsp;";
+    const el = $("answer"); if (el) el.innerHTML = G(e.input) || "&nbsp;"; JU.key(k, el); // juice switch: lands heavy
   }
   function submitAnswer() {
     const e = S.enc; if (!e || e.phase !== 'math' || !e.q || !e.input) return;
-    const q = e.q, right = parseInt(e.input, 10) === e.problem.answer;
+    const q = e.q, right = parseInt(e.input, 10) === e.problem.answer; JU.enter(right, $("answer"), S); // juice switch: punch / blocked (its sound played on the keydown)
     e.failedFraction=e.tmr?Math.min(1,e.tmr.t/e.tmr.secs):1;
-    e.answerTiming = right ? KM.Timing.grade(e.tmr, q) : null;
+    e.answerTiming = right ? KM.Timing.grade(e.tmr, q) : null; BR.answered(e, right); // brawl: ghost recording
     e.q = null; e.tmr = null; e.phase = "busy";
     if (right) { S.stats.correct++; awardScore(e.answerTiming, "math", e.problem.scrollAssisted); A.play("correct"); q.onRight(); }
     else { S.stats.wrong++; A.play("wrong"); q.onWrong(); }
@@ -1549,11 +1673,11 @@
         huntersStep(1); if (S.dying) return;
         if (st.rest === 'campsite') { campRecruitLeaves(st, j); done(false); return; }
         if (isTavern(st)) { tavernRecruitLeaves(st,j);done(false);return; }
-        if(isFellowship()){say(candSpeaker(st,j),`It's ${S.enc.problem.answer}. Maybe another time.`);campRecruitLeaves(st,j);done(false);return;}
-        say(candSpeaker(st, j), `It's ${S.enc.problem.answer}! Can't count? Roll me for it, then.`, inPhase("contestOffer"));
+        if(isFellowship()){say(candSpeaker(st,j),S.enc.problem.code?D.recruitCode.fail.leave:`It's ${S.enc.problem.answer}. Maybe another time.`);campRecruitLeaves(st,j);done(false);return;}
+        say(candSpeaker(st, j), S.enc.problem.code ? D.recruitCode.fail.contest : `It's ${S.enc.problem.answer}! Can't count? Roll me for it, then.`, inPhase("contestOffer"));
         S.enc.phase = "contestOffer"; S.enc.contest = { st, j, done };
         contestPanel();
-      }, () => done(false, true));
+      }, () => done(false, true), undefined, RC_KIND());
   }
   function campRecruitLeaves(st, j) {
     const p = st.cands[j], a = candSpeaker(st, j);
@@ -1708,6 +1832,10 @@
     showPanel(`<div class="center"><div class="opts big3">${priests().map((m, i) => `<button class="opt plaque" data-act="doSacrifice" data-id="${m.id}">${BANNER}<span class="nm">${esc(shortName(m.name))}</span></button>`).join("")}${big("Esc", "Cancel", "cancelSacrifice")}</div></div>`, "riddle");
   }
   function cancelSacrifice() { const e = S.enc; e.sub = null; e.prevPhase === "riddle" ? renderRiddle() : renderChoice(); }
+  function loseCompanion(m) { // a companion leaves the party for good (brawl: left behind to stall a ghost team)
+    const i = S.party.indexOf(m); if (i <= 0) return; S.party.splice(i, 1); S.stats.sacrificed++; buryCompanion(m, S.enc?.act?.id); A.play("sacrifice");
+    S.hp = Math.min(S.hp, maxHp()); const a = mkActor({ id: artId(m), x: S.camX + m.sx, state: "holdoff", name: m.name, label: shortName(m.name) }); S.actors.push(a); say(a, m.sacrifice || "Farewell!");
+  }
   function doSacrifice(id) {
     const e = S.enc, i = S.party.findIndex(m => m.id === id); if (!e || i <= 0 || e.sub !== "sacrifice" || !priests().includes(S.party[i])) return; e.sub = null;
     const m = S.party.splice(i, 1)[0]; S.stats.sacrificed++; buryCompanion(m,e.act?.id); A.play("sacrifice");
@@ -1765,6 +1893,7 @@
     keeper ? say(keeper, text) : heroSay(text);
   }
   function startRest() {
+    if (TUT && S.enc && ['stall', 'shop'].includes(S.enc.st.rest) && !tipSeen('gear')) return tipDialog('gear', startRest); // Magnus: the gear tip as you reach a scroll stall / shop, not after
     const e = S.enc, T = restT(); e.used = S.restUses[e.st.idx] || (S.restUses[e.st.idx]={}); A.play("rest_" + e.st.rest); setCheckpoint();
     if (ART7 && T.view === "camp") { S.view = null; keeperSay(T.greet); return renderRest(); }
     if (ART7 && T.view === "tavern") { S.view = null; return renderTavernOut(); } // v11b: Magnus's full-screen exterior
@@ -1833,16 +1962,46 @@
     if(e.cardOptions.length)cards.push(actionCard({label:'Upgrade card',act:'openCards',icon:'<img src="assets/ui/cards/cleave.png" alt="" style="height:64px">',meta:'Pick one',detail:T('Free')}));
   }
   function cardDialog(e){
-    const opts=e.cardOptions.map(id=>CARDS.byId(id)).map(c=>`<button class="upgrade-card" data-act="takeCard" data-id="${c.id}" aria-label="${c.name}" style="background:none;border:0;padding:0 10px;cursor:pointer">${c.img?`<img src="${c.img}" alt="${c.name}" style="height:min(560px,62vh);display:block">`:plainCard(c)}</button>`).join('');
+    const opts=e.cardOptions.map(id=>CARDS.byId(id)).map(c=>`<button class="upgrade-card" data-act="takeCard" data-id="${c.id}" aria-label="${c.name}" style="background:none;border:0;padding:0 10px;cursor:pointer"> ${c.img&&!CARDS.v2?`<img src="${c.img}" alt="${c.name}" style="height:min(560px,62vh);display:block">`:CARDS.v2&&CARDS.data.art&&KM.Assets.loadImg(CARDS.data.art.dir+c.id+'.png')._ok?artCard(c):plainCard(c)}</button>`).join('');
     return `<div role="dialog" aria-label="Pick an upgrade card" style="position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(36,28,18,.45)">${opts}${actionCard({label:'Not now',act:'closeCards',icon:'←',meta:'Back'})}</div>`;
   }
+  function artCard(c){ // cards v2 painting (data upgradeCardsV2.art) with LEVEL n/max printed in its empty level slot
+    const A=CARDS.data.art,[w,h]=A.size,[x0,y0,x1,y1]=A.level.box,H='min(560px,62vh)',pc=(v,t)=>`${(100*v/t).toFixed(3)}%`;
+    const lvl=(c.max||1)>1?`<span style="position:absolute;left:${pc(x0,w)};top:${pc(y0,h)};width:${pc(x1-x0,w)};height:${pc(y1-y0,h)};display:flex;align-items:center;justify-content:center;font:calc(${H} * ${A.level.font} / ${h}) Gelasio,Georgia,serif;color:${A.level.ink};letter-spacing:.06em">${T('LEVEL')} ${CARDS.lv(S,c.id)+1}/${c.max}</span>`:'';
+    return `<div style="position:relative;height:${H};aspect-ratio:${w}/${h}"><img src="${A.dir+c.id}.png" alt="${c.name}" style="height:100%;display:block">${lvl}</div>`;
+  }
   function plainCard(c){ // a card with no painting yet: parchment, name, effect, cost
-    return `<div style="height:min(560px,62vh);aspect-ratio:2/3;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:6% 8%;background:#ecdcc4;border:6px double #292018;color:#292018;font-family:Georgia,serif;text-align:center"><strong style="font-size:30px">${c.name}</strong><span style="font-size:15px">${String(c.owner||'').replace('darkWizard','Dark Wizard').toUpperCase()}</span><span style="font-size:22px;line-height:1.3">${c.text||''}</span><span style="font-size:20px;line-height:1.3;background:#292018;color:#ecdcc4;padding:14px">${c.costText||''}</span></div>`;
+    return `<div style="height:min(560px,62vh);aspect-ratio:2/3;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:6% 8%;background:#ecdcc4;border:6px double #292018;color:#292018;font-family:Georgia,serif;text-align:center"><strong style="font-size:30px">${c.name}</strong><span style="font-size:15px">${String(c.owner||'').replace('darkWizard','Dark Wizard').toUpperCase()}${CARDS.v2&&(c.max||1)>1?` · ${T('LEVEL')} ${CARDS.lv(S,c.id)+1}/${c.max}`:''}</span><span style="font-size:22px;line-height:1.3">${c.text||''}</span><span style="font-size:20px;line-height:1.3;background:#292018;color:#ecdcc4;padding:14px">${c.costText||''}</span></div>`;
   }
   function takeCard(id){const e=S.enc;if(!e||!CARDS||e.used?.card||!e.cardOptions?.includes(id))return;S.cards=(S.cards||[]).concat(id);(e.used=e.used||{}).card=true;e.cardPick=false;A.play('buy_gear');save();if(e.chest)return finishEncounter();renderRest();}
   // cast bar tutorial (switch castBar; text KM_DATA.tutorial.castBar): once per save, before the first sum
   const TUT = KM.CastBar && KM.CastBar.on() && KM_DATA.tutorial && (() => { const t = KM_DATA.tutorial.castBar;
     return { t, seen: () => { try { return localStorage.getItem(t.saveKey) === '1'; } catch (_) { return true; } }, done: () => { try { localStorage.setItem(t.saveKey, '1'); } catch (_) {} } }; })();
+  // recruit codes (switch recruitCode; data KM_DATA.recruitCode): a random code to type before the short meter ends
+  const NOT_FIGHT = ["recruit", "recruitCode", "restraint", "trap"], RC_KIND = () => BT.on('recruitCode') ? "recruitCode" : "recruit";
+  function recruitCode() { let t = String(1 + Math.floor(Math.random() * 9)); while (t.length < D.recruitCode.digits) t += Math.floor(Math.random() * 10);
+    return { text: t, answer: Number(t), code: true, type: 'code', level: 'code' }; }
+  const tipSeen = id => { try { return localStorage.getItem(KM_DATA.tutorial.tips[id].saveKey) === '1'; } catch (_) { return true; } };
+  // first time a foe's intimidation moves the cast bar for a party that can't shrug it off (switch partyLevels)
+  function scaredTip() {
+    if (!LV || !TUT || !MP.on() || tipSeen('scared')) return false;
+    const w = combatWindows(), p = w && w.enemyPressure; return !!(p && (p.crit > 0 || p.block > 0 || w.quick > 0 || w.ink));
+  }
+  // first time the bar shifts because the party grew (worse) or got better gear (better): one tip each per save. Fight sums only.
+  let crewLast = null;
+  function crewTip() {
+    const tips = TUT && KM_DATA.tutorial.tips; if (!tips) return null;
+    const alive = S.party.filter(PA.alive), cur = { comp: alive.filter(m => m.id !== 'hero').length,
+      gear: alive.reduce((n, m) => n + (m.weapon || 0), 0) + PA.armour(alive) + (MP.on() ? MP.level(S, 'helm') + MP.level(S, 'lantern') : 0) + (S.cards || []).length };
+    const last = crewLast; crewLast = cur; if (!last) return null;
+    return cur.comp > last.comp && !tipSeen('party') ? 'party' : cur.gear > last.gear && !tipSeen('gear') ? 'gear' : null;
+  }
+  function tipDialog(id, then) {
+    const e = S.enc, t = KM_DATA.tutorial.tips[id]; e.phase = 'tutorial'; e.tutorialThen = then; e.tip = id;
+    showPanel('', 'info'); document.getElementById('tut-layer')?.remove();
+    document.getElementById('stage').insertAdjacentHTML('beforeend', `<div id="tut-layer" class="tut-shade"><div class="tut-dialog" role="dialog" aria-modal="true" aria-labelledby="tut-title"><div id="tut-title" class="tut-title">${esc(T(t.title))}</div>${t.art ? `<img class="tut-art" src="${t.art}" alt="" draggable="false">` : ''}<div class="tut-intro">${esc(T(t.text))}</div><button type="button" class="opt plaque tut-go" data-act="closeTutorial">${esc(T(t.button))}</button></div></div>`);
+    document.querySelector('#tut-layer .tut-go')?.focus();
+  }
   function tutorial(then) {
     const e = S.enc, t = TUT.t, w = 'assets/timing-woodcut/', img = id => `<img src="${w}${id}.png" alt="" draggable="false">`; e.phase = 'tutorial'; e.tutorialThen = then;
     const bar = `<div class="tut-bar" aria-hidden="true"><img class="tut-track" src="${w}track.png" alt=""><img class="tut-fill" src="${w}fill.png" alt="">${t.icons.map(r => `<span class="tut-mark" style="left:${r.at * 100}%">${img(r.icon)}</span>`).join('')}</div><div class="tut-ends"><span>${esc(T(t.ends[0]))}</span><span>${esc(T(t.ends[1]))}</span></div>`;
@@ -1861,8 +2020,16 @@
     document.getElementById('stage').insertAdjacentHTML('beforeend', `<div id="pause-layer" class="tut-shade"><div class="tut-dialog pause-dialog" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div id="pause-title" class="tut-title">${esc(T('Paused'))}</div>${go('pauseMusic', off ? 'Music: Off' : 'Music: On')}${go('closePause', 'Resume')}</div></div>`);
     document.querySelector('#pause-layer [data-act="closePause"]')?.focus();
   }
+  // Escape opens the pause menu unless the screen already uses it (skip intro, back, cancel, leave, close) (Magnus 2026-11-08)
+  function escapeHasJob() {
+    if (S.mode === "intro") return true;
+    const e = S.enc; if (S.mode !== "encounter" || !e) return false;
+    if (e.phase === "optional" || e.sub === "sacrifice" || ["replace", "contestOffer", "tutorial"].includes(e.phase)) return true;
+    if ((e.phase === "math" || e.phase === "deadline") && e.q && e.q.back) return true;
+    return e.phase === "rest" && !!S.view && S.view.id === "tavern-interior";
+  }
   function closePause() { paused = false; document.getElementById('pause-layer')?.remove(); }
-  function closeTutorial() { const e = S.enc; if (!e || e.phase !== 'tutorial') return; TUT.done(); document.getElementById('tut-layer')?.remove(); const then = e.tutorialThen; e.tutorialThen = null; then(); }
+  function closeTutorial() { const e = S.enc; if (!e || e.phase !== 'tutorial') return; if (e.tip) { const tp = KM_DATA.tutorial.tips[e.tip]; try { localStorage.setItem(tp.saveKey, '1'); } catch (_) {} e.tip = null; if (tp.roar) { A.play(tp.roar, { gain: tp.roarGain ?? .4 }); S.shake = Math.max(S.shake || 0, .3); } } else TUT.done(); document.getElementById('tut-layer')?.remove(); const then = e.tutorialThen; e.tutorialThen = null; then(); }
   function gearDialog(kind){
     const g=restT().gear,key=kind==='weapon'?'maxWeapon':'maxArmor',cost=kind==='weapon'?g.weaponCost:g.armorCost;
     const icon=`<img src="assets/ui/shop/${kind==='weapon'?'sword':'armour'}-cutout.png" alt="">`;
@@ -1903,7 +2070,7 @@
       () => completeRecruit(st,j,back,pickOne(RT.yes)),
       () => { huntersStep(1); if (S.dying) return;
         tavernRecruitLeaves(st,j);back(); },
-      back);
+      back, undefined, RC_KIND());
   }
   const contestPanel = () => showPanel(`<div class="center"><div class="opts big3 turn moves">${move("D", "Roll for it", "contest", "roll")}${move("N", "No", "noContest", "")}</div></div>`, "info");
   function restRecruit(j) {
@@ -1938,7 +2105,7 @@
   function heroDies(killer) {
     if (S.mode === "dying" || S.mode === "gameover") return;
     const st = S.stops[S.stop];
-    S.dying = { t: 0, killer, st };
+    S.dying = { t: 0, killer, st }; BR.runEnd(S, true);
     const hero = S.party[0]; if (hero) { hero.act = null; hero.dying = { t: 0 }; }
     const dur = hero ? deathDur(hero, killer) : 0; // v19: brutal death by the killer (eaten / torn / arrows) or the approved knight death
     S.deathDepth = S.enc && S.enc.depth ? Object.assign({}, S.enc.depth, { mode: "battle" }) : null;
@@ -1968,7 +2135,7 @@
     const next=!finalize && !sketch && S.routeVersion && PREVIEW!=="score-win" && D.chapters.next[S.chapter];
     if(next)return chapterGate(next);
     if(sketch)return sketchPage("sketchWin");
-    S.mode = "win"; A.play("victory"); musicScene("win"); if (!PREVIEW) KM.Save.clear();
+    S.mode = "win"; BR.runEnd(S, false); A.play("victory"); musicScene("win"); if (!PREVIEW) KM.Save.clear();
     const isBest = !PREVIEW && KM.Save.recordBest(+leagues(), S.name);
     endNarrator(A.text(D.dialogue.victory)); paceVO(A.voOf(D.dialogue.victory), narrator);
     showPanel(`<div class="center endp"><h1>Victory!</h1><div class="endrow">${scoreHTML()}${journeyHTML(isBest)}<button class="opt plaque scores-link" data-act="leaderboard">Leaderboard</button>
@@ -2064,11 +2231,11 @@
       const e = S.enc; if (!e || e.phase!=="recruit") return;
       recruitFlow(e.st, 0, (ok, cancelled) => { if (cancelled) return renderRecruit(); if (!ok) e.act.state = "stay"; finishEncounter(); });
     },
-    noRecruit: () => { S.enc.act.state = "stay"; finishEncounter(); },
+    noRecruit: () => { if (!S.enc || !S.enc.act) return; S.enc.act.state = "stay"; finishEncounter(); },
     contest: () => contest(),
-    noContest: () => { const c = S.enc.contest; S.enc.contest = null; c.done(false); },
+    noContest: () => { const c = S.enc && S.enc.contest; if (!c) return; S.enc.contest = null; c.done(false); },
     roll: () => roll(),
-    frankAgree: () => { if (S.enc.phase === "frank") { say(S.enc.frank, "Splendid! For God and science!"); commit(); } }, frankNo: () => frankNo(),
+    frankAgree: () => { if (S.enc && S.enc.phase === "frank") { say(S.enc.frank, "Splendid! For God and science!"); commit(); } }, frankNo: () => frankNo(),
     tvBack: () => tvBack(), tvJoin: b => tvJoin(+b.dataset.j), tvTalk: b => { const j = +b.dataset.j, p = S.enc.st.cands[j]; if (p) speak(candSpeaker(S.enc.st, j), p.join); },
     talkTable: () => talkPoint("table"), talkBar: () => talkPoint("bar"), castSpell: () => castSpell(), buySpell: () => buySpell(), pickFire: () => pickFire(), buyBottle: () => buyBottle(),
     tvAsk:b=>{if(S.enc?.tv){A.play('ui_click');S.enc.tv.ask=+b.dataset.j;renderTavernInside();}},
@@ -2085,6 +2252,9 @@
     toggleMusic: () => { MU.toggleMute(); renderHUD(); },
     openPause, closePause, pauseMusic: () => { MU.toggleMute(); renderHUD(); renderPause(); }
   };
+  Object.assign(actions, BR.actions); JU.init();
+  BR.init({ S, say, T, esc, showPanel, actionCard, shortName, artId, renderHUD, loseCompanion, commit: () => commit(), finish: () => finishEncounter() });
+
   // v11b (Magnus): scene hotspots work with the mouse too: pointer cursor + the ink highlight on hover, click = use
   // (exterior doorway = go in; inside: sign = swing it / its plaques, recruit = "Join my party?", door = go outside).
   function hotspotAt(ev) {
@@ -2114,8 +2284,11 @@
     }
     if (b.disabled) return;
     if(S.enc?.gearChoice && !["assignGear","cancelGear","toggleMusic","openPause","closePause","pauseMusic"].includes(b.dataset.act))return;
-    if (b.dataset.key) return typeKey(b.dataset.key);
-    if (b.dataset.act && actions[b.dataset.act]) { A.play("ui_click"); actions[b.dataset.act](b); }
+    if (b.dataset.key) return JU.on?.() ? undefined : typeKey(b.dataset.key); // juice: the pad acts on pointerdown
+    if (b.dataset.act && actions[b.dataset.act]) { if (b.dataset.act !== "submitName" || !JU.text("Enter")) A.play("ui_click"); actions[b.dataset.act](b); } // juice: Begin = the heavy Enter
+  });
+  document.addEventListener("pointerdown", ev => { // juice switch: an on-screen key acts (and sounds) the moment it is touched
+    const b = JU.on?.() && ev.target.closest?.("[data-key]"); if (b && !b.disabled) typeKey(b.dataset.key);
   });
   // Keyboard is THE input. Every prompt shows its key; clicking the option lines also works.
   document.addEventListener("keydown", ev => {
@@ -2127,11 +2300,13 @@
       else if(k==='Tab'){const buttons=[...panel.querySelectorAll('[role="dialog"] button:not([disabled])')];const i=buttons.indexOf(document.activeElement);ev.preventDefault();buttons[(i+(ev.shiftKey?-1:1)+buttons.length)%buttons.length]?.focus();}
       return;
     }
-    if (S.mode === "name") { if (k === "Enter" && !ev.isComposing) { ev.preventDefault(); submitName(); } return; }
+    if (S.mode === "name") { // juice switch: every key of the name has its metal sound, in this keydown
+      if (!ev.isComposing && !ev.ctrlKey && !ev.metaKey && !ev.altKey) JU.text(k);
+      if (k === "Enter" && !ev.isComposing) { ev.preventDefault(); submitName(); } return; }
     if (S.mode === "encounter" && S.enc && S.enc.phase === "spell") { // v12k fire bottle word: letters only (M, Z... are letters here); v12m: Backspace does nothing
       if (k === "Backspace") ev.preventDefault(); else if (/^[a-z]$/i.test(k)) spellKey(k.toUpperCase()); return; }
     if (K1 === "M") { MU.toggleMute(); renderHUD(); return; }
-    if (K1 === "P" && BT.on('pauseMenu')) { openPause(); return; }
+    if (BT.on('pauseMenu') && (K1 === "P" || (k === "Escape" && !escapeHasJob()))) { openPause(); return; }
     if (k === "[" || k === "]") { MU.setVolume(MU.settings().volume + (k === "]" ? 1 : -1) * D.music.volumeStep); renderHUD(); return; }
     if ([" ", "Enter", "Backspace"].includes(k)) ev.preventDefault();
     if (sketch && ['sketchTitle','sketchWin','sketchLoss'].includes(S.mode)) {
@@ -2315,10 +2490,10 @@
   // (MISSING_ART #34) + the number of easy sums left in big type
   // ---- v11b hearts in the scene: the party's at the top left (in pairs = one pair per member), the monster's small
   // above the monster. Ink hearts: red = full, outline = lost (stand-ins, MISSING_ART #33)
-  const HS = 34, HG = 6, PG = 14; // party heart size, gap, extra gap between members (stage px)
+  const HS = 34, HG = 6, PG = 14, HX = 18, HY = 16; // party heart size, gap, extra gap between members, top-left corner (stage px)
   const showHearts = () => !["title", "intro", "name"].includes(S.mode);
   const armourOverhang = () => Math.max(0, Math.ceil(PA.armour(S.party) / Math.max(1,maxHp())) - 1) * 7;
-  const partyHeartsRect = () => { if (inTomb() || !showHearts()) return null; return { x:18, y:16, w:maxHp()/BT.unit()*(HS+HG)+armourOverhang()+Math.max(0,S.party.length-1)*PG, h:HS }; };
+  const partyHeartsRect = () => { if (inTomb() || !showHearts()) return null; return { x:HX, y:HY, w:maxHp()/BT.unit()*(HS+HG)+armourOverhang()+Math.max(0,S.party.length-1)*PG, h:HS }; };
   function heartPath(x, y, s) { // top-left x,y, size s
     ctx.beginPath(); ctx.moveTo(x + s / 2, y + s * 0.95);
     ctx.bezierCurveTo(x - s * 0.05, y + s * 0.55, x - s * 0.02, y + s * 0.05, x + s * 0.27, y + s * 0.06);
@@ -2328,20 +2503,23 @@
   }
   function heart(x, y, s, full, col) { heartPath(x, y, s); ctx.fillStyle = full ? col : "rgba(239,224,192,.85)"; ctx.fill(); ctx.lineWidth = Math.max(2, s / 12); ctx.strokeStyle = "#2a1d12"; ctx.stroke(); }
   function halfHeart(x,y,s,col){ctx.save();ctx.beginPath();ctx.rect(x-4,y-4,s/2+4,s+8);ctx.clip();heart(x,y,s,true,col);ctx.restore();}
+  // one team's hearts in pairs (one pair per member), from x outwards (dir 1 = rightwards: the party; -1 = leftwards)
+  function teamHearts(team,hp,armour,x0,y,dir){
+    const u=BT.unit(),slots=[];let x=x0,i=0;
+    team.forEach((m,j)=>{if(j)x+=PG*dir;
+      for(let h=0;h<PA.life(m)/u;h++){slots.push(x);const lit=Math.max(0,Math.min(u,hp-i*u));i++;heart(x,y,HS,lit===u,'#b3321f');if(lit&&lit<u)halfHeart(x,y,HS,'#b3321f');x+=(HS+HG)*dir;}
+    });
+    // Armour is one shared visual pool: cover hearts from the team's outer end, regardless of who owns the gear.
+    if(slots.length)for(let h=armour-1;h>=0;h--)heart(slots[h%slots.length]+Math.floor(h/slots.length)*7*dir,y,HS,true,'#b8b9b4');
+  }
   function drawHearts() {
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.lineJoin = "round";
     const r = partyHeartsRect();
-    if(r){let x=r.x,i=0;const slots=[];
-      S.party.forEach((m,j)=>{if(j)x+=PG;
-        const u=BT.unit();for(let h=0;h<PA.life(m)/u;h++){slots.push(x);const lit=Math.max(0,Math.min(u,S.hp-i*u));i++;heart(x,r.y,HS,lit===u,'#b3321f');if(lit&&lit<u)halfHeart(x,r.y,HS,'#b3321f');x+=HS+HG;}
-      });
-      // Armour is one shared visual pool: cover hearts from the far left, regardless of who owns the gear.
-      if(slots.length)for(let h=PA.armour(S.party)-1;h>=0;h--)
-        heart(slots[h%slots.length]+Math.floor(h/slots.length)*7,r.y,HS,true,'#b8b9b4');
-    }
-    // every living foe: its own small hearts above its head
+    if(r)teamHearts(S.party,S.hp,PA.armour(S.party),r.x,r.y,1);
+    const g=BR.team();if(g)teamHearts(g.members,g.hp,g.armour,L.scene.w-HX-HS,HY,-1); // brawl: the rival party's hearts, the player's mirrored (same y, same inset from the right)
+    // every living foe: its own small hearts above its head (a ghost team member's are in its team row)
     foeHeartsRects().forEach(fr => {
-      for (let i=0;i<fr.shown;i++)heart(fr.x+i*(FS+3),fr.y,FS,i<fr.full,"#7a1f14");
+      if(!fr.owner.ghost)for (let i=0;i<fr.shown;i++)heart(fr.x+i*(FS+3),fr.y,FS,i<fr.full,"#7a1f14");
       const box=fr.intent;if(!box)return;
       ctx.fillStyle='#efe1c7';ctx.strokeStyle=box.attacking?'#884821':'#776958';ctx.lineWidth=1.6;
       ctx.fillRect(box.x,box.y,box.w,box.h);ctx.strokeRect(box.x,box.y,box.w,box.h);
@@ -2448,11 +2626,11 @@
     // v12r (Magnus: "All friendly knights you can get shall face the player"): one rule for every recruitable knight still
     // standing as an NPC on the road (ditch / camp wanderer / shop sellsword / tavern): mirrored to face the party
     // (KM_DATA.party.npcFaceParty). Once he joins he is a party member (not an actor) and faces the walking direction.
-    const faceParty = D.party.npcFaceParty && (["frank","timmy","executioner","dark_wizard"].includes(did) || (D.party.recruitArt && did.startsWith(D.party.recruitArt)));
+    const faceParty = D.party.npcFaceParty && (["frank","timmy","executioner","dark_wizard"].includes(did) || (D.party.recruitArt && did.startsWith(D.party.recruitArt)) || a.ghost);
     const dx = fx ? fx.dx : 0, dy = fx ? fx.dy : 0, ds = dp ? dp.scale : 1;
     ctx.save(); ctx.translate(sx + dx, y + dy); ctx.scale(ds, ds);
     KM.Assets.drawEntity(ctx, did, 0, 0, { flip: faceParty, t: fx ? fx.t : moving && KM_ART.walkRate ? a.t * KM_ART.walkRate(did) : a.t, action, hurt: fx && fx.hurt, alpha: a.alpha * (ln ? ln.alpha : 1), flash: a.flash > 0, name: a.label,
-      filter: ln && ln.filter, seq: a.seqPlay && a.seqPlay.id, seqT: a.seqPlay && a.seqPlay.t });
+      filter: ln && ln.filter, sheet: a.sheet, seq: a.seqPlay && a.seqPlay.id, seqT: a.seqPlay && a.seqPlay.t });
     ctx.restore();
     // v18: a separate foreground occluder drawn right after its owner (riddle keeper -> rock), never merged with it
     const fr = a.wizardRock ? "keeper_rock" : (KM_ART.entities[did] || {}).front; if (fr) KM.Assets.drawEntity(ctx, fr, sx, y, { alpha: a.alpha * (ln ? ln.alpha : 1), filter: ln && ln.filter });
@@ -2502,6 +2680,12 @@
     if (tint && raw._ok) KM.Scenery.drawInked(ctx, raw, x0, y0, fw * s, fh * s); else if (im._ok) ctx.drawImage(im, x0, y0, fw * s, fh * s);
     occ.push({ owner: a, x: x0, y: y0, w: fw * s, h: fh * s });
   }
+  // injuries (data KM_DATA.limbs): a hurt companion's sheet swaps for Maggi's same-layout stand-in once it has loaded
+  function limbSheet(m) {
+    if (!m.limb || m.id === "hero" || !D.limbs) return undefined;
+    return img => { const n = D.limbs.sheets[String(img && img._src || '').split('?')[0]]; if (!n) return null;
+      const im = KM.Assets.loadImg(D.limbs.dir + n + '_no_' + m.limb + '.png'); return im._ok ? im : null; };
+  }
   function drawParty(walking) {
     for (let i = S.party.length - 1; i >= 0; i--) {
       const m = S.party[i]; if (m.eaten || (S.entering && m.id === "hero" && S.entering.t < .75)) continue;
@@ -2515,10 +2699,10 @@
         ctx.save(); ctx.translate(x, y + (fx ? fx.dy : 0)); ctx.scale(pose.scale, pose.scale);
         if (m.dying) {
           const cfg=KM_ART.entities[id]||{},seq=m.dying.seq || cfg.deathSeq || (!cfg.noFallbackDeath && (KM_ART.entities.hero || {}).deathSeq);
-          KM.Assets.drawEntity(ctx, id, 0, 0, seq ? { seq, seqT: m.dying.t } : {rot:Math.min(1,Math.floor(m.dying.t*5)/3)*Math.PI/2});
+          KM.Assets.drawEntity(ctx, id, 0, 0, seq ? { seq, seqT: m.dying.t, sheet: limbSheet(m) } : {rot:Math.min(1,Math.floor(m.dying.t*5)/3)*Math.PI/2, sheet: limbSheet(m)});
         } else KM.Assets.drawEntity(ctx, id, 0, 0, { flip: pose.returning,
           t: fx ? fx.t : walking && rig ? (S.walkT || 0) * KM_ART.walkRate(id) : S.t,
-          action: fx ? fx.action : walking ? "walk" : "idle", hurt: fx && fx.hurt, rot: fx && fx.rot,
+          action: fx ? fx.action : walking ? "walk" : "idle", hurt: fx && fx.hurt, rot: fx && fx.rot, sheet: limbSheet(m),
           name: m.id === "hero" ? S.name : shortName(m.name) });
         ctx.restore();
       }
@@ -2542,7 +2726,7 @@
     ctx.save(); ctx.globalAlpha = v.a;
     if (v.id === "tavern-interior" && KM.RestView.scene(v.id).full) { drawTavernInside(cands); ctx.restore(); exitRect = null; return; } // v12o: draws its own party, after the sign
     for (let i = S.party.length - 1; i >= 0; i--) { const mm = S.party[i];
-      KM.Assets.drawEntity(ctx, artId(mm), slotX(i), W.groundY, { name: mm.id === "hero" ? S.name : shortName(mm.name) });
+      KM.Assets.drawEntity(ctx, artId(mm), slotX(i), W.groundY, { name: mm.id === "hero" ? S.name : shortName(mm.name), sheet: limbSheet(mm) });
       if (v.a >= 1) pushSay(mm, slotX(i), W.groundY - occupy(mm, artId(mm), slotX(i), W.groundY)); }
     if (v.id === "tavern-arrival" && S.hoverSpot === "arrivalDoor" && S.enc && S.enc.phase === "tavernOut") { const r = arrivalDoor(); // subtle ink outline on hover
       ctx.save(); ctx.strokeStyle = "rgba(42,29,18,.85)"; ctx.lineWidth = 5 / K; ctx.setLineDash([16 / K, 10 / K]); ctx.beginPath(); ctx.roundRect(r.x - 8, r.y - 8, r.w + 16, r.h + 16, 18); ctx.stroke(); ctx.restore(); }
@@ -2654,7 +2838,7 @@
     const R = TR(), n = (e.st.cands || []).length;
     drawProp(propRect("counter", R.bar.x, W.groundY - R.bar.back)); // the bar, against the back wall
     for (let i = S.party.length - 1; i >= 0; i--) { const mm = S.party[i];
-      KM.Assets.drawEntity(ctx, artId(mm), slotX(i), W.groundY, { name: mm.id === "hero" ? S.name : shortName(mm.name) });
+      KM.Assets.drawEntity(ctx, artId(mm), slotX(i), W.groundY, { name: mm.id === "hero" ? S.name : shortName(mm.name), sheet: limbSheet(mm) });
       if (S.view.a >= 1) pushSay(mm, slotX(i), W.groundY - occupy(mm, artId(mm), slotX(i), W.groundY)); }
     cands.forEach(({ p, j }) => { const g = seatGeom(j, n);
       if (g.stand) KM.Assets.drawEntity(ctx, candArt(j), g.x, g.feetY, { flip: true, name: shortName(p.name) }); // facing the party
@@ -2678,11 +2862,12 @@
     if(e.tv.sel>=spots.length)e.tv.sel=-1;const sp=spots[e.tv.sel];e.tv.open=sp?sp.id:null;
     if(e.tv.ask!=null&&e.st.cands[e.tv.ask])return showPanel(tavernAsk(e,e.tv.ask),'rest action-panel');
     const cards=spots.map((q,i)=>q.kind==='npc'?tavernCard(q.p,q.j):actionCard({label:q.kind==='fare'?'Menu':'Go outside',act:q.kind==='door'?'leaveInside':'selectTavern',icon:q.kind==='door'?'→':'☰',attrs:`data-i="${i}" aria-pressed="${e.tv.sel===i}"`}));
-    const pl=sp?.kind==='fare'?fareItems().map((it,i)=>move(String(i+1),`${it.label} · ${it.cost}`,'buyFare',it.id,`data-item="${it.id}" data-n="${i+1}"`,it.off)):[];
+    // brawl-31: the fare sits in the card row right after Menu (it used to be a second row that fell below the screen)
+    if(sp?.kind==='fare')cards.splice(e.tv.sel+1,0,...fareItems().map((it,i)=>shopItem(it.label,`<img src="${esc(fareIcon(it.id).src)}" alt="" style="height:56px">`,it.cost,'buyFare',`data-item="${it.id}" data-n="${i+1}"`,it.off)));
     const chosen=tavernRecruit(e.st);
     const note=chosen ? `${esc(shortName(chosen))} joined you. One recruit per tavern.` : RC.title;
     const div=TAV_ORN;
-    showPanel(`<div class="action-deck tavern-deck"><div class="action-heading tavern-heading tavern-under">${div}<span>${T(note)}</span>${div}</div><div class="action-row">${cards.join('')}</div>${pl.length?`<div class="tavern-options">${pl.join('')}</div>`:''}</div>`,'rest action-panel');
+    showPanel(`<div class="action-deck tavern-deck"><div class="action-heading tavern-heading tavern-under">${div}<span>${T(note)}</span>${div}</div><div class="action-row">${cards.join('')}</div></div>`,'rest action-panel');
   }
   function tavernCard(p,j){ // a tavern companion in the same ink action card as attacks / shop items (data: KM_DATA.recruitCards)
     const RC=D.recruitCards,role=KM.PartyAbilities.role(p),line=RC.lines[role]||RC.lines.knight;
@@ -2734,7 +2919,7 @@
       if (!arena && SCN()) S.trees.forEach(tr => { const x = screenX(tr.x); if (x > -600 && x < VW + 600) KM.Scenery.tree(ctx, tr.i, x); });
       if(!arena)S.props.forEach(p => { const x = screenX(p.x); if (x > -400 && x < VW + 400) KM.Assets.drawEntity(ctx, p.id, x, W.propLaneY, { scale: W.propScale, alpha: W.propAlpha }); });
       if(!arena)S.obstacles.forEach(o => { const x = screenX(o.x); if (x > -400 && x < VW + 400) KM.Assets.drawEntity(ctx, o.id, x, W.groundY + 10); });
-      if(!arena){drawCompanionGraves(2);drawGraves();drawLoot();drawChests();} // v12g: graves are road props on the ground line (behind the party and road actors)
+      if(!arena){drawCompanionGraves(2);drawGraves();drawLoot();drawChests();drawTraps();} // v12g: graves are road props on the ground line (behind the party and road actors)
       const behind = a => a.riddleVariant!==2 && (a.back || a.narrator) && !(a.distant && a.hill);
       if(!arena)KM.RoadCamp.draw(ctx,S.stops,S.camX,"back");
       live.filter(a => a.facade).forEach(drawFacade);
@@ -2805,10 +2990,18 @@
   }
   addEventListener("resize", fit); fit();
   let last = performance.now();
+  // ?debug&fps : frame-time readout in the corner of the canvas (median / worst of the last 60 frames), for checking a
+  // browser by eye (Safari has no console access from the tools). Not shown in normal play.
+  const FPS = /[?&]debug\b/.test(location.search) && /[?&]fps\b/.test(location.search), fpsLog = [];
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000) * S.speedMul; last = now;
-    if (!paused) update(dt); draw(); requestAnimationFrame(frame);
+    if (!paused) update(dt); draw();
+    if (FPS) { const ms = (now - last2) || 0; last2 = now; if (ms > 0 && ms < 1000) fpsLog.push(ms); if (fpsLog.length > 60) fpsLog.shift();
+      const sorted = fpsLog.slice().sort((a, b) => a - b), med = sorted[sorted.length >> 1] || 0, worst = sorted[sorted.length - 1] || 0;
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.font = "bold 22px monospace"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.fillStyle = "rgba(0,0,0,.65)"; ctx.fillRect(8, cv.height - 40, 330, 32); ctx.fillStyle = "#9f9"; ctx.fillText(`${(1000 / med).toFixed(0)} fps  ${med.toFixed(1)} ms  worst ${worst.toFixed(0)} ms`, 14, cv.height - 17); ctx.restore(); }
+    requestAnimationFrame(frame);
   }
+  let last2 = 0;
 
   window.__km = { completeRecruit, replaceMember, keepParty, beginDismissalBattle, finishDismissalBattle,
     startTomb,tombEnd,chapterGate,enterChapter,enterWood,showWin,
@@ -2837,11 +3030,12 @@
 
   // v19 debug hook, OFF unless the page is opened with ?debug (screenshots / quick checks): jump the road to the first stop
   // matching `want` (a type, enemy, npc or id, e.g. "mega", "frank", "toad") with `looks` = follower skins (1-5) in the party.
-  if (/[?&]debug\b/.test(location.search)) window.__km.debugJump = (want, looks = []) => {
+  if (/[?&]debug\b/.test(location.search)) window.__km.limb = (i, limb) => { const m = S.party[i]; if (m && m.id !== 'hero') m.limb = limb || undefined; return !!m; }; // debug: try an injury look
+  if (/[?&]debug\b/.test(location.search)) window.__km.debugJump = (want, looks = [], cards) => { // cards: debug-only held card ids
     const i = S.stops.findIndex(st => [st.type, st.enemy, st.npc, st.id, st.rest].includes(want)); if (i < 0) return false;
     hush(); S.runId = S.runId || "run-debug"; S.name = S.name === "Nobody" ? "Magnus" : S.name;
     const party = [newMember("hero", slotX(0))].concat(looks.map((k, j) => Object.assign(followerFrom(D.recruitPool[j % D.recruitPool.length], slotX(j + 1), k), { skin: k })));
-    applyCore(Object.assign(core(), { stop: i, party, hp: HPM() * party.length, hunters: 0 })); S.mode = "walk"; musicScene("walk"); renderWalk(); return S.stops[i];
+    applyCore(Object.assign(core(), { stop: i, party, hp: HPM() * party.length, hunters: 0 }, cards ? { cards } : {})); S.mode = "walk"; musicScene("walk"); renderWalk(); return S.stops[i];
   };
 
   (async function boot() {
@@ -2933,7 +3127,7 @@
     }
     if(PREVIEW === "start")newGame();
     requestAnimationFrame(frame);
-    if (KM.Loader) { await KM.Loader.ready(); KM.Loader.finish(); skinStrip(); }
+    if (KM.Loader) { await KM.Loader.ready(); await Promise.race([KM.Assets.warm(), new Promise(r => setTimeout(r, 3000))]); KM.Loader.finish(); skinStrip(); }
     KM.RoadCamp.preload(); KM.TavernPOV.preload();
     KM.FireFx.preload(); KM.Spelling.preload(); // v12k: after the bar
   })();

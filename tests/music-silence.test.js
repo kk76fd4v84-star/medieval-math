@@ -34,10 +34,11 @@ a.m.toggleMute();a.tick();assert(a.m.state().playing,'explicit music control can
 a.m.setMuted(true);a.silent();a.pending.forEach(f=>f());a.tick();a.silent();
 a.m.setScene('walk');a.tick();a.silent();a.audios.forEach(el=>el.events.ended());a.tick();a.silent();
 a.m.toggleMute();a.tick();assert(a.m.state().playing);a.c.document.visibilityState='hidden';a.documentListeners.visibilitychange();a.silent();
-a.c.document.visibilityState='visible';a.documentListeners.visibilitychange();a.tick();a.silent();assert(a.m.settings().muted);
-a.m.toggleMute();a.tick();const b=page();a.silent();assert(a.m.settings().muted,'opening another game stops music in old tab');
+a.c.document.visibilityState='visible';a.documentListeners.visibilitychange();a.tick();assert(a.m.state().playing&&!a.m.settings().muted,'coming back to the tab resumes the music');
+const b=page();
 b.m.setScene('walk');b.m.unlock();b.m.toggleMute();b.tick();assert(b.m.state().playing);
-a.m.setMuted(true);b.silent();assert(b.m.settings().muted,'mute propagates to other tabs');
+a.silent();assert(!a.m.settings().muted,'another game tab starting hushes this one but keeps the player setting');
+a.m.setMuted(true);b.silent();assert(!b.m.settings().muted,'a mute elsewhere only hushes this tab');b.m.setMuted(true);
 b.m.toggleMute();b.tick();b.listeners.storage({key:'knightMath.musicSilence'});b.silent();
 b.m.toggleMute();b.tick();b.media.pause();b.silent();b.tick();b.silent();
 b.m.toggleMute();b.tick();b.listeners.pagehide();b.silent();

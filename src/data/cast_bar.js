@@ -9,13 +9,16 @@ KM_DATA.castBar = {
   // Magnus 2026-11-08: three strict phases of a full second each
   shakeMs: 1000, shakePx: 3,            // 1) the icon shakes
   slideMs: 1000,                        // 2) it slides to its new place, the trail grows behind it (tick_up / tock_down play here)
-  holdMs: 0,                            //    (no pause between)
-  shrinkMs: 1000,                       // 3) the trail catches up to the icon
+  holdMs: 1000,                         // 3) the trail stays 1 s after the icon arrives
+  shrinkMs: 1000,                       // 4) then catches up to the icon (like a fighting-game HP bar)
   inkFadeMs: 400,                       // ink (shroud) just fades in
   ease: "cubic-bezier(.2,.75,.25,1)",
   plainIn: ["tavern-interior"],         // Magnus: the plain divider (no cast bar) on these screens, e.g. choosing a companion
-  colours: { good: "#3f8a2c", bad: "#b3261e" },
+  // the trail (and the lost-window band) = the orange timer fill picture with only the orange swapped (Maggi, castbar_preview v1)
+  fills: { good: "assets/timing-woodcut/fill_good.png", bad: "assets/timing-woodcut/fill_bad.png" },
   // Charlie's 1 s sounds (assets/audio/sfx, mapped in audio_map): shake at the start of the shake, tick_up / tock_down at the start of the slide
+  // Magnus 2026-11-08 (brawl-14): any real change (gear, cards, camp armour, companions) shakes + slides ONLY the changed
+  // icons with the trail; a boss shift does the same plus the roar. Hidden bar (tavern): played when it is next shown.
   // Magnus: only bosses change the icons, with a roar. Other foes / NPCs (the riddle guy, ...) never move them: their
   // meter pressure is not applied while the cast bar is on. Party gear (shop buys) still moves them.
   shiftBy: ["boss", "mega"],            // stop types whose foes may shift the cast bar icons

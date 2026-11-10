@@ -50,6 +50,8 @@ button.opt.struck { text-decoration: line-through; }
 .mathp .sum { display: flex; justify-content: center; align-items: baseline; gap: 26px; font-size: 104px; line-height: 1.05; font-weight: bold; letter-spacing: .05em; white-space: nowrap;
   font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; text-shadow: 1px 1px 0 rgba(255,255,255,.4); }
 .mathp .problem { position: relative; display: inline-flex; align-items: center; } /* v11b: the question alone is centred */
+.mathp .code .problem > .glyph { opacity: .38; } /* recruit code: the typed digits print over the faded code */
+.mathp .code .answer { left: 0; }
 .mathp .answer { position: absolute; left: calc(100% + 26px); top: 50%; transform: translateY(-50%); text-align: left; color: #7a1f14; white-space: nowrap; display: inline-flex; align-items: center; }
 .glyph { height: .9em; width: auto; vertical-align: -0.08em; margin: 0 .02em; }
 .mathp .sum { align-items: center; } .glyph.native { vertical-align: middle; margin: 0; mix-blend-mode: darken; } /* lighter slice paper drops out, ink stays */
@@ -67,6 +69,12 @@ button.opt.struck { text-decoration: line-through; }
 
 /* name entry */
 .namerow { display: flex; gap: 10px; align-items: center; justify-content: center; }
+.namebox { position: relative; }
+#nameInput.inked { color: transparent; caret-color: #2a1d12; }
+#nameInput.inked::placeholder { color: rgba(42,29,18,.4); }
+.nameink { position: absolute; inset: 0 10px 3px; display: flex; align-items: center; justify-content: center; font: 56px Georgia, serif; white-space: pre; pointer-events: none; color: var(--ncool); }
+.nameink span { animation: kmNameCool var(--nsecs) ease-out both; }
+@keyframes kmNameCool { 0%, 25% { color: var(--nhot); text-shadow: 0 0 var(--nglowpx) var(--nglow); } 100% { color: var(--ncool); text-shadow: none; } }
 #nameInput { font: 56px Georgia, serif; padding: 2px 10px; border: 0; border-bottom: 3px solid rgba(42,29,18,.45); width: 520px; background: transparent; text-align: center; outline: none; color: #2a1d12; }
 .titlep h1, .endp h1 { font-size: 64px; margin: 0 0 4px; font-weight: normal; letter-spacing: .03em; line-height: 1.05; }
 .endrow { display: flex; justify-content: center; align-items: center; gap: 30px; } .endrow .opts { margin-top: 0; }
@@ -447,7 +455,7 @@ button.knight-card.lifted,button.knight-card:disabled{opacity:.55}
 /* Painted emblems mark the exact outcome cutoffs; horizontal swords as in the concept. */
 .timing-legend{position:absolute;inset:0;pointer-events:none;z-index:4}
 .timing-legend[hidden]{display:none}
-.timing-emblem{position:absolute;top:-23px;transform:translateX(-50%);width:40px;height:46px;padding:0;border:0;background:none;color:#292018;pointer-events:auto;cursor:help;transition:left .9s cubic-bezier(.2,.75,.25,1)}
+.timing-emblem{position:absolute;top:-23px;transform:translateX(-50%);width:40px;height:46px;padding:0;margin:0;border:0;background:transparent;box-shadow:none;outline:none;-webkit-appearance:none;appearance:none;border-radius:0;color:#292018;pointer-events:auto;cursor:help;transition:left .9s cubic-bezier(.2,.75,.25,1)} /* no native button bezel (Safari's white box): only the symbol */
 .timing-emblem[data-outcome="crit"]{width:90px}
 .timing-emblem[data-outcome="normal"]{width:96px}
 .timing-emblem[data-outcome="weak"]{width:64px;transform:translateX(-100%)}
@@ -457,10 +465,10 @@ button.knight-card.lifted,button.knight-card:disabled{opacity:.55}
 .timing-emblem[data-outcome="weak"] [role="tooltip"]{left:auto;right:0;transform:none}
 .timing-emblem:hover [role="tooltip"],.timing-emblem:focus-visible [role="tooltip"]{display:block}
 
-/* Narrow red hatching still measures the exact window lost to party/enemy pressure. */
-.pressure-band{position:absolute;left:25%;width:0;height:5px;border-left:1px solid #943c2c;border-right:1px solid #943c2c;box-sizing:border-box;background:repeating-linear-gradient(115deg,#a34332 0 1px,#a3433240 1px 4px);transition:left .9s cubic-bezier(.2,.75,.25,1),width .9s cubic-bezier(.2,.75,.25,1);pointer-events:none}
-.pressure-band[data-loss="0"]{border:0}
-.pressure-crit{top:-9px}.pressure-block{top:8px;left:50%}
+/* The window lost to party/enemy pressure: the timer fill picture in red (fill_bad), on the track like the orange fill. */
+.pressure-band{position:absolute;top:-6px;left:25%;width:0;height:12px;box-sizing:border-box;border:4px solid transparent;border-image:url('assets/timing-woodcut/fill_bad.png') 6 fill / 4px / 0 round;transition:left .9s cubic-bezier(.2,.75,.25,1),width .9s cubic-bezier(.2,.75,.25,1);pointer-events:none}
+.pressure-band[data-loss="0"]{display:none}
+.pressure-block{left:50%}
 .boss-entrance{text-align:center;padding:26px 40px;color:#292018;font-family:Georgia,serif}
 .boss-entrance strong{font-size:34px}.boss-entrance p{font-size:25px;line-height:1.4;margin:10px 0 0}
 .boss-entrance small{font-size:20px}.pressure-reveal strong{color:#943c2c}
@@ -532,7 +540,8 @@ html[lang="ja"] .action-card .action-detail{font-size:18px;}
 .tavern-deck{position:relative;}
 .tavern-lift{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(100% + 18px);white-space:nowrap;padding:4px 20px;background:url('assets/v10/paper/parchment.png');}
 .panel:has(.tavern-deck){overflow:visible;}
-.tavern-under{margin:18px 0 6px;} /* Magnus: the heading sits right under the divider */
+.tavern-under{margin:4px 0 4px;} /* Magnus: the heading sits right under the divider */
+.action-deck.tavern-deck .action-row .knight-card{height:160px;} /* brawl-31: heading + cards fit above the bottom edge (the cards were cut off) */
 .tavern-deck .action-card[data-act="tvAsk"] .action-detail{font-size:19px;line-height:1.15;}
 .action-gear #gear-title.tavern-lift{width:auto;height:auto;overflow:visible;clip-path:none;}
 #strip:has(.tavern-deck){z-index:5;}
@@ -541,10 +550,14 @@ html[lang="ja"] .action-card .action-detail{font-size:18px;}
 .mp-shroud[hidden],.mp-tags[hidden]{display:none}
 .mp-tags{position:absolute;right:0;top:-46px;display:flex;gap:8px;pointer-events:none;z-index:5}
 .mp-tag{font-family:inherit;font-size:15px;font-weight:bold;letter-spacing:.08em;color:#ecdcc4;background:#292018;padding:3px 8px 2px;border-radius:2px;line-height:1.2}
-img.mp-tag{background:none;padding:0;height:28px}
+img.mp-tag,#divider.magnus img.mp-tag{position:static;background:none;padding:0;height:28px;width:28px;flex:none;border:0;border-radius:0} /* painted tag: in the row, not stacked like the divider art */
 
 /* cast bar (switch castBar): moved icons shake, then slide; the trail is the timer fill recoloured green / red */
-.cb-trail{position:absolute;top:-6px;z-index:2;height:12px;box-sizing:border-box;border:4px solid transparent;border-image:url('assets/timing-woodcut/fill.png') 6 fill / 4px / 0 round;pointer-events:none}
+.cb-trail{position:absolute;top:-6px;z-index:2;height:12px;box-sizing:border-box;border:4px solid transparent;border-image:url('assets/timing-woodcut/fill_good.png') 6 fill / 4px / 0 round;pointer-events:none} /* = #dvfill: ink -7px + fill 1px */
+.cb-trail[data-good="false"]{border-image-source:url('assets/timing-woodcut/fill_bad.png')}
+/* cast bar: icons, bands and gaps jump to new places; only a boss shift sets an inline transition (timing-bar.js animate) */
+.timing-rail.castbar .timing-emblem,.timing-rail.castbar .pressure-band,.timing-rail.castbar .timing-ink{transition:none}
+.timing-rail.castbar .pressure-band{visibility:hidden} /* cast bar: the boss trail shows the lost window (it stays while the pressure lasts) */
 .timing-rail .timing-emblem.cb-shake{animation:cb-shake 180ms linear var(--cb-shake-n,1)}
 @keyframes cb-shake{0%,100%{translate:0 0}20%{translate:calc(-1*var(--cb-shake-px,3px)) 0}40%{translate:var(--cb-shake-px,3px) 0}60%{translate:calc(-.6*var(--cb-shake-px,3px)) 0}80%{translate:calc(.6*var(--cb-shake-px,3px)) 0}}
 .timing-rail.castbar .mp-shroud{animation:cb-fade var(--cb-ink-ms,400ms) ease both;transition:left .4s ease,width .4s ease}
@@ -567,3 +580,18 @@ img.mp-tag{background:none;padding:0;height:28px}
 .tut-icon img{height:40px;width:auto;}
 .tut-small{font-size:23px;margin:4px 0;}
 .tut-go{margin-top:12px;--bh:64px;font-size:32px;font-weight:bold;min-width:300px;}
+/* brawl: the rival's difficulty, one icon under its hearts (top right, where your purse sits on the left) */
+#hud .brawl-rank{right:22px;display:flex;align-items:flex-start;pointer-events:none;} #hud .brawl-rank img{height:40px;width:auto;display:block;} #hud .brawl-rank i{display:block;} #hud .brawl-rank svg{width:100%;height:100%;display:block;}
+/* brawl: the rival's name centred over the fight */
+.panel .brawl-banner{position:absolute;left:0;right:0;top:0;margin:18px 0 0;pointer-events:none;}
+/* juice (switch juice, src/data/juice.js): a typed digit drops in and thuds, a spark; Enter punches; a wrong Enter is blocked */
+#answer .juice-land{animation:juice-land var(--juice-land,130ms) cubic-bezier(.3,0,.6,1);transform-origin:50% 100%;}
+@keyframes juice-land{0%{transform:translateY(var(--juice-drop,-18px)) scale(1.12);}60%{transform:translateY(0) scale(1.18,var(--juice-squash,.78));}100%{transform:none;}}
+#answer .juice-spark{position:absolute;right:-6px;bottom:6px;width:22px;height:22px;pointer-events:none;background:radial-gradient(circle,#f3a64a 0 2px,transparent 3px) 0 0/11px 11px;animation:juice-spark var(--juice-land,130ms) ease-out forwards;}
+@keyframes juice-spark{0%{opacity:1;transform:scale(.4);}100%{opacity:0;transform:scale(1.6) translateY(-8px);}}
+#answer.juice-punch{animation:juice-punch var(--juice-punch,170ms) ease-out;transform-origin:50% 100%;}
+@keyframes juice-punch{0%{transform:translateY(-50%) scale(1.2,var(--juice-punch-squash,.84));}100%{transform:translateY(-50%);}}
+#answer.juice-block{animation:juice-block var(--juice-block,200ms) ease-out;}
+@keyframes juice-block{0%,100%{transform:translateY(-50%);}25%{transform:translateY(-50%) translateX(-7px);}60%{transform:translateY(-50%) translateX(5px);}}
+
+.tut-art { display: block; width: 100%; max-height: 34vh; object-fit: contain; margin: 6px 0 10px; }

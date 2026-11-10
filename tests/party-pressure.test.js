@@ -41,7 +41,7 @@ close(g.combatWindows().block,.25);close(g.combatWindows().crit,.50);close(activ
 // A surviving character's equal weapon bonus is not accidentally taken away too.
 S.party[0].weapon=3;close(g.combatWindows().crit,.65);
 geared.eaten=true;geared.dying=null;close(g.combatWindows().block,.25);close(g.combatWindows().crit,.65);
-S.timers=[];at('riddle');close(S.enc.tmr.windows.block,.25);close(S.enc.tmr.windows.crit,.5);
+S.timers=[];at('riddle');close(S.enc.tmr.windows.block,.25);close(S.enc.tmr.windows.crit,.65); // riddle: the party's own windows (no foe pressure), so the cast bar icons stay put
 console.log('PASS: 0–3 companions, gear offsets, pressure floors, actual roster deaths/eating/restoration/save reload in all modes, frozen questions and unchanged scoring.');
 `;
 const m=new Module(__filename,module);m.filename=__filename;m.paths=module.paths;m._compile(harness+checks,__filename);

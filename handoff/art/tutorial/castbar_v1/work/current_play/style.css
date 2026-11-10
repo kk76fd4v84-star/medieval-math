@@ -1,0 +1,549 @@
+html, body { margin: 0; height: 100%; background: #120d09; overflow: hidden; font-family: Georgia, "Times New Roman", serif; }
+#stage { position: absolute; width: 1600px; height: 900px; transform-origin: 0 0; overflow: hidden; background: #1b130c; }
+#game { position: absolute; display: block; }
+
+/* ===== bottom strip: plain parchment, thin divider + centre diamond, minimal chrome (per concept) ===== */
+#strip { position: absolute; box-sizing: border-box; color: #2a1d12;
+  background: radial-gradient(ellipse at 50% 30%, #f5ead0 0%, #ecdfbf 65%, #e2d1aa 100%); background-size: auto 100%; background-repeat: repeat-x; }
+#strip.painted { background-color: rgb(218,189,152); }
+/* v10: the continuous parchment sheet is a canvas behind the strip's content (works from file://) */
+#strip { isolation: isolate; }
+#stripSheet { position: absolute; left: 0; top: 0; z-index: -1; pointer-events: none; } /* below the native-size painted band */
+#divider { position: absolute; left: 0; right: 0; top: 0; height: var(--divider-h); background-repeat: repeat-x; background-size: auto 100%; }
+#divider::before { content: ""; position: absolute; left: 24px; right: 24px; top: 50%; border-top: 2px solid #2a1d12; }
+#divider .gem { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; background: #b4532a; border: 1.5px solid #2a1d12; transform: translate(-50%, -50%) rotate(45deg); }
+#divider.painted::before, #divider.painted .gem { display: none; }
+#divider.hidden { display: none; } /* v7: the painted strip carries the ground line itself */
+/* ===== v11: no small text. The strip = the big carved sum, a few LARGE key options and one icon status row ===== */
+#main { position: absolute; left: 40px; right: 40px; top: calc(var(--divider-h) + 2px); bottom: 8px; } /* v11b: 240 px strip */
+.panel { position: absolute; left: 0; right: 0; top: 0; bottom: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.panel > .center { width: 100%; }
+.center { text-align: center; }
+
+/* status row: icons + big numbers only (hearts, gold, hunters track, distance) */
+#hud { position: absolute; left: 0; right: 0; bottom: 6px; height: 50px; display: flex; gap: 46px; align-items: center; justify-content: center; white-space: nowrap;
+  font-size: 34px; color: #2a1d12; }
+#hud i { font-style: normal; }
+.hearts i { color: rgba(42,29,18,.22); margin: 0 1px; font-size: 38px; } .hearts i.on { color: #a8321f; }
+.hearts.foe { display: block; margin-bottom: 8px; } .hearts.foe i { font-size: 52px; } .hearts.foe i.on { color: #2a1d12; }
+.cost { display: inline-flex; align-items: center; gap: 6px; }
+i.coin { display: inline-block; width: .8em; height: .8em; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #f7d774, #c9962a 70%); border: 2px solid #2a1d12; box-sizing: border-box; }
+/* v11b hunter meter: dirty-orange dots, thin ink lines between them, a skull (hunters) on its dot, a helmet (you) */
+.hunt { display: inline-flex; align-items: center; } .hunt b { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: #d16f19; border: 2px solid #2a1d12; box-sizing: border-box; }
+.hunt s { display: inline-block; width: 14px; height: 0; border-top: 2px solid #2a1d12; text-decoration: none; }
+.hunt svg { width: 32px; height: 32px; display: block; } .hunt .helm { width: 34px; height: 34px; }
+.dist { display: inline-flex; align-items: center; gap: 8px; } .mile { color: #7a1f14; }
+#hud .muted { position: absolute; right: 26px; opacity: .45; text-decoration: line-through; }
+
+/* options: few, large, key first */
+button.opt { font: inherit; font-size: 36px; background: none; border: 0; padding: 4px 14px; margin: 0 14px; color: #2a1d12; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 10px; }
+button.opt:hover:not([disabled]) { text-decoration: underline; text-underline-offset: 6px; }
+button.opt[disabled] { opacity: .3; cursor: default; }
+kbd { font-family: Georgia, serif; font-size: 28px; min-width: 1em; padding: 0 8px; border: 2px solid rgba(42,29,18,.55); border-radius: 6px; color: #7a1f14; text-align: center; line-height: 1.25; }
+.opts { margin-top: 8px; } .opts.big3 { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 10px; }
+.lines.big3 { display: flex; flex-direction: column; align-items: center; gap: 2px; } .lines.big3 button.opt { font-size: 34px; }
+button.opt.struck { text-decoration: line-through; }
+.gain { color: #a8321f; } .gain i.heart { font-style: normal; }
+
+/* math: the carved sum is the focus */
+/* math: large centred engraved-style sum, subtle underline answer slot */
+.mathp .sum { display: flex; justify-content: center; align-items: baseline; gap: 26px; font-size: 104px; line-height: 1.05; font-weight: bold; letter-spacing: .05em; white-space: nowrap;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; text-shadow: 1px 1px 0 rgba(255,255,255,.4); }
+.mathp .problem { position: relative; display: inline-flex; align-items: center; } /* v11b: the question alone is centred */
+.mathp .answer { position: absolute; left: calc(100% + 26px); top: 50%; transform: translateY(-50%); text-align: left; color: #7a1f14; white-space: nowrap; display: inline-flex; align-items: center; }
+.glyph { height: .9em; width: auto; vertical-align: -0.08em; margin: 0 .02em; }
+.mathp .sum { align-items: center; } .glyph.native { vertical-align: middle; margin: 0; mix-blend-mode: darken; } /* lighter slice paper drops out, ink stays */
+.glyph.native.ink { mix-blend-mode: normal; } /* v9: paper already removed (ink-only glyphs) */ /* v8: native size set inline */
+.gsp { display: inline-block; width: .25em; }
+
+/* touch pad (only when KM_LAYOUT.touchPad = true) */
+.mathp.touch .sum { font-size: 64px; }
+.digits { display: flex; justify-content: center; gap: 6px; margin-top: 4px; }
+.digits .key { flex: 0 0 72px; height: 60px; font: bold 36px Georgia, serif; background: none; border: 1px solid rgba(42,29,18,.35); border-radius: 6px; cursor: pointer; }
+.digits .key.wide { flex: 0 0 86px; } .digits .key .glyph { height: 44px; vertical-align: middle; }
+.ops { display: flex; justify-content: center; gap: 22px; margin-top: 4px; font-size: 26px; font-weight: bold; }
+.ops .op { opacity: .3; } .ops .op.on { opacity: 1; color: #7a1f14; } .ops .glyph { height: 30px; }
+
+
+/* name entry */
+.namerow { display: flex; gap: 10px; align-items: center; justify-content: center; }
+#nameInput { font: 56px Georgia, serif; padding: 2px 10px; border: 0; border-bottom: 3px solid rgba(42,29,18,.45); width: 520px; background: transparent; text-align: center; outline: none; color: #2a1d12; }
+.titlep h1, .endp h1 { font-size: 64px; margin: 0 0 4px; font-weight: normal; letter-spacing: .03em; line-height: 1.05; }
+.endrow { display: flex; justify-content: center; align-items: center; gap: 30px; } .endrow .opts { margin-top: 0; }
+.journeyline { font-size: 44px; margin: 0; } .journeyline .unit { font-size: .7em; } .journeyline .best { color: #a8321f; }
+
+/* rest stops: big chips (heal + recruit) | gear table with icon prices and pips */
+.restp { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.restgrid { display: flex; justify-content: center; align-items: center; gap: 50px; }
+.restgrid .col { display: flex; flex-direction: column; align-items: center; }
+.restgrid button.opt { font-size: 32px; margin: 0 6px; padding: 2px 8px; }
+.restp .opts.end button.opt { font-size: 32px; }
+.gear { display: grid; gap: 2px 10px; align-items: center; justify-items: center; font-size: 30px; }
+.gear .gh { display: inline-flex; gap: 6px; align-items: center; } .gear .ico { font-size: 34px; }
+.gear .nm { white-space: nowrap; } .gear button.opt { font-size: 32px; margin: 0; padding: 0 4px; line-height: 1.1; }
+.pips { display: inline-flex; gap: 4px; } .pips i { width: 14px; height: 14px; border: 2px solid #2a1d12; border-radius: 50%; box-sizing: border-box; } .pips i.on { background: #2a1d12; }
+
+/* v11 Spell of Stupidity: placeholder scroll icon (MISSING_ART #30) + charges, or a countdown of pips while active */
+.spell { display: inline-flex; align-items: center; gap: 6px; } .scroll { font-style: normal; color: #6b3fa0; font-size: 38px; }
+.spell.on .scroll { color: #fff; background: #6b3fa0; border-radius: 50%; padding: 0 6px; }
+.spell.on .pips i { border-color: #6b3fa0; } .spell.on .pips i.on { background: #6b3fa0; } .spell .pips i { width: 18px; height: 18px; }
+
+/* v11b money: Magnus's painted purse at the hearts' height (34 px) + the number */
+.purse { display: inline-flex; align-items: center; gap: 8px; } .purse .purseimg { height: 38px; width: auto; display: block; }
+
+/* v11b layout from Magnus's battle mockup: the status items float over the scene's top edge (no row in the strip) */
+#hud { top: 0; bottom: auto !important; height: 0 !important; display: block !important; pointer-events: none; }
+#hud > * { position: absolute; }
+#hud .purse-at { left: 22px; font-size: 32px; } #hud .purse .purseimg { height: 38px; }
+#hud .hunt { left: 50%; top: 14px; transform: translateX(-50%); }
+#hud .dist { right: 26px; top: 14px; font-size: 32px; } #hud .muted { right: 26px; top: 56px; }
+.hunt b { width: 11px; height: 11px; } .hunt b.p { background: #2a1d12; } .hunt s { width: 12px; }
+.hunt svg { width: 30px; height: 30px; } .hunt .helm { width: 32px; height: 32px; }
+/* "Choose your move." + ink banner buttons */
+.fightp .prompt { font-size: 46px; margin: 10px 0 18px; }
+.opts.moves { flex-wrap: nowrap; gap: 0 18px; align-items: center; margin-top: 0; }
+button.opt.plaque { position: relative; margin: 0; padding: 14px 40px 14px 34px; min-width: 232px; height: 84px; justify-content: center; gap: 12px; font-size: 34px; }
+button.opt.plaque .plq { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; filter: drop-shadow(2px 3px 0 rgba(42,29,18,.25)); }
+button.opt.plaque > :not(.plq) { position: relative; z-index: 1; }
+button.opt.plaque svg:not(.plq) { width: 38px; height: 38px; flex: none; }
+button.opt.plaque kbd.seal { width: 42px; height: 42px; padding: 0; min-width: 0; border-radius: 50%; border: 2px solid #2a1d12; background: radial-gradient(circle at 40% 35%, #c2412a, #8e2416 70%); color: #f6e7c8; font-size: 28px; line-height: 38px; box-shadow: 0 0 0 3px rgba(142,36,22,.35); }
+button.opt.plaque:hover:not([disabled]) { text-decoration: none; transform: translateY(-2px) rotate(-.6deg); }
+button.opt.plaque:hover:not([disabled]) .nm { text-decoration: underline; text-underline-offset: 6px; }
+button.opt.plaque[disabled] { opacity: .35; filter: grayscale(1); }
+.opts.moves .vdiv { width: 0; height: 70px; border-left: 2px solid rgba(42,29,18,.6); margin: 0 6px; }
+
+/* v11b Magnus's Spell of Stupidity icon: button a bit larger than the hearts, shop item at the hearts' size */
+img.spellicon { display: block; width: auto; } img.spellicon.btn { height: 46px; } img.spellicon.shop { height: 38px; }
+
+.cost .purseimg.mini { height: 30px; width: auto; display: inline-block; vertical-align: middle; margin-right: 4px; }
+
+/* v11b Magnus's divider line (positioned by skinStrip) */
+#divider.magnus { display: block; height: var(--divider-h); background: none; pointer-events: none; z-index: 2; } #divider.magnus::before, #divider.magnus .gem { display: none; } #divider.magnus img { position: absolute; display: block; }
+
+/* v11b tavern: one short prompt / the picked thing's name */
+.tavernp .prompt { font-size: 40px; margin: 14px 0 12px; }
+
+/* v11b riddle (Magnus): the question inside his riddle frame (border-image 9-slice, one uniform scale; corners never
+   stretch, only the ink-free middle widens), centred where the big numbers sit; answers as plaques under it */
+.riddlep .riddleframe { position: relative; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
+  height: var(--rf-h, 116px); min-width: calc(var(--rf-lw, 105px) + var(--rf-rw, 105px) + 60px); max-width: 1240px; padding: 0 80px; margin: 0 auto 6px; }
+.riddlep .riddleframe::before { content: ""; position: absolute; inset: 0; box-sizing: border-box; pointer-events: none;
+  border-style: solid; border-width: var(--rf-vw) var(--rf-rw) var(--rf-vw) var(--rf-lw);
+  border-image: var(--rf-img) var(--rf-v) var(--rf-r) var(--rf-v) var(--rf-l) stretch; }
+.riddlep .rq { position: relative; font-family: Georgia, "Times New Roman", serif; font-size: 40px; line-height: 1.12; text-align: center; color: #1b1410; max-width: 1060px; }
+.riddlep .riddleframe.long .rq { font-size: 34px; }
+.riddlemoves button.opt.plaque { height: 64px; min-width: 0; padding: 10px 34px 10px 28px; font-size: 28px; gap: 10px; }
+.riddlemoves button.opt.plaque kbd.seal { width: 40px; height: 40px; line-height: 36px; font-size: 28px; }
+.riddlemoves button.opt.plaque svg:not(.plq) { width: 32px; height: 32px; }
+
+/* v11b tavern fare plaques (Mead, Stew): price after the name */
+.tvmenu button.opt.plaque .cost { margin-left: 10px; }
+.tvmenu button.opt.plaque svg:not(.plq) { width: 40px; height: 40px; }
+
+/* v18 (Magnus): riddle answers in his answer-frame, 2 columns. The pack shows the frame at ~560x51 (x 0.509, y 0.29 of
+   the 1100x176 source) inside an 88 px button; the strip is 240 px, so with the question frame on top each row's hit
+   area is 52 px (frame drawn at the pack's 51 px). The two ornament ends keep the pack's 0.509 width (160 px each); only the ink-free middle (source
+   columns 316-784) widens so answers up to 26 letters sit in the gap without crossing the lines. */
+.riddlep .ansgrid { display: grid; grid-template-columns: 740px 740px; gap: 0 24px; justify-content: center; margin: 0 auto; }
+.riddlep .riddleframe { margin-bottom: 2px; }
+.riddlep button.opt.ansf { position: relative; height: 52px; width: 740px; min-width: 0; margin: 0; padding: 0 170px; border: 0; border-radius: 0; box-shadow: none;
+  background: none; display: flex; align-items: center; justify-content: center; gap: 12px; font: 30px Georgia, "Times New Roman", serif; color: #1b1410; cursor: pointer; }
+.riddlep button.opt.ansf::before { content: ""; position: absolute; left: 0; right: 0; top: 0.5px; height: 51px; pointer-events: none; box-sizing: border-box;
+  border-style: solid; border-width: 0 160px; border-image: url("assets/v18/answer-frame.png") 0 316 fill stretch; }
+.riddlep button.opt.ansf .ak { color: #975326; font-size: 28px; font-weight: bold; }
+.riddlep button.opt.ansf:hover:not([disabled]), .riddlep button.opt.ansf:focus-visible { background: rgba(223, 200, 158, .55); }
+.riddlep button.opt.ansf[disabled] { opacity: .38; text-decoration: line-through; cursor: default; }
+
+/* v12e (Magnus): every choice is the open plaque button, no visible key badges (keys still work); balanced padding */
+button.opt.plaque { padding: 14px 36px; }
+.opts:not(.moves) { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 18px; }
+.namerow button.opt.plaque { min-width: 150px; }
+.restgrid button.opt.plaque, .restp .opts.end button.opt.plaque { height: 70px; min-width: 0; padding: 10px 30px; font-size: 30px; margin: 0 4px; }
+.gear button.opt.plaque.mini { height: 46px; min-width: 0; padding: 4px 22px; margin: 2px 0; }
+.riddlemoves button.opt.plaque { padding: 10px 30px; }
+/* tavern arrival: Go in / Walk on fade + rise in once the big scene is fully up */
+.opts.arrive { opacity: 0; transform: translateY(14px); pointer-events: none; }
+.opts.arrive.in { opacity: 1; transform: none; pointer-events: auto; transition: opacity .3s ease-out, transform .3s ease-out; }
+
+/* v12f loading bar: parchment + Magnus's divider, orange fill from the centre out, small "Loading" */
+#kmLoader { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  background: radial-gradient(ellipse at 50% 40%, #f5ead0 0%, #ecdfbf 65%, #e2d1aa 100%); transition: opacity .4s ease-out; }
+#kmLoader.out { opacity: 0; pointer-events: none; }
+#kmLoader .ld-bar { position: relative; width: min(80vw, 1100px); aspect-ratio: 2128 / 66; }
+#kmLoader .ld-bar img, #kmLoader .ld-bar canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#kmLoader .ld-build { position: absolute; right: 14px; bottom: 10px; z-index: 1; font: 14px Georgia, serif; color: #2a1d12; opacity: .45; }
+#kmLoader .ld-txt { font: 22px Georgia, "Times New Roman", serif; color: #2a1d12; opacity: .6; letter-spacing: .08em; }
+
+/* Loading artwork stays behind the progress rule, in the same 1600x900 space as the game. */
+#kmLoader { overflow: hidden; }
+#kmLoader .ld-scenery { position: absolute; width: min(100vw, 177.778vh); height: auto; aspect-ratio: 16 / 9; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+#kmLoader .ld-bar, #kmLoader .ld-txt { z-index: 1; transform: translateY(min(22vh, 198px)); transition: opacity .25s ease; }
+#kmLoader.dissolving .ld-bar, #kmLoader.dissolving .ld-txt { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { #kmLoader { transition-duration: .18s; } }
+
+.room-veil { position:absolute; inset:0; z-index:900; background:#efe3c8; opacity:0; pointer-events:all; }
+
+/* v12k fire bottle: the word to spell, in the sum's carved font and ink (KM.Spelling.drawWord; Maggi's alphabet later) */
+.spellp .spellword { display: flex; justify-content: center; align-items: flex-end; gap: 4px; font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-size: 96px; line-height: 1.05; font-weight: bold; letter-spacing: .02em; white-space: nowrap; color: #2a1d12; text-shadow: 1px 1px 0 rgba(255,255,255,.4); }
+/* v12m (Magnus): grey letters; a right one flashes hot + glows, then cools to black ink; a wrong key shakes the current one.
+   Colours + timings come from KM_DATA.items.fireBottle.letters via CSS variables set by KM.Spelling.drawWord. */
+.spellword .letter { display: inline-block; min-width: .5em; text-align: center; color: var(--grey); }
+.spellword .letter.done { animation: kmCoolText var(--cool) ease-in both; }
+.spellword .letter b { display: inline-block; font-weight: inherit; }
+.spellword .letter.next { animation: kmBob 1.1s ease-in-out infinite; }
+.spellword .miss { animation: kmMiss var(--shake) linear 1 both; }
+.spellword.fizzled { opacity: .45; filter: grayscale(1); }
+.spellword.art { gap: 0; align-items: flex-end; } /* Maggi's letters sit edge to edge by their advance boxes, baselines aligned */
+.spellword.art .letter { display: block; position: relative; min-width: 0; }
+.spellword.art .letter img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+.spellword.art .letter img.hot { animation: kmCool var(--cool) ease-in both; }
+@keyframes kmBob { 50% { transform: translateY(-5px); } }
+@keyframes kmCool { 0% { opacity: 1; filter: drop-shadow(0 0 var(--glowpx) var(--glow)) drop-shadow(0 0 calc(var(--glowpx) * .35) var(--glow)); } 35% { opacity: .85; filter: drop-shadow(0 0 calc(var(--glowpx) * .6) var(--glow)) drop-shadow(0 0 calc(var(--glowpx) * .2) var(--glow)); } 100% { opacity: 0; filter: drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent); } }
+@keyframes kmCoolText { 0% { color: var(--hot); text-shadow: 0 0 var(--glowpx) var(--glow); } 100% { color: var(--cooled); text-shadow: none; } }
+@keyframes kmMiss { 0%, 100% { transform: translateX(0); } 15% { transform: translateX(calc(var(--shakepx) * -1)); } 35% { transform: translateX(var(--shakepx)); } 55% { transform: translateX(calc(var(--shakepx) * -.6)); } 75% { transform: translateX(calc(var(--shakepx) * .4)); } }
+button.opt.plaque img.itemicon { display: block; height: 40px; width: auto; flex: none; }
+.tvmenu button.opt.plaque img.itemicon { height: 40px; }
+
+/* ===== v12q (Magnus): every strip button wears Maggi's ornamented ink frame (assets/ui/tavern_ui_v1, KM_UI.frame).
+   Horizontal-only 9-slice (caps fixed, middle stretched), fixed height per button size via --bh: the frame scales
+   uniformly with the height. Hover / keyboard focus = the orange frame + 2 px lift + orange underline. Disabled =
+   the faded frame and grey text / icons, NO extra opacity (the frame is already faded). Riddle answers (.ansf) wear it too
+   since v12r (block at the end). */
+button.opt.plaque { --bh: 84px; height: var(--bh); box-sizing: border-box; background: none; box-shadow: none; border-radius: 0;
+  border-style: solid; border-width: 0; border-image-source: var(--bf-n); border-image-slice: var(--bf-sv) var(--bf-sh) fill;
+  border-image-width: calc(var(--bh) * var(--bf-bv)) calc(var(--bh) * var(--bf-bh)); border-image-repeat: stretch;
+  padding: 0 calc(var(--bh) * var(--bf-bh) + 6px); color: #1b1410; }
+button.opt.plaque .plq { display: none; }
+button.opt.plaque:hover:not([disabled]), button.opt.plaque:focus-visible:not([disabled]) { border-image-source: var(--bf-h); transform: translateY(-2px); outline: none; }
+button.opt.plaque:hover:not([disabled]) .nm, button.opt.plaque:focus-visible:not([disabled]) .nm { text-decoration: underline; text-decoration-color: #c46228; text-decoration-thickness: 3px; text-underline-offset: 6px; }
+button.opt.plaque[disabled] { opacity: 1; filter: none; border-image-source: var(--bf-d); color: #8f8478; cursor: default; }
+button.opt.plaque[disabled] svg, button.opt.plaque[disabled] img { filter: grayscale(1); opacity: .5; }
+.restgrid button.opt.plaque, .restp .opts.end button.opt.plaque { --bh: 70px; padding: 0 calc(var(--bh) * var(--bf-bh) + 4px); }
+.riddlemoves button.opt.plaque { --bh: 64px; padding: 0 calc(var(--bh) * var(--bf-bh) + 4px); }
+.gear button.opt.plaque.mini { --bh: 46px; padding: 0 calc(var(--bh) * var(--bf-bh) + 2px); }
+
+/* v12r: lift the label (text + icons) by KM_UI.frame.labelLift x height so it is optically centred in Maggi's frame,
+   at every height (--bh 84/70/64/46) and state. Extra bottom padding shifts the flex-centred content up by half of it. */
+button.opt.plaque, .restgrid button.opt.plaque, .restp .opts.end button.opt.plaque, .riddlemoves button.opt.plaque,
+.gear button.opt.plaque.mini { padding-bottom: calc(var(--bh) * var(--bf-lift, 0) * 2); }
+
+/* ===== v12r (Magnus): riddle answers use Maggi's ornamented frame (the v12q .plaque border-image: normal / hover /
+   disabled, label lift) instead of the v18 answer-frame art (assets/v18/answer-frame.png stays on disk, unused).
+   One evenly spaced row (3 answers + Sacrifice) under the untouched question frame: 84 + 14 + 64 px = 162 px, so the
+   flex-centred strip keeps ~11 px clear under the divider and above the bottom. Content-sized like the battle moves. */
+.riddlep .ansgrid { display: flex; flex-wrap: nowrap; justify-content: center; gap: 0 26px; margin: 14px auto 0; }
+.riddlep .ansgrid button.opt.plaque.ansf { --bh: 64px; width: auto; min-width: 200px; margin: 0; background: none; cursor: pointer;
+  padding: 0 calc(var(--bh) * var(--bf-bh) + 8px) calc(var(--bh) * var(--bf-lift, 0) * 2); font: 28px Georgia, "Times New Roman", serif; }
+.riddlep .ansgrid button.opt.plaque.ansf { height: var(--bh); box-sizing: border-box; border-style: solid; border-width: 0; border-image-source: var(--bf-n);
+  border-image-slice: var(--bf-sv) var(--bf-sh) fill; border-image-width: calc(var(--bh) * var(--bf-bv)) calc(var(--bh) * var(--bf-bh)); border-image-repeat: stretch; }
+.riddlep .ansgrid button.opt.plaque.ansf:hover:not([disabled]), .riddlep .ansgrid button.opt.plaque.ansf:focus-visible:not([disabled]) { border-image-source: var(--bf-h); }
+.riddlep .ansgrid button.opt.plaque.ansf[disabled] { border-image-source: var(--bf-d); opacity: 1; color: #8f8478; }
+.riddlep .ansgrid button.opt.plaque.ansf::before { content: none; }
+.riddlep .ansgrid button.opt.plaque.ansf:hover:not([disabled]), .riddlep .ansgrid button.opt.plaque.ansf:focus-visible:not([disabled]) { background: none; }
+.riddlep .ansgrid button.opt.plaque.ansf[disabled] { text-decoration: none; cursor: default; }
+
+/* v12r rest-stop menu in words (Magnus): each gear row = its label "Weapon +1 · 9" + purse, then one framed button per
+   knight with his name and filled / empty ink rings, "Max" when full (plain frame, not greyed), greyed _disabled frame
+   when unaffordable. No text under 28 px (v11 rule). With a gear table the left column stacks heal / scroll / recruit +
+   Walk on at the 56 px frame. */
+.gear { gap: 2px 4px; flex: none; justify-items: stretch; align-items: center; } /* never squeezed (the frames would overlap) */
+.restgrid:has(.gear) { gap: 16px; }
+.restgrid:has(.gear) .col { gap: 4px; }
+.restgrid:has(.gear) .col button.opt.plaque { --bh: 56px; height: var(--bh); font-size: 28px; margin: 0 2px; padding-left: calc(var(--bh) * var(--bf-bh) + 2px); padding-right: calc(var(--bh) * var(--bf-bh) + 2px); }
+.restgrid:has(.gear) .col .opts { gap: 4px 8px; flex-wrap: nowrap; margin: 0; }
+.restgrid:has(.gear) .col .spellicon { display: none; } /* the words say it ("Scroll of Stupidity") */
+.gear .gh { font-size: 28px; white-space: nowrap; justify-self: start; line-height: 1.05; padding-left: 6px; }
+.gear .gh .cost { margin-left: 4px; }
+.gear button.opt.plaque.mini { font-size: 28px; gap: 8px; min-width: 0; padding-left: calc(var(--bh) * var(--bf-bh) - 2px); padding-right: calc(var(--bh) * var(--bf-bh) - 2px); }
+.gear .ipips { display: inline-flex; gap: 3px; } .gear .ipips i { width: 13px; height: 13px; border: 2px solid currentColor; border-radius: 50%; box-sizing: border-box; } .gear .ipips i.on { background: currentColor; }
+.gear .mx { font-size: 28px; font-style: italic; }
+.gear button.opt.plaque.mini.max[disabled] { border-image-source: var(--bf-n); color: #1b1410; }
+
+/* v12r (Magnus: "the buttons are outside of frame"): battle move rows sized by fitMoves() from KM_UI.moves. Buttons
+   never shrink below their content (label + icon + both frame caps); the row takes the first height that fits, else
+   wraps into two centred rows at the .brk marker (attacks | items / specials) with a smaller prompt. */
+.opts.moves .brk { display: none; }
+.opts.moves.fit { justify-content: center; }
+.opts.moves.fit button.opt.plaque { --bh: var(--mv-bh, 84px); height: var(--bh); flex: none; min-width: 0; white-space: nowrap;
+  font-size: var(--mv-fs, 34px); gap: calc(var(--bh) * .12);
+  padding: 0 calc(var(--bh) * var(--bf-bh) + 6px) calc(var(--bh) * var(--bf-lift, 0) * 2); }
+.opts.moves.fit button.opt.plaque svg:not(.plq) { width: var(--mv-ic, 38px); height: var(--mv-ic, 38px); }
+.opts.moves.fit button.opt.plaque img.spellicon.btn { height: var(--mv-sp, 46px); }
+.opts.moves.fit .vdiv { height: calc(var(--mv-bh, 84px) * .83); }
+.opts.moves.fit.tworow { flex-wrap: wrap; }
+.opts.moves.fit.tworow .brk { display: block; flex-basis: 100%; height: 0; }
+.panel.tworows .fightp .prompt { font-size: var(--mv-prompt, 34px); margin: 2px 0 6px; }
+
+/* v12s (Magnus approved): Maggi's riddle question frame, a 9-slice (KM_UI.riddleQ, ui_frames.js). The border-image is
+   drawn at her corner size (--rq-bv / --rq-bh) while the layout border is only her text-safe inset (--rq-pv / --rq-ph),
+   so a 40 px Georgia line fits inside the 104 px frame without touching the ink; more lines just grow the box. */
+.riddlep .riddleframe.qf { display: flex; width: fit-content; min-width: var(--rq-minw); max-width: var(--rq-maxw); min-height: var(--rq-h); height: auto;
+  box-sizing: border-box; padding: 0; margin: 0 auto var(--rq-gap); border-style: solid; border-width: var(--rq-pv) var(--rq-ph);
+  border-image-source: var(--rq-img); border-image-slice: var(--rq-sv) var(--rq-sh) fill; border-image-width: var(--rq-bv) var(--rq-bh); border-image-repeat: stretch; }
+.riddlep .riddleframe.qf::before { content: none; }
+.riddlep .riddleframe.qf .rq { font-size: var(--rq-fs); line-height: var(--rq-lh); max-width: none; }
+.riddlep:has(.riddleframe.qf) .ansgrid { margin-top: 0; }
+
+/* Party actions: maximum eight plaques, up to four per row, above the strip's bottom edge. */
+.panel.fight .fightp {justify-content:flex-start;padding-top:0;}
+.panel.fight .fightp .prompt,.panel.tworows .fightp .prompt {font-size:32px;line-height:1.1;margin:0 0 8px;}
+.opts.moves.role-moves {display:grid;grid-template-columns:repeat(var(--move-cols),minmax(0,1fr));gap:7px 12px;width:calc(100% - 48px);max-width:1450px;margin:0 auto;}
+.opts.moves.role-moves.fit button.opt.plaque {--bh:58px;--mv-bh:58px;--mv-fs:27px;--mv-ic:27px;--mv-sp:33px;height:58px;width:100%;padding-left:28px;padding-right:28px;}
+.spellword .wordgap {display:inline-block;flex:none;}
+
+#hud button.music-toggle {pointer-events:auto;position:absolute;right:18px;top:60px;border:1.5px solid #463323;border-radius:2px;background:rgba(239,224,192,.88);color:#2a1d12;font:22px Georgia,serif;padding:5px 10px;cursor:pointer;}
+#hud button.music-toggle:hover,#hud button.music-toggle:focus-visible {background:#e5cd9d;outline:2px solid #a75f29;outline-offset:3px;}
+#hud button.music-toggle[aria-pressed="true"] span {text-decoration:line-through;}
+/* Roadside shops: goods first; choose the recipient only after choosing equipment. */
+.shop-layout{display:flex;align-items:center;justify-content:space-between;gap:30px;width:100%;}
+.shop-actions{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:320px;}
+.shop-actions button.opt.plaque{--bh:56px;font-size:28px;}
+.shop-shelf{display:flex;justify-content:flex-end;gap:24px;align-items:center;margin-left:auto;}
+.shop-item{background:none;border:0;color:#2a1d12;font:26px Georgia;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:155px;padding:8px;cursor:pointer;}
+.shop-icon{height:60px;display:flex;align-items:center;justify-content:center;}
+.shop-icon svg{width:54px;height:54px;} .shop-icon img.spellicon{height:58px;width:auto;}
+.shop-label{font-size:25px;} .shop-item .purseimg{height:27px;}
+.shop-item:hover:not(:disabled),.shop-item:focus-visible{outline:2px solid #a65626;outline-offset:1px;}
+.shop-item:disabled{opacity:.4;cursor:default;}
+.gear-shade{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:url('assets/v10/paper/parchment.png');z-index:3;}
+.gear-dialog{width:min(100%,1080px);text-align:center;}
+#gear-title{font-size:32px;margin-bottom:8px;}
+.gear-recipients{display:flex;gap:12px;justify-content:center;align-items:center;}
+.gear-dialog button.opt.plaque{--bh:56px;font-size:28px;}
+.gear-dialog .ipips{display:none;}
+.gear-dialog>button{margin-top:8px;}
+
+.shop-icon img{height:58px;width:58px;object-fit:contain;mix-blend-mode:multiply;}
+.tavern-nav,.tavern-options{display:flex;justify-content:center;align-items:center;gap:14px;}
+.tavern-nav button.opt.plaque{--bh:56px;font-size:27px;}
+.tavern-options{min-height:76px;margin-top:7px;}
+.tavern-options button.opt.plaque{--bh:64px;font-size:28px;}
+
+.tavern-note{font-size:23px;line-height:1.2;}
+
+/* The reference's slim, flat printed timer sits above a separate ornamental line. */
+.timing-rail{position:absolute;height:0;z-index:4;pointer-events:none}
+.timing-rail[hidden]{display:none}
+.timing-ink{position:absolute;inset:-7px 0 auto;height:14px;pointer-events:none;transition:clip-path .9s cubic-bezier(.2,.75,.25,1)}
+.timing-track{position:absolute;inset:0;background:url('assets/timing-woodcut/track.png') left center/260px 11px repeat-x}
+#dvfill{position:absolute;left:0;top:1px;width:0;height:12px;box-sizing:border-box;opacity:0;border:4px solid transparent;border-image:url('assets/timing-woodcut/fill.png') 6 fill / 4px / 0 round;filter:none}
+.timer-markers{position:absolute;left:0;top:-8px;width:100%;height:16px;pointer-events:none;overflow:visible}
+.timer-markers path{fill:none;stroke:#292018;stroke-width:1.5;stroke-linecap:square;stroke-linejoin:round;transform:scaleY(.22);transform-origin:center}
+.timing-rail.combat .timer-markers{visibility:hidden}
+
+/* Final score uses the game's carved numerals; no extra score HUD during play. */
+.final-score{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:150px}
+.score-label{font-size:25px;line-height:1.1}
+.score-value{display:flex;align-items:center;justify-content:center;gap:3px;min-height:72px}
+.score-value .glyph{height:72px!important;width:auto!important;max-width:none}
+.endp .endrow{gap:34px}
+.endp .journeyline{font-size:36px}
+
+.survivor-bonus{font-size:21px;line-height:1.15;color:#734727;white-space:nowrap}
+
+/* End banner uses the existing carved frame and parchment; no new HUD clutter. */
+#score-banner{position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(32,24,16,.32)}
+#score-banner[hidden]{display:none}
+.reckoning{width:1000px;max-height:850px;box-sizing:border-box;padding:40px 68px 30px;background:url('assets/v10/paper/parchment.png') center/cover;color:#2a1d12;border:25px solid transparent;border-image-source:var(--rq-img);border-image-slice:var(--rq-sv) var(--rq-sh);border-image-width:40px 62px;border-image-repeat:stretch;text-align:center;animation:reckoning-enter .35s ease-out}
+.reckoning h1{margin:0;font-size:44px;font-weight:normal}
+.reckoning-caption{font-size:22px;margin:7px 0 22px}
+.score-reasons{display:flex;flex-direction:column;gap:9px;text-align:left}
+.score-reason{display:grid;grid-template-columns:1fr 84px 58px;gap:10px;align-items:baseline;font-size:24px;opacity:0;transform:translateY(5px);transition:opacity .2s,transform .2s}
+.score-reason.counted{opacity:1;transform:none}
+.score-reason small{font-size:21px;text-align:right;color:#69472e}
+.score-reason strong{text-align:right;font-weight:normal}
+.reckoning-total{margin:22px 0 12px;padding-top:15px;border-top:1px solid #806347;font-size:25px;display:flex;align-items:center;justify-content:center;gap:30px}
+.reckoning-total .score-value{min-width:120px}
+.reckoning button.opt.plaque{width:280px;--bh:60px;font-size:26px}
+@keyframes reckoning-enter{from{opacity:0;transform:translateY(-24px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.reckoning{animation:none}.score-reason{transition:none}}
+
+/* Japanese uses readable Mincho text; carved numbers and romaji retain their existing art. */
+html[lang="ja"] body,html[lang="ja"] button,html[lang="ja"] input{font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif CJK JP",serif;}
+.titlep h1{font-size:44px;margin:0;line-height:1.05;}
+.map-name{font-size:26px;margin:3px 0 1px;color:#65492c;}
+.titlep .opts{margin-top:2px;gap:6px 18px;}
+.titlep .opts button.opt.plaque{--bh:54px;height:54px;font-size:28px;}
+.language-choice{display:flex;justify-content:center;gap:20px;margin-top:4px;}
+.language-choice button.opt.plaque{--bh:35px;height:35px;min-width:120px;font-size:21px;padding:0 23px;}
+.language-choice [aria-pressed="true"] .nm,.language-choice [aria-pressed="true"]{color:#9c4d22;}
+.kana-prompt{font-size:27px;line-height:1.4;margin-bottom:9px;letter-spacing:.12em;}
+html[lang="ja"] .spellword{max-width:100%;}
+html[lang="ja"] .reckoning h1{font-size:43px;}
+html[lang="ja"] .score-reason{font-size:23px;}
+html[lang="ja"] .tavern-note{font-size:23px;}
+
+/* Readable count-up and local records; the HUD stays unchanged. */
+.score-reason.counting{color:#a6501e;background:rgba(180,99,40,.08)}
+.reckoning{overflow:auto}
+.reckoning-total .score-value{min-width:230px}
+.leaderboard table{border-collapse:collapse;width:100%;margin:18px 0 25px;text-align:left;font-size:25px}
+.leaderboard th{font-size:21px;font-weight:normal;color:#765135;padding:9px 12px;border-bottom:2px solid #745437}
+.leaderboard td{padding:8px 12px;border-bottom:1px solid #9f835b66}
+.leaderboard th:nth-child(3),.leaderboard td:nth-child(3),.leaderboard th:last-child,.leaderboard td:last-child{text-align:right}
+.leaderboard .current-run{background:#c1773033;color:#71390e;outline:1px solid #aa602b}
+.leaderboard-result{font-size:28px;margin:12px 0}.leaderboard-result strong{font-size:38px}
+.leaderboard-empty{margin:75px 0;font-size:27px}
+.scores-link.opt.plaque{width:220px;--bh:42px;font-size:22px;margin:5px auto;display:block}
+.endp h1{font-size:44px;line-height:1;margin-bottom:4px}
+.endp .score-value{min-height:52px}.endp .score-value .glyph{height:52px!important}
+.endp .score-label{font-size:24px}.endp .survivor-bonus{font-size:18px}
+.score-value .gtext{font-size:72px;line-height:1}.endp .score-value .gtext{font-size:52px}
+
+/* Title lives in the sky; the lower strip is reserved for navigation. */
+#sky-title {position:absolute;left:230px;right:230px;top:83px;text-align:center;pointer-events:none;color:#24241c;}
+#sky-title[hidden] {display:none;}
+#sky-title h1 {font:54px/1.08 Georgia,serif;margin:0;}
+#sky-title .map-name {font:28px/1.2 Georgia,serif;margin:8px 0 0;color:#6c6050;}
+.titlep {display:flex;flex-direction:column;align-items:center;gap:5px;}
+.titlep .opts {margin:0;}
+.titlep .scores-link.opt.plaque {margin:0;}
+.titlep .language-choice {margin:0;}
+
+/* Base swing damage remains legible inside the existing two-row move grid. */
+.opts.moves .nm:has(.move-damage){display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.05;}
+.opts.moves .move-name{font-size:24px;}
+.opts.moves .move-damage{font-size:17px;color:#65503b;font-weight:normal;}
+
+/* Mode selector: the original parchment and ornamental buttons. */
+#sky-title .mode-choice{display:flex;justify-content:center;gap:20px;margin:20px 0 8px;pointer-events:auto}
+#sky-title .mode-choice button.opt.plaque{--bh:52px;height:52px;min-width:245px;font-size:27px;padding:0 30px}
+.mode-choice button[aria-pressed="true"]{color:#ac5c24;text-decoration:underline;text-underline-offset:7px}
+#sky-title .mode-description{font:22px/1.2 Georgia,serif;color:#6c6050}
+.panel.cards{display:flex;align-items:center;justify-content:center}
+.knight-hand{display:flex;align-items:center;justify-content:center;gap:32px;width:100%;color:#2b2118;text-align:center}
+.knight-fan{display:flex;gap:14px;align-items:center}
+.knight-guide{width:190px;text-align:left;border-left:1px solid #886945;padding-left:16px;line-height:1.16}
+.knight-guide small{font-size:17px;color:#695540}
+.knight-guide strong{display:block;font-size:23px;margin-top:3px}
+.knight-guide p{font:18px/1.2 Georgia,serif;margin:10px 0 0;color:#534434}
+button.knight-card{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;box-sizing:border-box;margin:0;width:178px;height:178px;flex:none;padding:9px 12px;overflow-wrap:anywhere;border:0 solid transparent;border-image-source:var(--bf-n);border-image-slice:var(--bf-sv) var(--bf-sh) fill;border-image-width:20px 27px;border-image-repeat:stretch;background:#eddfc3 url('assets/v10/paper/parchment.png') center/cover;color:#261d14;cursor:grab;touch-action:none;user-select:none;font:19px/1.06 Georgia,serif}
+.knight-card strong{font-size:24px;line-height:1.03}
+.knight-card small,.knight-card em{font:16px/1.05 Georgia,serif;color:#5d4938}
+.knight-card em{color:#873908}
+.card-symbol,.card-symbol svg,.card-symbol img{display:block;width:36px;height:32px;object-fit:contain}
+button.knight-card.consumable{color:#78421c}
+button.knight-card:enabled:hover,button.knight-card:focus-visible{outline:2px solid #ad642c;outline-offset:1px}
+button.knight-card.lifted,button.knight-card:disabled{opacity:.55}
+.knight-instruction{font:17px/1.12 Georgia,serif;color:#5f503d}
+.knight-held{pointer-events:none;position:fixed;z-index:9999;transform:translate(-50%,-65%) rotate(-4deg);padding:12px 4px;text-align:center;background:#ecdbc0;border:3px double #463324;color:#302417;font:bold 16px Georgia,serif}
+.knight-held.aimed{border-color:#ab571e;box-shadow:0 0 0 2px #ab571e}
+.committed-card{display:block;font:21px Georgia,serif;color:#715238}
+
+.knight-held,.knight-held.aimed{pointer-events:none;padding:0;border:0;background:none;box-shadow:none}
+.knight-held *{pointer-events:none}
+.knight-held .knight-card{margin:0}
+.knight-held.aimed .knight-card{outline:3px solid #a85a2a}
+.knight-held>small:not(:empty){display:inline-block;padding:2px 7px;background:#efdfc6;border:1px solid #69482c}
+.card-symbol img{width:100%;height:100%;max-height:100%}
+.knight-card.dealt{animation:deal-card .24s ease-out}
+@keyframes deal-card{from{transform:translate(14px,10px) rotate(4deg);opacity:.4}to{transform:none;opacity:1}}
+@media(prefers-reduced-motion:reduce){.knight-card.dealt{animation:none}}
+
+.card-symbol:has(.stick-stamp),.card-symbol .stick-stamp{width:63px;height:32px}
+
+/* Painted emblems mark the exact outcome cutoffs; horizontal swords as in the concept. */
+.timing-legend{position:absolute;inset:0;pointer-events:none;z-index:4}
+.timing-legend[hidden]{display:none}
+.timing-emblem{position:absolute;top:-23px;transform:translateX(-50%);width:40px;height:46px;padding:0;border:0;background:none;color:#292018;pointer-events:auto;cursor:help;transition:left .9s cubic-bezier(.2,.75,.25,1)}
+.timing-emblem[data-outcome="crit"]{width:90px}
+.timing-emblem[data-outcome="normal"]{width:96px}
+.timing-emblem[data-outcome="weak"]{width:64px;transform:translateX(-100%)}
+#divider .timing-emblem img{position:static;display:block;width:100%;height:100%;object-fit:contain;pointer-events:none}
+.timing-emblem:focus-visible{outline:2px solid #ac5c24;outline-offset:2px}
+.timing-emblem [role="tooltip"]{display:none;position:absolute;bottom:49px;left:50%;transform:translateX(-50%);width:260px;padding:12px 15px;background:#ecdcc4;border:2px solid #51463a;color:#292018;font:20px/1.3 Georgia,serif;text-align:left;pointer-events:none}
+.timing-emblem[data-outcome="weak"] [role="tooltip"]{left:auto;right:0;transform:none}
+.timing-emblem:hover [role="tooltip"],.timing-emblem:focus-visible [role="tooltip"]{display:block}
+
+/* Narrow red hatching still measures the exact window lost to party/enemy pressure. */
+.pressure-band{position:absolute;left:25%;width:0;height:5px;border-left:1px solid #943c2c;border-right:1px solid #943c2c;box-sizing:border-box;background:repeating-linear-gradient(115deg,#a34332 0 1px,#a3433240 1px 4px);transition:left .9s cubic-bezier(.2,.75,.25,1),width .9s cubic-bezier(.2,.75,.25,1);pointer-events:none}
+.pressure-band[data-loss="0"]{border:0}
+.pressure-crit{top:-9px}.pressure-block{top:8px;left:50%}
+.boss-entrance{text-align:center;padding:26px 40px;color:#292018;font-family:Georgia,serif}
+.boss-entrance strong{font-size:34px}.boss-entrance p{font-size:25px;line-height:1.4;margin:10px 0 0}
+.boss-entrance small{font-size:20px}.pressure-reveal strong{color:#943c2c}
+@media(prefers-reduced-motion:reduce){.timing-emblem,.pressure-band,.timing-ink{transition:none}}
+
+/* A small answer pin ends on the rail, independent of the moving outcome emblems. */
+.timing-hit{position:absolute;top:-31px;width:16px;height:32px;transform:translateX(-50%);pointer-events:none;z-index:2;animation:hit-pin-drop .18s ease-out}
+.timing-hit[hidden]{display:none}
+#divider .timing-hit svg{display:block;width:100%;height:100%}
+@keyframes hit-pin-drop{from{margin-top:-9px}to{margin-top:0}}
+@media(prefers-reduced-motion:reduce){.timing-hit{animation:none}}
+
+/* Large persistent choices share the Knight's square ink frame. Up to eight fit in one row. */
+.action-panel .action-deck{width:100%;box-sizing:border-box;padding:3px 0;}
+.action-heading{font:24px/1.1 Georgia,serif;text-align:center;margin:0 0 7px;color:#4c3c2c;}
+.action-row{display:flex;justify-content:center;align-items:stretch;gap:12px;width:100%;}
+button.action-card{cursor:pointer;width:178px;height:178px;padding:9px 12px;gap:2px;text-align:center;}
+.action-card strong{font-size:22px;line-height:1.04;}
+.action-card .action-meta{font-size:15px;line-height:1.05;max-width:100%;}
+.action-card .action-detail{font:20px/1.1 Georgia,serif;}
+.action-card .action-detail b{font-size:24px;}
+.action-card .action-note{font-size:15px;line-height:1.05;}
+.action-card[data-act="pickLightning"] .action-note,.action-card[data-act="sacrifice"] .action-note,.action-card[data-act="doSacrifice"] .action-note{color:#873908;}
+.action-card .card-symbol{font:bold 31px/28px Georgia,serif;width:38px;height:28px;}
+.action-card .card-symbol svg,.action-card .card-symbol img{height:28px;width:100%;max-height:28px;object-fit:contain;}
+.action-card .card-symbol:has(.stick-stamp){width:56px;}
+.action-card .cost{font-size:24px;line-height:1.1;display:flex;justify-content:center;align-items:center;gap:5px;}
+.action-card .cost .purseimg{height:24px;width:auto;}
+.action-card:disabled{cursor:default;border-image-source:var(--bf-d);}
+.action-panel .gear-shade{background:none;}
+.gear-dialog.action-gear{width:100%;max-width:none;box-sizing:border-box;padding:3px 0;border:0;background:none;}
+.action-gear #gear-title{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+.action-gear .action-row{gap:14px;}
+html[lang="ja"] .action-card strong{font-size:21px;}
+html[lang="ja"] .action-card .action-detail{font-size:18px;}
+
+.romaji-hint{display:block;font-size:17px;letter-spacing:0;line-height:1.3;margin-top:2px;}
+
+.timing-emblem[data-outcome="block"] [role="tooltip"]{left:0;transform:none;}
+
+/* Chapter break: one decision, no automatic run reset or healing. */
+.chapter-gate{text-align:center;padding:3px 24px}.chapter-gate h2{margin:0 0 6px;font-size:30px}.chapter-gate p{margin:4px 0 14px;font-size:22px}.chapter-gate .opts{display:flex;justify-content:center;gap:22px}
+
+.chapter-gate .opts{margin:4px 0 0}.chapter-gate button.opt.plaque{--bh:62px;height:62px;font-size:30px}
+
+/* Tomb camera test: compact top status, same math strip and timing bar. */
+.tomb-label {position:absolute;top:18px;left:24px;font:24px Georgia;color:#29241d;background:#e8d7ba;padding:5px 12px;border-bottom:2px solid #30271e;}
+.tomb-label small {font-size:18px;margin-left:14px;}
+.tomb-return {color:#30271e;font:24px Georgia;text-decoration:underline;padding:15px 22px;}
+#stage[data-tomb="true"] #sky-title {display:none;}
+
+/* Replacement is a choice, never an automatic dismissal. */
+.replacement-title{text-align:center;margin:0 0 8px;line-height:1.1}.replacement-title strong{font-size:23px}.replacement-title small{display:block;font-size:17px;margin-top:4px}.replacement-panel .action-card{height:150px;min-height:150px}.replacement-panel .action-icon{height:30px}.replacement-panel .action-label{font-size:25px}
+
+/* Magnus 2026-11-08: in combat the divider grows into the full-length meter (quick), and settles back after. */
+#divider .woodcut-divider{transition:opacity .3s ease,transform .3s ease}
+#divider.combat .woodcut-divider{opacity:0;transform:scaleX(1.02)}
+.timing-rail.combat .timing-ink{animation:meter-grow .45s cubic-bezier(.2,.75,.25,1) both;transform-origin:50% 50%}
+.timing-rail.combat .timing-emblem{animation:emblem-pop .28s cubic-bezier(.3,1.5,.5,1) both;animation-delay:.3s}
+.timing-rail.combat .timing-emblem[data-outcome="crit"]{animation-delay:.36s}
+.timing-rail.combat .timing-emblem[data-outcome="normal"]{animation-delay:.42s}
+.timing-rail.combat .timing-emblem[data-outcome="weak"]{animation-delay:.48s}
+@keyframes meter-grow{from{transform:scaleX(.04);opacity:.2}to{transform:none;opacity:1}}
+@keyframes emblem-pop{from{scale:0;opacity:0}to{scale:1;opacity:1}}
+@media(prefers-reduced-motion:reduce){.timing-rail.combat .timing-ink,.timing-rail.combat .timing-emblem{animation:none}}
+
+.tavern-heading{display:flex;align-items:center;justify-content:center;gap:14px;}
+.tavern-orn{width:140px;height:12px;object-fit:cover;}
+.tavern-deck{position:relative;}
+.tavern-lift{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(100% + 18px);white-space:nowrap;padding:4px 20px;background:url('assets/v10/paper/parchment.png');}
+.panel:has(.tavern-deck){overflow:visible;}
+.action-gear #gear-title.tavern-lift{width:auto;height:auto;overflow:visible;clip-path:none;}
+#strip:has(.tavern-deck){z-index:5;}
+/* meter pressure (switch): ink hiding part of the meter, and the foes' pressure tags above its right end */
+.mp-shroud{position:absolute;top:-9px;height:18px;z-index:3;pointer-events:none;background:#292018;border-radius:9px 3px 9px 4px;box-shadow:0 0 0 2px rgba(41,32,24,.35),0 0 6px 2px rgba(41,32,24,.5)}
+.mp-shroud[hidden],.mp-tags[hidden]{display:none}
+.mp-tags{position:absolute;right:0;top:-46px;display:flex;gap:8px;pointer-events:none;z-index:5}
+.mp-tag{font-family:inherit;font-size:15px;font-weight:bold;letter-spacing:.08em;color:#ecdcc4;background:#292018;padding:3px 8px 2px;border-radius:2px;line-height:1.2}
+img.mp-tag{background:none;padding:0;height:28px}
+
+/* cast bar (switch castBar): moved icons shake, then slide; the trail is the timer fill recoloured green / red */
+.cb-trail{position:absolute;top:-6px;z-index:2;height:12px;box-sizing:border-box;border:4px solid transparent;border-image:url('assets/timing-woodcut/fill.png') 6 fill / 4px / 0 round;pointer-events:none}
+.timing-rail .timing-emblem.cb-shake{animation:cb-shake var(--cb-shake-ms,220ms) linear}
+@keyframes cb-shake{0%,100%{translate:0 0}20%{translate:calc(-1*var(--cb-shake-px,3px)) 0}40%{translate:var(--cb-shake-px,3px) 0}60%{translate:calc(-.6*var(--cb-shake-px,3px)) 0}80%{translate:calc(.6*var(--cb-shake-px,3px)) 0}}
+.timing-rail.castbar .mp-shroud{animation:cb-fade var(--cb-ink-ms,400ms) ease both;transition:left .4s ease,width .4s ease}
+@keyframes cb-fade{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.timing-rail .timing-emblem.cb-shake,.timing-rail.castbar .mp-shroud{animation:none;transition:none}}

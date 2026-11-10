@@ -90,6 +90,7 @@ KM.Assets = (function () {
     if(/^grave/.test(id) && !KM_DATA.enemies[id])return KM.CompanionGraves.drawMarker(ctx,x,y,{lean:o.rot||0,alpha:o.alpha??1});
     const cfg = KM_ART.entities[id] || { box: { w: 60, h: 60, color: "#f0f", label: id } };
     const d = pick(id, o.action || "idle", o.t || 0, o.seq, o.seqT);
+    if (d && o.sheet) d.img = o.sheet(d.img) || d.img; // o.sheet(image) -> a same-layout stand-in sheet (brawl: the ghost look)
     // art: native px x global factor (o.scale is ignored for art; it only sizes placeholder boxes)
     const sc = d ? artScale(cfg, d) : (o.scale || 1);
     ctx.save();
@@ -213,6 +214,14 @@ KM.Assets = (function () {
     const skip = P.skip || [];
     return Promise.all((window.KM_PRELOAD_IMAGES || []).filter(src => !skip.some(k => src.includes(k))).map(src => decode(loadImg(src))));
   }
+  // KM_DATA.preload.warm: decode again + draw once to a tiny canvas, so the first real draw is instant (Safari)
+  function warm() {
+    const keys = (KM_DATA.preload && KM_DATA.preload.warm) || []; if (!keys.length) return Promise.resolve();
+    const cv = document.createElement("canvas"); cv.width = cv.height = 4; const cx = cv.getContext("2d");
+    const list = (window.KM_PRELOAD_IMAGES || []).filter(src => keys.some(k => src.includes(k))).map(loadImg);
+    return Promise.all(list.map(im => (im.decode ? im.decode().catch(() => {}) : Promise.resolve())
+      .then(() => { try { if (ok(im)) cx.drawImage(im, 0, 0, 4, 4); } catch (e) {} })));
+  }
   // the sum's glyph pictures (slice + ink copy) are loaded and decoded; anything missing starts loading now
   function sumReady(text) {
     return String(text).split("").every(ch => {
@@ -224,5 +233,5 @@ KM.Assets = (function () {
   }
   function background(ref) { const b = ref && reg.bg[ref]; return b && ok(b.img) ? b : null; }
   const hasArt = id => (/^grave/.test(id) && !KM_DATA.enemies[id]) || !!pick(id, "idle", 0);
-  return { hasArt, colorToAlpha, seqDur, seqFrame, seqPick, loadPacks, register, drawEntity, entityHeight, entitySize, hasAnim, artScale, glyphHTML, glyphImg, uiSrc, preloadGlyphs, preloadAll, sumReady, glyphFiles, background, reg, loadImg };
+  return { hasArt, colorToAlpha, seqDur, seqFrame, seqPick, loadPacks, register, drawEntity, entityHeight, entitySize, hasAnim, artScale, glyphHTML, glyphImg, uiSrc, preloadGlyphs, preloadAll, warm, sumReady, glyphFiles, background, reg, loadImg };
 })();

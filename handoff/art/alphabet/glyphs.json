@@ -1,0 +1,141 @@
+{
+ "cell": [
+  233,
+  190
+ ],
+ "baseline_y": 173,
+ "cap_height": 162,
+ "order": "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+ "letters": {
+  "A": {
+   "atlas_x": 0,
+   "glyph_x_in_cell": 21,
+   "advance": 191
+  },
+  "B": {
+   "atlas_x": 233,
+   "glyph_x_in_cell": 35,
+   "advance": 163
+  },
+  "C": {
+   "atlas_x": 466,
+   "glyph_x_in_cell": 32,
+   "advance": 168
+  },
+  "D": {
+   "atlas_x": 699,
+   "glyph_x_in_cell": 27,
+   "advance": 178
+  },
+  "E": {
+   "atlas_x": 932,
+   "glyph_x_in_cell": 38,
+   "advance": 157
+  },
+  "F": {
+   "atlas_x": 1165,
+   "glyph_x_in_cell": 41,
+   "advance": 151
+  },
+  "G": {
+   "atlas_x": 1398,
+   "glyph_x_in_cell": 24,
+   "advance": 184
+  },
+  "H": {
+   "atlas_x": 1631,
+   "glyph_x_in_cell": 21,
+   "advance": 190
+  },
+  "I": {
+   "atlas_x": 1864,
+   "glyph_x_in_cell": 69,
+   "advance": 95
+  },
+  "J": {
+   "atlas_x": 2097,
+   "glyph_x_in_cell": 51,
+   "advance": 131
+  },
+  "K": {
+   "atlas_x": 2330,
+   "glyph_x_in_cell": 26,
+   "advance": 180
+  },
+  "L": {
+   "atlas_x": 2563,
+   "glyph_x_in_cell": 42,
+   "advance": 149
+  },
+  "M": {
+   "atlas_x": 2796,
+   "glyph_x_in_cell": 11,
+   "advance": 210
+  },
+  "N": {
+   "atlas_x": 3029,
+   "glyph_x_in_cell": 30,
+   "advance": 172
+  },
+  "O": {
+   "atlas_x": 3262,
+   "glyph_x_in_cell": 31,
+   "advance": 171
+  },
+  "P": {
+   "atlas_x": 3495,
+   "glyph_x_in_cell": 36,
+   "advance": 160
+  },
+  "Q": {
+   "atlas_x": 3728,
+   "glyph_x_in_cell": 25,
+   "advance": 182
+  },
+  "R": {
+   "atlas_x": 3961,
+   "glyph_x_in_cell": 26,
+   "advance": 180
+  },
+  "S": {
+   "atlas_x": 4194,
+   "glyph_x_in_cell": 43,
+   "advance": 146
+  },
+  "T": {
+   "atlas_x": 4427,
+   "glyph_x_in_cell": 35,
+   "advance": 163
+  },
+  "U": {
+   "atlas_x": 4660,
+   "glyph_x_in_cell": 31,
+   "advance": 170
+  },
+  "V": {
+   "atlas_x": 4893,
+   "glyph_x_in_cell": 29,
+   "advance": 175
+  },
+  "W": {
+   "atlas_x": 5126,
+   "glyph_x_in_cell": 0,
+   "advance": 233
+  },
+  "X": {
+   "atlas_x": 5359,
+   "glyph_x_in_cell": 27,
+   "advance": 178
+  },
+  "Y": {
+   "atlas_x": 5592,
+   "glyph_x_in_cell": 32,
+   "advance": 169
+  },
+  "Z": {
+   "atlas_x": 5825,
+   "glyph_x_in_cell": 39,
+   "advance": 154
+  }
+ }
+}

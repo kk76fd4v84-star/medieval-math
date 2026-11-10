@@ -12,9 +12,15 @@ KM_DATA.balanceTry = {
   gradual: false,     // slow step-by-step maths ladder (see `ladder` below); turns on whoActs
   whoActs: false,
   knightStart: false, // a new run starts as the covered-face knight (Maggi's starter art, chipped sword) instead of the villager
+  juice: false,       // number entry feels forged: digits land heavy with Charlie's clangs, Enter punches (src/data/juice.js)
+  brawl: false,       // ghosts of recorded runs on the road: sightings + ambushes (src/data/brawl.js, src/brawl.js)
   pauseMenu: false,  // music on/off lives in a pause menu (P; the world stops); nothing top right: the stage's music button and distance flag hide (Magnus 2026-11-08)
   toughFoes: false,   // stronger foes take more blows: Fellowship health x `tough` below, on top of the curve (Magnus 2026-11-08)
   chestCards: false,  // upgrade cards only from chests behind stronger foes, none in shops (src/data/chest_cards.js); turns on cards
+  traps: false,         // trap stops: a grail on a bear trap, disarm with multiplication sums; a snap costs a companion an arm or a leg (src/data/traps.js)
+  cardsV2: false,       // Magnus's 2026-11-09 card edits: stacking levels, new Cleave/Swing/Embers/Shield Wall, Thunder Fist, High Voltage, Rallying Cry, Weighted Axe
+  recruitCode: false, // recruiting = type a 6-digit code before a 5 s meter ends, no sum (src/data/party_levels.js)
+  partyLevels: false, // party members level 1-5 by surviving fights; levels cancel foe intimidation on the cast bar (src/data/party_levels.js)
   castBar: false,     // looks only: the timing meter always on screen; moved band ends shake + slide with a green / red trail (src/data/cast_bar.js)     // Fellowship: each sum belongs to one member (+ knights, − healers, × fire / wizard / executioner); their strike counts double
   // curve: Fellowship enemy health = base hp x min(max, start + step x battles fought this run)
   health: { start: 2.0, step: 0.05, max: 2.6 },

@@ -24,8 +24,16 @@ KM.Loader = (function () {
   const paint = () => { const x = cv.getContext("2d"); x.drawImage(dimg, 0, 0, cv.width, cv.height); x.globalCompositeOperation = "source-in"; x.fillStyle = ORANGE; x.fillRect(0, 0, cv.width, cv.height);
     x.globalCompositeOperation = "source-over"; x.clearRect((ORN - ORNH) * cv.width, 0, ORNH * 2 * cv.width, cv.height); };
   dimg.complete && dimg.naturalWidth ? paint() : dimg.addEventListener("load", paint);
-  function draw() {
-    const f = totW ? doneW / totW : 0; shown = Math.max(shown, Math.min(1, f));
+  // the drawn bar eases toward the real share at a capped speed (FILL_MS for a full bar): the total grows as files are
+  // asked for, so a cached first file can read 100% before the rest are known; the drawn bar never jumps, never shrinks
+  const FILL_MS = 900; let real = 0, lastT = performance.now(), anim = 0;
+  function draw() { real = phase === "done" ? 1 : totW ? Math.min(1, doneW / totW) : 0; if (!anim) anim = setTimeout(step, 16); }
+  function step() {
+    const now = performance.now(), dt = Math.min(100, now - lastT); lastT = now; anim = 0;
+    shown = Math.max(shown, Math.min(real, shown + dt / FILL_MS)); paintBar();
+    if (shown < real) anim = setTimeout(step, 16);
+  }
+  function paintBar() {
     const l = (ORN - ORNH) * (1 - shown), r = (1 - ORN - ORNH) * (1 - shown);
     cv.style.clipPath = `inset(0 ${(r * 100).toFixed(2)}% 0 ${(l * 100).toFixed(2)}%)`; cv.style.opacity = shown > 0 ? 1 : 0;
   }
@@ -77,12 +85,12 @@ KM.Loader = (function () {
   function ready(maxMs = 90000) {
     const t0 = performance.now();
     return new Promise(res => { const tick = () => { const now = performance.now();
-      if ((totW > 0 && !pend.size && now - lastChange > 500) || now - t0 > maxMs) return res(); setTimeout(tick, 100); }; tick(); });
+      if ((totW > 0 && !pend.size && now - lastChange > 500 && shown >= 1) || now - t0 > maxMs) return res(); setTimeout(tick, 100); }; tick(); }); // shown >= 1: the drawn bar has filled
   }
   const sketch = new URLSearchParams(location.search).get('biome') === 'sketchbook';
   const artwork = !sketch && KM.LoadingArt ? KM.LoadingArt(ov, track) : null;
   function finish() {
-    if (phase === "done") return; phase = "done"; shown = 1; draw();
+    if (phase === "done") return; phase = "done"; shown = 1; paintBar();
     deferred.splice(0).forEach(([im, src]) => { im.src = src; });
     setTimeout(() => {
       if (artwork) artwork.dissolve(() => ov.remove());

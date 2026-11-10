@@ -6,7 +6,7 @@ window.KM_DATA = window.KM_DATA || {};
 KM_DATA.meterPressure = {
   limits: { critMin: .20, blockMin: .05, bandGap: .05, quickMax: .15, inkMax: .20 },
   tags: { quick: "FAST", heavy: "HEAVY", slippery: "SLIPPERY", shroud: "INK" },   // plain-text tags by the meter
-  art: "assets/meter_pressure/",   // optional {quick,heavy,slippery,shroud,helm,lantern}.png; the text tag / shop glyph stays until one exists
+  art: "assets/meter_pressure/", artIds: ["quick", "heavy", "slippery", "shroud", "helm", "lantern"],   // Maggi v1 (64 px), approved by Magnus: painted tag / shop icon; an id not listed keeps its text tag / glyph
   sfx: { quick: "pressure_quick", heavy: "pressure_heavy", slippery: "pressure_slippery", shroud: "pressure_shroud", helm: "helm_buy", lantern: "lantern_buy" },
   foes: {
     killer_rabbit:    { quick: .10 },

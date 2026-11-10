@@ -1,0 +1,474 @@
+{
+  "frames": [
+    {
+      "file": "frank_lose_arm.png",
+      "cell": [
+        512,
+        512
+      ],
+      "pivot": [
+        256,
+        475
+      ],
+      "anchor": [
+        256,
+        475
+      ],
+      "source_frame": 0,
+      "source": "frank.png",
+      "v1_body": "frank_no_arm.png",
+      "body_rotation_degrees": 5.0,
+      "alpha_bbox": [
+        44,
+        20,
+        392,
+        479
+      ],
+      "sha256": "4152de25ef7baace91618e6a45ba0c4e2bb6f738b6b02684f592f3068661d7a0"
+    },
+    {
+      "file": "frank_lose_leg.png",
+      "cell": [
+        512,
+        512
+      ],
+      "pivot": [
+        256,
+        475
+      ],
+      "anchor": [
+        256,
+        475
+      ],
+      "source_frame": 0,
+      "source": "frank.png",
+      "v1_body": "frank_no_leg.png",
+      "body_rotation_degrees": 6.5,
+      "alpha_bbox": [
+        60,
+        20,
+        391,
+        468
+      ],
+      "sha256": "a58f74a7a21f1b4e3e221a3a11afe68035c1b41a1d6369b2edb1fb0f0d079127"
+    },
+    {
+      "file": "executioner_lose_arm.png",
+      "cell": [
+        512,
+        512
+      ],
+      "pivot": [
+        256,
+        480
+      ],
+      "anchor": [
+        256,
+        480
+      ],
+      "source_frame": 0,
+      "source": "executioner.png",
+      "v1_body": "executioner_no_arm.png",
+      "body_rotation_degrees": 5.0,
+      "alpha_bbox": [
+        84,
+        29,
+        436,
+        485
+      ],
+      "sha256": "e14a8c4f974b9d0fd8d9a48d4c4c97ab70245a88ab98b73ca8a1bdce34eb37af"
+    },
+    {
+      "file": "executioner_lose_leg.png",
+      "cell": [
+        512,
+        512
+      ],
+      "pivot": [
+        256,
+        480
+      ],
+      "anchor": [
+        256,
+        480
+      ],
+      "source_frame": 0,
+      "source": "executioner.png",
+      "v1_body": "executioner_no_leg.png",
+      "body_rotation_degrees": 6.5,
+      "alpha_bbox": [
+        44,
+        29,
+        430,
+        476
+      ],
+      "sha256": "ed4e672f6d5893b0ec3c59d5a8a36ac4eec20e8ffd2b7a3337e88f843fa1874c"
+    },
+    {
+      "file": "timmy_lose_arm.png",
+      "cell": [
+        512,
+        512
+      ],
+      "pivot": [
+        256,
+        460
+      ],
+      "anchor": [
+        256,
+        460
+      ],
+      "source_frame": 0,
+      "source": "timmy.png",
+      "v1_body": "timmy_no_arm.png",
+      "body_rotation_degrees": 5.0,
+      "alpha_bbox": [
+        107,
+        17,
+        452,
+        461
+      ],
+      "sha256": "d8df1b6e32b0eec8f50ec0cecdc5bbb9515fb328bc108c475bec96276fb42a22"
+    },
+    {
+      "file": "timmy_lose_leg.png",
+      "cell": [
+        512,
+        512
+      ],
+      "pivot": [
+        256,
+        460
+      ],
+      "anchor": [
+        256,
+        460
+      ],
+      "source_frame": 0,
+      "source": "timmy.png",
+      "v1_body": "timmy_no_leg.png",
+      "body_rotation_degrees": 6.5,
+      "alpha_bbox": [
+        40,
+        19,
+        380,
+        456
+      ],
+      "sha256": "c4076023849cd0c5f26d787791d5ccfb109aebad4f3f88d19285d3743d518c41"
+    },
+    {
+      "file": "follower_1_lose_arm.png",
+      "cell": [
+        768,
+        768
+      ],
+      "pivot": [
+        384,
+        680
+      ],
+      "anchor": [
+        384,
+        680
+      ],
+      "source_frame": 0,
+      "source": "scarf-walk.png",
+      "v1_body": "follower_1_walk_no_arm.png",
+      "body_rotation_degrees": 5.0,
+      "alpha_bbox": [
+        85,
+        145,
+        553,
+        686
+      ],
+      "sha256": "648bb04f287ff1f5c48e55f4a1296af710b1d332512926421036a7a26fe764de"
+    },
+    {
+      "file": "follower_1_lose_leg.png",
+      "cell": [
+        768,
+        768
+      ],
+      "pivot": [
+        384,
+        680
+      ],
+      "anchor": [
+        384,
+        680
+      ],
+      "source_frame": 0,
+      "source": "scarf-walk.png",
+      "v1_body": "follower_1_walk_no_leg.png",
+      "body_rotation_degrees": 6.5,
+      "alpha_bbox": [
+        122,
+        145,
+        553,
+        673
+      ],
+      "sha256": "e57acbec96b381e54b45a5a0cf32f2b36c831dd562a547acdcc439dfc2ea65d2"
+    },
+    {
+      "file": "follower_2_lose_arm.png",
+      "cell": [
+        768,
+        768
+      ],
+      "pivot": [
+        384,
+        680
+      ],
+      "anchor": [
+        384,
+        680
+      ],
+      "source_frame": 0,
+      "source": "feather-walk.png",
+      "v1_body": "follower_2_walk_no_arm.png",
+      "body_rotation_degrees": 5.0,
+      "alpha_bbox": [
+        86,
+        77,
+        555,
+        686
+      ],
+      "sha256": "edd8949e11933db73e02fd738db70256dfcd460523f12163e3ff9ab1ed4bafed"
+    },
+    {
+      "file": "follower_2_lose_leg.png",
+      "cell": [
+        768,
+        768
+      ],
+      "pivot": [
+        384,
+        680
+      ],
+      "anchor": [
+        384,
+        680
+      ],
+      "source_frame": 0,
+      "source": "feather-walk.png",
+      "v1_body": "follower_2_walk_no_leg.png",
+      "body_rotation_degrees": 6.5,
+      "alpha_bbox": [
+        123,
+        80,
+        555,
+        673
+      ],
+      "sha256": "35d2cfedaa2cd2c519551f3ae6b21dcb86b462ef7218438361112f69acb56704"
+    },
+    {
+      "file": "follower_3_lose_arm.png",
+      "cell": [
+        768,
+        768
+      ],
+      "pivot": [
+        384,
+        680
+      ],
+      "anchor": [
+        384,
+        680
+      ],
+      "source_frame": 0,
+      "source": "moustache-walk.png",
+      "v1_body": "follower_3_walk_no_arm.png",
+      "body_rotation_degrees": 5.0,
+      "alpha_bbox": [
+        85,
+        101,
+        555,
+        686
+      ],
+      "sha256": "e15a4e66e8a2835410950304ce2e4fba6a10dc884a914e225435bca2208a1b3d"
+    },
+    {
+      "file": "follower_3_lose_leg.png",
+      "cell": [
+        768,
+        768
+      ],
+      "pivot": [
+        384,
+        680
+      ],
+      "anchor": [
+        384,
+        680
+      ],
+      "source_frame": 0,
+      "source": "moustache-walk.png",
+      "v1_body": "follower_3_walk_no_leg.png",
+      "body_rotation_degrees": 6.5,
+      "alpha_bbox": [
+        123,
+        99,
+        555,
+        673
+      ],
+      "sha256": "31a9fa7821593000afdc00779605b7754d6158a615afe1ef1b146125679a9430"
+    },
+    {
+      "file": "follower_4_lose_arm.png",
+      "cell": [
+        768,
+        768
+      ],
+      "pivot": [
+        384,
+        680
+      ],
+      "anchor": [
+        384,
+        680
+      ],
+      "source_frame": 0,
+      "source": "stripe-walk.png",
+      "v1_body": "follower_4_walk_no_arm.png",
+      "body_rotation_degrees": 5.0,
+      "alpha_bbox": [
+        85,
+        117,
+        552,
+        687
+      ],
+      "sha256": "0ff4465a4d73ba796d77ab0b82f0871ef435684b22096f473369c7fae58409ec"
+    },
+    {
+      "file": "follower_4_lose_leg.png",
+      "cell": [
+        768,
+        768
+      ],
+      "pivot": [
+        384,
+        680
+      ],
+      "anchor": [
+        384,
+        680
+      ],
+      "source_frame": 0,
+      "source": "stripe-walk.png",
+      "v1_body": "follower_4_walk_no_leg.png",
+      "body_rotation_degrees": 6.5,
+      "alpha_bbox": [
+        121,
+        115,
+        552,
+        673
+      ],
+      "sha256": "3a1c72c5b9abcab55e985cbbd4d4663923a6f85bb6499c2100711380790a84b1"
+    },
+    {
+      "file": "follower_5_lose_arm.png",
+      "cell": [
+        512,
+        512
+      ],
+      "pivot": [
+        256,
+        480
+      ],
+      "anchor": [
+        256,
+        480
+      ],
+      "source_frame": 0,
+      "source": "coif-walk-atlas.png",
+      "v1_body": "follower_5_walk_no_arm.png",
+      "body_rotation_degrees": 5.0,
+      "alpha_bbox": [
+        47,
+        21,
+        347,
+        485
+      ],
+      "sha256": "4d8193109af9968272915583f3331dab412fe25c4c05966fd2d3f146d2052e31"
+    },
+    {
+      "file": "follower_5_lose_leg.png",
+      "cell": [
+        512,
+        512
+      ],
+      "pivot": [
+        256,
+        480
+      ],
+      "anchor": [
+        256,
+        480
+      ],
+      "source_frame": 0,
+      "source": "coif-walk-atlas.png",
+      "v1_body": "follower_5_walk_no_leg.png",
+      "body_rotation_degrees": 6.5,
+      "alpha_bbox": [
+        62,
+        22,
+        347,
+        477
+      ],
+      "sha256": "e32a1f04e5611a533688792c60d0ae9c1b42bfd95e623e14fd4eca0d34d2db0f"
+    },
+    {
+      "file": "dark_wizard_lose_arm.png",
+      "cell": [
+        512,
+        512
+      ],
+      "pivot": [
+        270,
+        482
+      ],
+      "anchor": [
+        270,
+        482
+      ],
+      "source_frame": 0,
+      "source": "wizard.png",
+      "v1_body": "dark_wizard_no_arm.png",
+      "body_rotation_degrees": 5.0,
+      "alpha_bbox": [
+        24,
+        14,
+        397,
+        492
+      ],
+      "sha256": "4c519a7cf3d4d19b30bd2ff326dbbfe7178a8cb60617f2332b94871706e252be"
+    },
+    {
+      "file": "dark_wizard_lose_leg.png",
+      "cell": [
+        512,
+        512
+      ],
+      "pivot": [
+        270,
+        482
+      ],
+      "anchor": [
+        270,
+        482
+      ],
+      "source_frame": 0,
+      "source": "wizard.png",
+      "v1_body": "dark_wizard_no_leg.png",
+      "body_rotation_degrees": 6.5,
+      "alpha_bbox": [
+        42,
+        16,
+        395,
+        476
+      ],
+      "sha256": "67321e345b9df0e3dee9a1d6316ffa1c09a67c6392ac1fd2e5bfd238385d00bf"
+    }
+  ],
+  "v1_pngs_unchanged": true,
+  "generations": 0
+}

@@ -28,12 +28,16 @@ KM.Music = (function () {
     if (!muted && cur && !hidden()) { const h = channel(cur); if (!h.src) startTrack(cur); else play(h); }
     onChange(settings());
   }
-  if (bus) bus.onmessage = e => { if (e.data === 'silence') setMuted(true, false); };
+  // Leaving the tab or another game tab starting only hushes this one; the player's own On/Off is never changed by it,
+  // and the music comes back when the tab is shown again (Magnus 2026-11-09: music must be on, not silently left off).
+  function hush() { pauseAll(); }
+  function resume() { if (!muted && cur && !hidden()) { const h = channel(cur); if (!h.src) startTrack(cur); else play(h); } }
+  if (bus) bus.onmessage = e => { if (e.data === 'silence') hush(); };
   addEventListener('storage', e => {
-    if (e.key === SILENCE_KEY) setMuted(true, false);
+    if (e.key === SILENCE_KEY) hush();
   });
-  document.addEventListener('visibilitychange', () => { if (hidden()) setMuted(true); });
-  addEventListener('pagehide', () => setMuted(true));
+  document.addEventListener('visibilitychange', () => { if (hidden()) hush(); else { silenceOthers(); resume(); } });
+  addEventListener('pagehide', hush);
   try {
     if (navigator.mediaSession) for (const action of ['pause', 'stop']) navigator.mediaSession.setActionHandler(action, () => setMuted(true));
   } catch (_) {}

@@ -15,5 +15,34 @@ KM_DATA.tutorial = {
     ],
     // optional small lines under the rows (none in v3): strike: "...", trail: "...", tricks: { title, lines } (meterPressure only)
     button: "Onward!"
+  },
+  // one-time tips the first time the cast bar shifts for a reason (Magnus 2026-11-09); same frame, words only
+  tips: {
+    recruitCode: {  // switch recruitCode: first recruit
+      saveKey: "knightMath.tutorial.recruitCodeTip",
+      title: "Quick hands",
+      text: "Companions want to see how fast you are. They care little about how smart you are. Type the numbers before the meter runs out.",
+      button: "Got it"
+    },
+    scared: {       // switch partyLevels: first time a foe's intimidation moves the cast bar
+      saveKey: "knightMath.tutorial.scaredTip",
+      title: "Terrified",
+      text: "Some creatures terrify you, and make the fight harder than it should be. But the more you and your fellowship level up the braver you become and these things will affect you less.",
+      art: "assets/ui/tips/v4/art_terrify.png", roar: "dragon_roar", roarGain: 0.35, // Magnus 2026-11-09: tip first, then the roar, then the icons shake + slide back
+      button: "Got it",
+      afterSecs: 0.4   // tip first: the bar's shake + slide plays when the sum's meter appears after it
+    },
+    party: {
+      saveKey: "knightMath.tutorial.partyTip",
+      title: "A bigger party", art: "assets/ui/tips/v4/art_party.png", // shown before your first recruit in the tavern
+      text: "With a larger party comes bigger damage. However, more people also means more arguing about who swings first, so you get less time to block or land a critical hit.",
+      button: "Got it"
+    },
+    gear: {
+      saveKey: "knightMath.tutorial.gearTip",
+      title: "Better gear", art: "assets/ui/tips/v4/art_gear.png", // shown when you first reach a scroll stall or shop
+      text: "Better gear compensates for your party not being able to agree on anything.",
+      button: "Got it"
+    }
   }
 };

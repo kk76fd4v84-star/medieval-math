@@ -7,14 +7,16 @@ KM.MeterPressure = (() => {
   const on = () => !!(KM.BalanceTry && KM.BalanceTry.on('meterPressure'));
   const snap = n => Math.round(n * 1e6) / 1e6, clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
   // per type, only the strongest living foe counts (a pack never stacks)
-  function strongest(foes) {
-    const out = { quick: 0, heavy: 0, slippery: 0, shroud: 0 };
-    for (const f of foes || []) { const p = D().foes[f.id || f] || {}; for (const k of TYPES) out[k] = Math.max(out[k], p[k] || 0); }
+  // extra = more foe pressures (party levels' early critters); courage 0..1 = share of the intimidation the party shrugs off
+  function strongest(foes, extra = {}, courage = 0) {
+    const out = { quick: 0, heavy: 0, slippery: 0, shroud: 0 }, keep = 1 - clamp(courage, 0, 1);
+    for (const f of foes || []) { const id = f.id || f, p = D().foes[id] || extra[id] || {}; for (const k of TYPES) out[k] = Math.max(out[k], snap((p[k] || 0) * keep)); }
     return out;
   }
+  // shrink = { crit, block } taken off the bands by cards (cards v2)
   // gear first cancels its pressure (never beyond clean); leftover weapon / armour widens the bands as before
-  function windows({ weapon = 0, armour = 0, companions = 0, helm = 0, lantern = 0, foes = [] } = {}) {
-    const r = R(), L = D().limits, G = D().gear, p = strongest(foes);
+  function windows({ weapon = 0, armour = 0, companions = 0, helm = 0, lantern = 0, foes = [], extra, courage = 0, shrink } = {}) {
+    const r = R(), L = D().limits, G = D().gear, p = strongest(foes, extra, courage);
     const use = (levels, step, need) => { const got = Math.min(need, Math.max(0, levels) * step); return [need - got, Math.max(0, levels - got / step)]; };
     const [slip, wLeft] = use(weapon, r.weaponStep, p.slippery);
     const [heavy, aLeft] = use(armour, r.armourStep, p.heavy);
@@ -23,8 +25,9 @@ KM.MeterPressure = (() => {
     const unpressured = { crit: snap(Math.min(r.critCap, r.critBefore + Math.max(0, weapon) * r.weaponStep)),
       block: snap(Math.min(r.blockCap, r.blockThrough + Math.max(0, armour) * r.armourStep)), normal: r.normalThrough };
     const critBase = Math.min(r.critCap, r.critBefore + wLeft * r.weaponStep), blockBase = Math.min(r.blockCap, r.blockThrough + aRest * r.armourStep);
-    const crit = snap(Math.max(L.critMin, critBase - party - slip));
-    const block = snap(Math.min(crit - L.bandGap, Math.max(L.blockMin, blockBase - partyBlock - heavy)));
+    const sc = (shrink && shrink.crit) || 0, sb = (shrink && shrink.block) || 0; // cards v2: Cleave / Shield Wall narrow a band
+    const crit = snap(Math.max(L.critMin, critBase - party - slip - sc));
+    const block = snap(Math.min(crit - L.bandGap, Math.max(L.blockMin, blockBase - partyBlock - heavy - sb)));
     const quick = snap(clamp(p.quick - Math.max(0, helm) * G.helm.step, 0, L.quickMax));
     const ink = snap(clamp(p.shroud - Math.max(0, lantern) * G.lantern.step, 0, L.inkMax));
     return { crit, block, normal: r.normalThrough, unpressured, meter: true,
@@ -37,7 +40,7 @@ KM.MeterPressure = (() => {
   // optional painted tag / shop art: used once it has loaded, else the text tag or glyph stays
   const art = {};
   function image(id) {
-    if (typeof Image === 'undefined') return null;
+    if (typeof Image === 'undefined' || !(D().artIds || []).includes(id)) return null; // only files listed in data
     if (!(id in art)) { const im = new Image(); art[id] = null; im.onload = () => (art[id] = im.src); im.src = D().art + id + '.png'; }
     return art[id];
   }

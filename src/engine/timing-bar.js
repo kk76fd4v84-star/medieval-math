@@ -3,9 +3,8 @@ window.KM=window.KM||{};
 KM.TimingBar=(()=>{
   // Exact small illustrations from the swamp concept, not new character artwork.
   const art='assets/timing-woodcut/';
-  const iconWidths={block:40,crit:90,normal:96,weak:64};
   const pctLoss=n=>String(Math.round(n*100));
-  let root,rail,geometry,key,lastPos=null;
+  let root,rail,geometry,key,lastPos=null,shift={};
   const CB=()=>KM.CastBar&&KM.CastBar.on()&&KM_DATA.castBar;
   function mount(divider,g){
     geometry={...g,markerSize:[g.width,16],cy:8};key=null;
@@ -19,24 +18,25 @@ KM.TimingBar=(()=>{
       b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();});
       b.addEventListener('keydown',e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();e.stopPropagation();}});
     });
-    rail.append(root);divider.append(rail);lastPos=null;
+    rail.append(root);divider.append(rail);lastPos=null;shift={};
     const cb=CB();if(cb){rail.classList.add('castbar');rail.style.setProperty('--cb-ink-ms',cb.inkFadeMs+'ms');rail.style.setProperty('--cb-shake-n',String(Math.max(1,Math.round(cb.shakeMs/180))));rail.style.setProperty('--cb-shake-px',cb.shakePx+'px');}
   }
   // cast bar (switch): a moved icon shakes, slides, and leaves a green (helps) / red (hurts) trail that then catches up
   const calm=()=>typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
   const pc=f=>(f*100)+'%';
-  function animate(moved,cb,roar=false){
-    const ink=rail.querySelector('.timing-ink'),still=calm(),play=id=>KM.Audio&&KM.Audio.play(id); // silent when no file is mapped
+  function animate(moved,cb,how){ // how: 'shift' | 'roar' (boss: trail stays while its pressure lasts) | 'restore' (boss gone)
+    const roar=how==='roar';if(how==='restore')rail.querySelectorAll('.cb-trail[data-boss]').forEach(t=>t.remove());
+    const still=calm(),play=id=>KM.Audio&&KM.Audio.play(id); // silent when no file is mapped
     const slide=`${cb.slideMs}ms ${cb.ease} ${cb.shakeMs}ms`;
     if(roar)play(cb.sfx.roar); // a boss shifted them
-    if(!still){play(cb.sfx.shake);ink.style.transition=`clip-path ${slide}`;}
+    if(!still)play(cb.sfx.shake);
     const way=moved.some(m=>!m.good)?'bad':'good';setTimeout(()=>play(cb.sfx[way]),still?0:cb.shakeMs); // winds down if anything got worse
     for(const m of moved){
       const b=root.querySelector(`[data-outcome="${m.id}"]`);
-      rail.querySelector(`.cb-trail[data-id="${m.id}"]`)?.remove();
-      const t=document.createElement('div');t.className='cb-trail';t.dataset.id=m.id;t.dataset.good=String(m.good);
-      const c=KM.CastBar.colour(m.good),img=KM.CastBar.tint(c);
-      if(img)t.style.borderImageSource=`url("${img}")`;else{t.style.borderImage='none';t.style.background=c;}
+      rail.querySelector(`.cb-trail[data-id="${m.id}"]:not([data-boss])`)?.remove();
+      if(how==='restore'){if(!still){b.style.transition=`left ${slide}`;b.classList.remove('cb-shake');void b.offsetWidth;b.classList.add('cb-shake');setTimeout(()=>{b.style.transition='';},cb.shakeMs+cb.slideMs);}continue;}
+      const t=document.createElement('div');t.className='cb-trail';t.dataset.id=m.id;t.dataset.good=String(m.good);if(roar)t.dataset.boss='1';
+      t.style.borderImageSource=`url("${KM.CastBar.fill(m.good)}")`; // the timer fill, only the colour swapped
       const lo=Math.min(m.from,m.to),span=Math.abs(m.to-m.from);
       rail.insertBefore(t,root); // over the track and the timer fill, under the icons, not cut by the icon gaps
       if(still){b.style.transition='none';t.style.left=pc(lo);t.style.width=pc(span);
@@ -46,8 +46,9 @@ KM.TimingBar=(()=>{
       t.style.left=pc(m.from);t.style.width='0%';void t.offsetWidth;
       t.style.transition=`left ${slide},width ${slide}`;t.style.left=pc(lo);t.style.width=pc(span);
       const done=cb.shakeMs+cb.slideMs+cb.holdMs;
+      if(roar){setTimeout(()=>{b.style.transition='';},cb.shakeMs+cb.slideMs);continue;} // boss: the trail stays until its pressure is gone
       setTimeout(()=>{t.style.transition=`left ${cb.shrinkMs}ms ${cb.ease},width ${cb.shrinkMs}ms ${cb.ease}`;t.style.left=pc(m.to);t.style.width='0%';},done);
-      setTimeout(()=>t.remove(),done+cb.shrinkMs); // cb-shake stays on (removing it would replay the mount pop)
+      setTimeout(()=>{t.remove();b.style.transition='';},done+cb.shrinkMs); // then back to snapping; cb-shake stays on (removing it would replay the mount pop)
     }
   }
   function update(w,{roar=false,visible=false,timed=false,jp=false,forgiving=false,deadline=false,hit=null,ink=null,tags=[]}={}){
@@ -96,22 +97,16 @@ KM.TimingBar=(()=>{
       if(partyLoss>0||enemyLoss>0)lines[id]+=jp?' 赤い部分は短くなった範囲。':' Red shows the lost window.';
     }
     const positions={crit:w.crit,block:w.block,normal:w.normal,weak:1},cb=CB();
-    if(cb){const moved=visible&&lastPos?KM.CastBar.changes(lastPos,positions):[];lastPos=visible?positions:null;if(moved.length)animate(moved,cb,roar);}
+    if(cb&&!roar)rail.querySelectorAll('.cb-trail[data-boss]').forEach(t=>t.remove()); // out of the boss fight: its trail goes
+    if(cb&&visible){const prev=lastPos;lastPos=positions; // hidden (tavern, ...): the last shown layout is kept, so the change plays once it is shown
+      const how=prev?KM.CastBar.motion(shift,roar,prev,positions):'still';
+      if(how!=='still')animate(KM.CastBar.changes(prev,positions),cb,how);}
     root.querySelectorAll('button').forEach(button=>{
-      const id=button.dataset.outcome;button.style.left=(positions[id]*100)+'%';
+      const id=button.dataset.outcome;if(!cb||visible)button.style.left=(positions[id]*100)+'%'; // cast bar hidden: icons wait where they were shown
       button.dataset.threshold=positions[id];button.setAttribute('aria-label',lines[id]);
       button.querySelector('[role="tooltip"]').textContent=lines[id];
     });
-    // Real gaps around the paintings, without opaque rectangles over the parchment.
-    const gaps=visible?Object.entries(positions).map(([id,f])=>{
-      const half=iconWidths[id]/2+7,centre=id==='weak'?geometry.width-iconWidths[id]/2:f*geometry.width;
-      return [Math.max(0,centre-half),Math.min(geometry.width,centre+half)];
-    }).sort((a,b)=>a[0]-b[0]):[];
-    const points=['0px 0px','0px 14px'];
-    let end=0;
-    for(const [a,b] of gaps){const start=Math.max(end,a);end=Math.max(start,b);points.push(`${start}px 14px`,`${start}px 0px`,`${end}px 0px`,`${end}px 14px`);}
-    points.push(`${geometry.width}px 14px`,`${geometry.width}px 0px`);
-    rail.querySelector('.timing-ink').style.clipPath=`polygon(${points.join(',')})`;
+    // no gaps: the line and ink run straight through and each painting sits on the line (Magnus, brawl-14)
     const markers=rail.querySelector('.timer-markers');
     if(markers){const svg=KM.Timing.markers(...geometry.markerSize,geometry.cy,w);markers.innerHTML=svg.slice(svg.indexOf('>')+1,svg.lastIndexOf('</svg>'));}
   }
